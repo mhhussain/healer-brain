@@ -1,16 +1,14 @@
 import type { Unit } from '../sim/types';
 import type { World } from '../sim/world';
+import { PAL, TAU } from './palette';
+import { DEPTH, PILLAR_H, drawBackdrop, drawHall, drawPillar, drawWater, type View } from './scenery';
 
 // Belt-scroller view: x runs along the hall, y is depth (drawn squashed), z is height.
-const DEPTH = 0.6;
 const WALL_H = 6;
-const PILLAR_H = 3.2;
-const LEDGE = 0.7;
 const BOTTOM = 150;
 const HERO_H = 1.9;
 const FALL = 0.45;
 const LEAN = 7;
-const TAU = Math.PI * 2;
 
 type Hat = 'helm' | 'hood' | 'point' | 'band' | 'crown' | 'horns' | 'none';
 type Weapon = 'shield' | 'sword' | 'club' | 'staff' | 'bow' | 'blades' | 'none';
@@ -42,6 +40,7 @@ const PLAIN: Look = { hat: 'none', weapon: 'none' };
 const INK = '#0d0f14';
 const STEEL = '#c9d2e0';
 const WOOD = '#8a6a45';
+void PAL;
 
 const shades = new Map<string, string>();
 function shade(hex: string, f: number) {
@@ -59,17 +58,22 @@ function shade(hex: string, f: number) {
 // Per-unit animation state, kept by the renderer only.
 interface Anim { x: number; y: number; phase: number; walking: boolean; dir: 1 | -1; auto: number; gcd: number; atk: number; hp: number; flash: number; gone: number }
 
-export class Renderer {
-  private ctx: CanvasRenderingContext2D;
-  private w = 0;
-  private h = 0;
+export class Renderer implements View {
+  ctx: CanvasRenderingContext2D;
+  w = 0;
+  h = 0;
   private dpr = 1;
-  private oy = 0;
+  oy = 0;
   private last = 0;
   private mapOf: World | null = null;
   // per column: depth of the wall's front face, and whether the column has floor
-  private wallAt: number[] = [];
-  private front = 0;
+  wallAt: number[] = [];
+  front = 0;
+  // right-hand edge of each zone, and where each zone's lamp stands
+  zoneEnd: number[] = [0, 0, 0];
+  lampX: number[] = [0, 0, 0];
+  lit: number[] = [0, 0, 0];
+  toll = 0;
   private anims = new Map<number, Anim>();
   scale = 30;
   camX = 0;
@@ -106,23 +110,30 @@ export class Renderer {
     }
     this.scale = Math.max(14, Math.min(48, this.w / 50, (this.h - BOTTOM - 70) / (deepest * DEPTH + WALL_H)));
     this.oy = this.h - BOTTOM - this.front * this.scale * DEPTH;
+    const bosses = world.packs.filter((p) => p.def.boss);
+    this.lampX = bosses.map((p) => p.def.center.x);
+    this.zoneEnd = bosses.map((p) => p.def.center.x + 17);
+    this.lit = bosses.map((p) => (p.cleared ? 1 : 0));
+    this.toll = 0;
     this.camX = world.player.x;
     this.lean = 0;
     this.anims.clear();
     this.mapOf = world;
   }
 
-  private sx(x: number) { return (x - this.camX) * this.scale + this.w / 2; }
-  private sy(y: number, z = 0) { return this.oy + y * this.scale * DEPTH - z * this.scale; }
+  zoneAt(x: number) { return x < this.zoneEnd[0] ? 0 : x < this.zoneEnd[1] ? 1 : 2; }
 
-  private wallFront(x: number) {
+  sx(x: number) { return (x - this.camX) * this.scale + this.w / 2; }
+  sy(y: number, z = 0) { return this.oy + y * this.scale * DEPTH - z * this.scale; }
+
+  wallFront(x: number) {
     const b = x >= 0 && x < this.wallAt.length ? this.wallAt[x] : -1;
     return b < 0 ? this.front : b;
   }
 
-  private screenSpace() { this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0); }
+  screenSpace() { this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0); }
   // Draw in floor coordinates: world metres in, squashed for depth.
-  private floorSpace() {
+  floorSpace() {
     const s = this.scale, d = this.dpr;
     this.ctx.setTransform(d * s, 0, 0, d * s * DEPTH, d * (this.w / 2 - this.camX * s), d * this.oy);
   }
@@ -189,10 +200,19 @@ export class Renderer {
     this.camX += (want - this.camX) * (1 - Math.exp(-dt * 9));
     if (Math.abs(want - this.camX) > 40) this.camX = want;
 
+    // lamps come alight over a few seconds; the great bell swings while the Abbot tolls it
+    world.packs.filter((k) => k.def.boss).forEach((k, i) => {
+      this.lit[i] = k.cleared ? Math.min(1, this.lit[i] + dt / 2.5) : 0;
+    });
+    const tolling = world.enemies.some((e) => e.alive && !!e.cast?.ab?.hide);
+    this.toll += ((tolling ? 1 : 0) - this.toll) * (1 - Math.exp(-dt * 2));
+
     this.screenSpace();
-    g.fillStyle = '#07080b';
+    g.fillStyle = PAL.deep;
     g.fillRect(0, 0, this.w, this.h);
-    this.drawHall(world);
+    drawBackdrop(this, world.time);
+    drawHall(this, world, world.time);
+    drawWater(this, world, world.time);
 
     // floor decals: telegraphs, rings, selection, shadows
     this.floorSpace();
@@ -247,7 +267,11 @@ export class Renderer {
     // pillars and figures, back to front
     const items: { y: number; draw: () => void }[] = [];
     for (const pl of world.map.pillars) {
-      if (pl.alive) items.push({ y: pl.y + pl.h - 0.01, draw: () => this.drawPillar(pl.x, pl.y, pl.w, pl.h, units) });
+      if (pl.alive) items.push({
+        y: pl.y + pl.h - 0.01,
+        // see-through while someone stands behind it
+        draw: () => drawPillar(this, pl.x, pl.y, pl.w, pl.h, units.some((u) => u.alive && u.y < pl.y + pl.h && u.y > pl.y - PILLAR_H / DEPTH && u.x > pl.x - 0.7 && u.x < pl.x + pl.w + 0.7)),
+      });
     }
     for (const u of units) {
       const a = this.anim(u, dt);
@@ -291,136 +315,6 @@ export class Renderer {
       g.fillText(f.text!, x, y);
       g.globalAlpha = 1;
     }
-  }
-
-  // Walls, floor and the front ledge, one run of equal columns at a time.
-  private drawHall(world: World) {
-    const g = this.ctx, s = this.scale;
-    const x0 = Math.floor(this.camX - this.w / 2 / s) - 1, x1 = Math.ceil(this.camX + this.w / 2 / s) + 1;
-    const frontY = this.sy(this.front);
-    let run = x0;
-    for (let x = x0; x <= x1; x++) {
-      if (x < x1 && this.wallFront(x + 1) === this.wallFront(run)) continue;
-      const wf = this.wallFront(run);
-      const left = Math.floor(this.sx(run)), wide = Math.ceil(this.sx(x + 1)) - left;
-      const faceBottom = this.sy(wf), faceTop = faceBottom - WALL_H * s;
-      g.fillStyle = '#12141a';
-      g.fillRect(left, 0, wide, faceTop);
-      const grad = g.createLinearGradient(0, faceTop, 0, faceBottom);
-      grad.addColorStop(0, '#3a4252');
-      grad.addColorStop(1, '#262b37');
-      g.fillStyle = grad;
-      g.fillRect(left, faceTop, wide, faceBottom - faceTop);
-      // courses of stone
-      g.strokeStyle = 'rgba(0,0,0,0.22)';
-      g.lineWidth = 1;
-      g.beginPath();
-      for (let k = 1; k < WALL_H; k++) {
-        const y = Math.round(faceTop + k * s) + 0.5;
-        g.moveTo(left, y); g.lineTo(left + wide, y);
-      }
-      for (let cx = run; cx <= x; cx++) {
-        if (cx % 2) continue;
-        for (let k = 0; k < WALL_H; k++) {
-          const bx = Math.round(this.sx(cx + (k % 2))) + 0.5;
-          g.moveTo(bx, faceTop + k * s); g.lineTo(bx, faceTop + (k + 1) * s);
-        }
-      }
-      g.stroke();
-      g.fillStyle = '#566076';
-      g.fillRect(left, faceTop - 2, wide, 3);
-      if (wf < this.front) {
-        g.fillStyle = '#2b303b';
-        g.fillRect(left, faceBottom, wide, frontY - faceBottom);
-        g.fillStyle = '#1b1e26';
-        g.fillRect(left, frontY, wide, LEDGE * s);
-        g.fillStyle = '#434b5c';
-        g.fillRect(left, frontY - 1, wide, 2);
-        // contact shadow at the foot of the wall
-        const sh = g.createLinearGradient(0, faceBottom, 0, faceBottom + 0.9 * s);
-        sh.addColorStop(0, 'rgba(0,0,0,0.4)');
-        sh.addColorStop(1, 'rgba(0,0,0,0)');
-        g.fillStyle = sh;
-        g.fillRect(left, faceBottom, wide, 0.9 * s);
-      }
-      // the near corner of a wall that stands in front of its neighbour
-      for (const [edge, other] of [[run, run - 1], [x + 1, x + 1]] as const) {
-        if (this.wallFront(other) >= wf) continue;
-        g.fillStyle = '#566076';
-        g.fillRect(Math.round(this.sx(edge)) - 1, faceTop, 2, faceBottom - faceTop);
-      }
-      run = x + 1;
-    }
-
-    // tiles, rubble
-    const m = world.map;
-    this.floorSpace();
-    g.fillStyle = 'rgba(255,255,255,0.028)';
-    for (let x = Math.max(0, x0); x <= Math.min(m.w - 1, x1); x++) {
-      const b = this.wallAt[x];
-      if (b < 0) continue;
-      for (let y = b; y < this.front; y++) if ((x + y) % 2) g.fillRect(x, y, 1, 1);
-    }
-    for (const pl of m.pillars) {
-      if (pl.alive) continue;
-      g.fillStyle = '#4a5162';
-      for (let i = 0; i < 6; i++) {
-        const a = i * 2.4 + pl.id;
-        g.beginPath();
-        g.arc(pl.x + pl.w / 2 + Math.cos(a) * pl.w * 0.35, pl.y + pl.h / 2 + Math.sin(a) * pl.h * 0.35, 0.28 + (i % 3) * 0.12, 0, TAU);
-        g.fill();
-      }
-    }
-    this.screenSpace();
-
-    // torches on the long stretches of back wall
-    g.globalCompositeOperation = 'lighter';
-    for (let x = Math.floor(x0 / 12) * 12 - 6; x <= x1 + 12; x += 12) {
-      const wf = this.wallFront(x);
-      if (wf >= this.front - 8 || this.wallFront(x - 1) !== wf || this.wallFront(x + 1) !== wf) continue;
-      const tx = this.sx(x + 0.5), ty = this.sy(wf) - 2.7 * s;
-      const flick = 0.85 + 0.15 * Math.sin(world.time * 9 + x);
-      const glow = g.createRadialGradient(tx, ty, 0, tx, ty, 4.2 * s);
-      glow.addColorStop(0, `rgba(255,170,80,${0.22 * flick})`);
-      glow.addColorStop(1, 'rgba(255,170,80,0)');
-      g.fillStyle = glow;
-      g.fillRect(tx - 4.2 * s, ty - 4.2 * s, 8.4 * s, 8.4 * s);
-    }
-    g.globalCompositeOperation = 'source-over';
-    for (let x = Math.floor(x0 / 12) * 12 - 6; x <= x1 + 12; x += 12) {
-      const wf = this.wallFront(x);
-      if (wf >= this.front - 8 || this.wallFront(x - 1) !== wf || this.wallFront(x + 1) !== wf) continue;
-      const tx = this.sx(x + 0.5), ty = this.sy(wf) - 2.7 * s;
-      g.fillStyle = WOOD;
-      g.fillRect(tx - 0.06 * s, ty, 0.12 * s, 0.6 * s);
-      g.fillStyle = '#ffb347';
-      g.beginPath();
-      g.ellipse(tx, ty - 0.1 * s, 0.16 * s, (0.26 + 0.05 * Math.sin(world.time * 11 + x)) * s, 0, 0, TAU);
-      g.fill();
-    }
-  }
-
-  private drawPillar(px: number, py: number, pw: number, ph: number, units: Unit[]) {
-    const g = this.ctx, s = this.scale;
-    const left = this.sx(px), wide = pw * s;
-    const base = this.sy(py + ph), top = base - PILLAR_H * s, capTop = this.sy(py) - PILLAR_H * s;
-    // see-through while someone stands behind it
-    const hides = units.some((u) => u.alive && u.y < py + ph && u.y > py - PILLAR_H / DEPTH && u.x > px - 0.7 && u.x < px + pw + 0.7);
-    g.globalAlpha = hides ? 0.45 : 1;
-    const grad = g.createLinearGradient(left, 0, left + wide, 0);
-    grad.addColorStop(0, '#5d6779');
-    grad.addColorStop(1, '#444c5c');
-    g.fillStyle = grad;
-    g.fillRect(left, top, wide, base - top);
-    g.fillStyle = '#7a869c';
-    g.fillRect(left, capTop, wide, top - capTop);
-    g.strokeStyle = INK;
-    g.lineWidth = 2;
-    g.strokeRect(left, capTop, wide, base - capTop);
-    g.beginPath();
-    g.moveTo(left, top); g.lineTo(left + wide, top);
-    g.stroke();
-    g.globalAlpha = 1;
   }
 
   private drawFigure(world: World, u: Unit, a: Anim) {

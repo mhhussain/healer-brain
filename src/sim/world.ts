@@ -58,6 +58,9 @@ export interface Fx {
   life: number;
 }
 
+// Things that just happened, for sound and story. The interface drains this; the simulation never reads it.
+export interface SimEvent { k: 'hit' | 'heal' | 'death' | 'interrupt' | 'dispel' | 'ability' | 'engage' | 'clear' | 'wipe' | 'boom'; id?: number; src?: number; amt?: number; s?: string }
+
 export interface AbilityState { cd: number; cdMax: number; usable: boolean }
 
 const dist = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -79,6 +82,7 @@ export class World {
   zones: Zone[] = [];
   fx: Fx[] = [];
   alerts: { text: string; t: number }[] = [];
+  events: SimEvent[] = [];
   error: { text: string; t: number } | null = null;
 
   level: number;
@@ -208,6 +212,7 @@ export class World {
     this.fx.push({ kind: 'ring', x, y, r, color, t: 0, life: 0.3 });
   }
   alert(text: string) { this.alerts.push({ text, t: 0 }); }
+  private emit(e: SimEvent) { if (this.events.length < 400) this.events.push(e); }
   zone(z: Omit<Zone, 't'>) { this.zones.push({ ...z, t: 0 }); }
 
   hasAura(u: Unit, id: string) { return u.auras.some((a) => a.id === id); }
@@ -246,20 +251,21 @@ export class World {
     }
     a = Math.round(a);
     tgt.hp -= a;
-    if (src && !o.noBeam && dist(src, tgt) > 4) this.beam(src, tgt, src.hero ? src.hero.color : '#d9655a');
+    this.emit({ k: 'hit', id: tgt.id, src: src ? src.id : -1, amt: a, s: type });
+    if (src && !o.noBeam && dist(src, tgt) > 4) this.beam(src, tgt, src.hero ? src.hero.color : '#b58cf0');
     if (tgt.team === 'enemy') {
       if (src && src.hero) {
         src.stats.dmg += a;
         this.engageFrom(src, tgt);
         this.addThreat(tgt, src.id, a * src.hero.threatMult);
       }
-      if (a > 0) this.text(tgt.x, tgt.y, String(a), src && src.isPlayer ? '#ffe27a' : '#d8d8d8');
+      if (a > 0) this.text(tgt.x, tgt.y, String(a), src && src.isPlayer ? '#f0b54a' : '#d9d3c2');
     } else {
       if (tgt.hero!.id === 'warden' && src && a > 0 && this.time - tgt.rageGate >= 1) {
         tgt.rageGate = this.time;
         this.gain(tgt, 1);
       }
-      this.text(tgt.x, tgt.y, a > 0 ? '-' + a : 'absorbed', '#ff6b5e');
+      this.text(tgt.x, tgt.y, a > 0 ? '-' + a : 'absorbed', '#ef5d4a');
     }
     if (tgt.hp <= 0) this.kill(tgt);
     return a;
@@ -279,7 +285,8 @@ export class World {
     tgt.hp += eff;
     if (eff > 0) {
       src.stats.heal += eff;
-      this.text(tgt.x, tgt.y, '+' + eff, '#7dd87d');
+      this.emit({ k: 'heal', id: tgt.id, src: src.id, amt: eff });
+      this.text(tgt.x, tgt.y, '+' + eff, '#8fe6b4');
       const es = this.engagedEnemies();
       for (const e of es) this.addThreat(e, src.id, (eff * 0.5) / es.length);
     }
@@ -290,12 +297,13 @@ export class World {
     u.alive = false;
     u.hp = 0;
     u.cast = null;
+    this.emit({ k: 'death', id: u.id });
     u.auras = [];
     u.path = null;
     if (u.team === 'hero') {
       u.stats.deaths++;
       this.deaths++;
-      this.text(u.x, u.y, u.name + ' dies', '#ff6b5e');
+      this.text(u.x, u.y, u.name + ' falls', '#ef5d4a');
     } else {
       u.enemy!.onDeath?.(this, u);
     }
@@ -317,6 +325,7 @@ export class World {
     pack.tankHitAt = null;
     this.started = true;
     this.inCombat = true;
+    this.emit({ k: 'engage', id: pack.def.id });
     for (const u of pack.units) {
       if (!u.alive) continue;
       this.wake(u);
@@ -346,15 +355,16 @@ export class World {
     this.engageFrom(u, e);
     const c = e.cast;
     if (!c || !c.interruptible) {
-      this.text(e.x, e.y, 'Nothing to interrupt', '#aaa');
+      this.text(e.x, e.y, 'Nothing to interrupt', '#9fb0b1');
       return;
     }
     e.cast = null;
     e.busy = 0.6;
     e.cds[c.ab!.id] = Math.max(c.ab!.cd, 3);
     u.stats.interrupts++;
+    this.emit({ k: 'interrupt', id: e.id, src: u.id });
     u.lastInterrupt = this.time;
-    this.text(e.x, e.y, 'Interrupted', '#ffe27a');
+    this.text(e.x, e.y, 'Silenced', '#f0b54a');
     if (dist(u, e) > 4) this.beam(u, e, u.hero!.color);
   }
 
@@ -363,7 +373,8 @@ export class World {
     t.auras = t.auras.filter((a) => !a.dispellable);
     if (t.auras.length < before) {
       u.stats.dispels++;
-      this.text(t.x, t.y, 'Dispelled', '#c9a2ff');
+      this.emit({ k: 'dispel', id: t.id });
+      this.text(t.x, t.y, 'Cleansed', '#c9a2ff');
     }
   }
 
@@ -465,6 +476,7 @@ export class World {
     if (ab.cd) u.cds[ab.id] = ab.cd;
     if (!ab.offGcd && !ab.cast) u.gcd = u.hero!.gcd;
     this.face(u, t);
+    this.emit({ k: 'ability', id: u.id, s: ab.id });
     ab.fire(this, u, t);
   }
 
@@ -675,6 +687,7 @@ export class World {
       z.t += dt;
       const owner = z.ownerId != null ? this.unit(z.ownerId) : null;
       if (z.t >= z.delay) {
+        this.emit({ k: 'boom', id: z.ownerId ?? -1 });
         for (const h of this.heroes) {
           if (h.alive && inZone(z, h.x, h.y)) this.damage(owner, h, z.dmg, z.type, { noBeam: true, scaled: true });
         }
@@ -725,8 +738,9 @@ export class World {
     for (const p of this.packs) {
       if (!p.engaged || p.cleared || p.units.some((u) => u.alive)) continue;
       p.cleared = true;
+      this.emit({ k: 'clear', id: p.def.id });
       if (p.def.boss) {
-        this.alert(p.def.name + ' defeated');
+        this.alert(p.def.lamp ?? p.def.name + ' is at rest');
         for (const h of this.heroes) if (!h.isPlayer || this.autoplay) h.jumpAt = this.time + 0.3 + h.slot * 0.15;
       }
     }
@@ -745,7 +759,8 @@ export class World {
   }
 
   private wipe() {
-    this.alert('Wipe — the encounter resets');
+    this.alert('Driven back. The keepers return to their posts.');
+    this.emit({ k: 'wipe' });
     this.zones = [];
     this.gather = null;
     this.map.restorePillars();

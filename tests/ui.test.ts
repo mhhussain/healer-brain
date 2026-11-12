@@ -14,7 +14,7 @@ test('setup screen, run and pause work end to end', async () => {
   await import('../src/main');
   expect(document.querySelector('.setup')).toBeTruthy();
   expect(document.querySelectorAll('.kit-row').length).toBe(6);
-  // default hero is the Mender, so the click-cast editor is shown
+  // default hero is Sister Wren, a healer, so the click-cast editor is shown
   expect(document.querySelectorAll('.bind-row').length).toBe(4);
 
   (document.querySelector('button.start') as HTMLElement).click();
@@ -29,11 +29,11 @@ test('setup screen, run and pause work end to end', async () => {
   window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyD' }));
   window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Tab' }));
   window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Digit3' }));
-  // click-cast: left click on your own frame casts Mend on yourself
+  // click-cast: left click on your own frame casts Warm Light on yourself
   const ownFrame = document.querySelector('.frame.me') as HTMLElement;
   ownFrame.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true }));
   frames(20);
-  expect((document.querySelector('.castbar span') as HTMLElement).textContent).toMatch(/^Mend /);
+  expect((document.querySelector('.castbar span') as HTMLElement).textContent).toMatch(/^Warm Light /);
   frames(600);
   expect(document.querySelector('.timer')!.textContent).toMatch(/^\d+:\d\d \/ 14:00$/);
 

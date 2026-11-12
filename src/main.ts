@@ -54,7 +54,7 @@ function showSetup() {
   app.innerHTML = '';
   const root = el('div', 'screen setup');
   const head = el('header');
-  head.append(el('h1', '', 'Fourfold'), el('p', 'tag', 'A solo dungeon run. Pick your hero; the other three play themselves.'));
+  head.append(el('h1', '', 'Fourfold'), el('p', 'tag', 'Fourteen minutes of low tide. Three lamps to light. Pick who you play; the other three look after themselves.'));
   root.append(head);
 
   const party = el('div', 'slots');
@@ -68,7 +68,7 @@ function showSetup() {
       b.style.setProperty('--c', def.color);
       opts.append(b);
     }
-    card.append(opts, el('div', 'sub', HEROES[save.party[i]].sub));
+    card.append(opts, el('div', 'sub', `${HEROES[save.party[i]].title} · ${HEROES[save.party[i]].sub}`));
     card.append(button(save.slot === i ? 'You play this hero' : 'Play this hero', 'play' + (save.slot === i ? ' on' : ''), () => { save.slot = i; storeSave(save); showSetup(); }));
     party.append(card);
   });
@@ -112,7 +112,7 @@ function showSetup() {
   for (const l of lines) controls.append(el('li', '', l));
   side.append(controls);
   if (def.role === 'healer') side.append(bindingsEditor(def.id));
-  side.append(button(`Enter the Sunken Bastion — level ${save.level}`, 'start', () => startRun(save.level)));
+  side.append(button(`Descend into the Drowned Abbey · level ${save.level}`, 'start', () => startRun(save.level)));
   cols.append(side);
   root.append(cols);
   app.append(root);

@@ -67,7 +67,7 @@ describe('player input', () => {
     w.press(0);
     for (let i = 0; i < 10; i++) w.tick(DT);
     expect(w.error?.text).toBeUndefined();
-    expect(p.cast?.name).toBe('Firebolt');
+    expect(p.cast?.name).toBe('Wickfire');
     expect(p.targetId).toBe(w.heroes[0].targetId);
     w.input.my = 1;
     w.tick(DT); w.tick(DT);

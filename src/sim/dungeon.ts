@@ -6,6 +6,10 @@ export interface PackDef {
   name: string;
   boss: boolean;
   enemies: string[];
+  // 0 Sea Gate, 1 Infirmary, 2 Nave
+  zone: number;
+  // boss rooms: the line shown when the lamp is lit
+  lamp?: string;
   center: Vec;
   entry: Vec;
   pullFrom: Vec;
@@ -15,6 +19,7 @@ export interface PackDef {
 interface Encounter {
   name: string;
   boss?: boolean;
+  lamp?: string;
   enemies: string[];
   // [dx, dy, size] relative to the room centre
   pillars?: [number, number, number][];
@@ -22,15 +27,15 @@ interface Encounter {
 }
 
 const ENCOUNTERS: Encounter[] = [
-  { name: 'Pack 1', enemies: ['brute', 'brute', 'brute', 'hexer'] },
-  { name: 'Pack 2', enemies: ['brute', 'brute', 'archer', 'shaman'] },
-  { name: 'Krogg the Gatebreaker', boss: true, enemies: ['krogg'] },
-  { name: 'Pack 3', enemies: ['brute', 'brute', 'hexer', 'hexer'], pillars: [[-8, -4, 2], [8, -4, 2], [-8, 4, 2], [8, 4, 2]], los: true },
-  { name: 'Pack 4', enemies: ['overseer', 'archer', 'archer', 'shaman'] },
-  { name: 'Matron Velisse', boss: true, enemies: ['velisse'] },
-  { name: 'Pack 5', enemies: ['berserker', 'berserker', 'hexer', 'shaman'], pillars: [[-9, 0, 2], [9, 0, 2]] },
-  { name: 'Pack 6', enemies: ['overseer', 'berserker', 'archer', 'archer'] },
-  { name: 'Archon Sulmar', boss: true, enemies: ['sulmar'], pillars: [[-9, -5, 3], [9, -5, 3], [-9, 5, 3], [9, 5, 3]] },
+  { name: 'The Cloister Walk', enemies: ['brute', 'brute', 'brute', 'hexer'] },
+  { name: 'The Wet Stair', enemies: ['brute', 'brute', 'archer', 'shaman'] },
+  { name: 'Brother Krogg', boss: true, lamp: 'The Gate Lamp burns. Brother Krogg sets down his keys.', enemies: ['krogg'] },
+  { name: 'The Undercroft', enemies: ['brute', 'brute', 'hexer', 'hexer'], pillars: [[-8, -4, 2], [8, -4, 2], [-8, 4, 2], [8, 4, 2]], los: true },
+  { name: 'The Dispensary', enemies: ['overseer', 'archer', 'archer', 'shaman'] },
+  { name: 'Sister Velisse', boss: true, lamp: 'The Ward Lamp burns. Sister Velisse\'s little ones are quiet.', enemies: ['velisse'] },
+  { name: 'The Choir Stalls', enemies: ['berserker', 'berserker', 'hexer', 'shaman'], pillars: [[-9, 0, 2], [9, 0, 2]] },
+  { name: 'The Bell Stair', enemies: ['overseer', 'berserker', 'archer', 'archer'] },
+  { name: 'Abbot Sulmar', boss: true, lamp: 'The Bell Lamp burns. The Abbot lets go of the rope.', enemies: ['sulmar'], pillars: [[-9, -5, 3], [9, -5, 3], [-9, 5, 3], [9, 5, 3]] },
 ];
 
 // One straight hall, left to right. x runs along it, y is depth: small y is the back wall,
@@ -61,6 +66,8 @@ export function buildDungeon(): { map: GameMap; packs: PackDef[]; start: Vec } {
       name: enc.name,
       boss: !!enc.boss,
       enemies: enc.enemies,
+      zone: Math.floor(id / 3),
+      lamp: enc.lamp,
       center: { x: cx, y: cy },
       entry: { x: right - 3, y: FRONT - DOOR / 2 },
       pullFrom: { x: right + WALL / 2, y: FRONT - DOOR / 2 },

@@ -43,6 +43,8 @@ export interface AbilityDef {
 export interface HeroDef {
   id: string;
   name: string;
+  // epithet, such as 'The Lamplighter'
+  title: string;
   role: Role;
   sub: string;
   color: string;

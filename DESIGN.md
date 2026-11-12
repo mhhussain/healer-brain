@@ -1,6 +1,6 @@
 # Fourfold — design
 
-Status: **draft for approval**. Nothing is built yet. Numbers are starting values and will be tuned.
+Status: **approved and built**. Numbers below are the tuned values in the game.
 
 Fourfold is an original, solo, browser-based dungeon runner in the style of timed five-player MMO dungeons. You play one hero in a party of four; AI plays the other three.
 
@@ -46,6 +46,13 @@ Result rules:
 - **Ally abilities** go to the ally under the mouse (hero on the map or party frame). With no ally under the mouse, they go to yourself.
 - **Auto-attacks** fire on your enemy target whenever it is in range and in line of sight.
 
+### Click-to-cast (healers)
+
+- Clicking a party frame casts the spell bound to that click. It applies to party frames only; clicking a hero on the map does nothing.
+- Defaults: left click is Mend / Mending Vine, right click is Quick Mend / Bark Ward, Shift + left click is the dispel, Shift + right click is the damage reduction.
+- Any ally spell can be rebound to left, right or middle click, plain or with Shift, Ctrl or Alt. The editor is on the party setup screen and in the pause menu, and bindings are saved per healer.
+- Keys 1–6 keep working alongside it.
+
 ## 4. Combat rules
 
 ### Global rules
@@ -75,7 +82,7 @@ Result rules:
 ### Death and recovery
 
 - A dead hero stays down until combat ends, then revives. Each death adds 5 s to the timer.
-- If all four die, the pack or boss resets to full health and the party revives at the room entrance.
+- If all four die, the pack or boss resets to full health, destroyed pillars are rebuilt, and the party revives at the room entrance.
 - Out of combat, health and resources refill at 10% per second.
 
 ## 5. Heroes
@@ -84,12 +91,12 @@ All six have six abilities: three rotational, one interrupt or dispel, one defen
 
 ### Warden — tank
 
-2400 health. **Rage** (0–100): +5 per auto-attack, +3 per hit taken, drains out of combat.
+2400 health. **Rage** (0–100): +2 per auto-attack, +1 when hit (at most once a second), drains out of combat. Gains are kept low so Brace has to be timed, not held up permanently.
 
 | Key | Ability | Cost / cooldown | Effect |
 |---|---|---|---|
-| 1 | Shield Strike | 4.5 s cd | 110 damage. +15 rage. |
-| 2 | Sweep | — | 50 damage to every enemy within 6 m. +5 rage per enemy hit, up to 15. |
+| 1 | Shield Strike | 4.5 s cd | 110 damage. +8 rage. |
+| 2 | Sweep | — | 50 damage to every enemy within 6 m. +1 rage per enemy hit, up to 5. |
 | 3 | Challenge | 8 s cd, off GCD, 30 m | Target attacks you for 4 s and you go to the top of its threat. The ranged pull. |
 | 4 | Shield Bash | 15 s cd, off GCD, melee | Interrupt. |
 | 5 | Brace | 40 rage, off GCD | Take 50% less physical damage for 6 s. |
@@ -110,13 +117,13 @@ All six have six abilities: three rotational, one interrupt or dispel, one defen
 
 ### Bloomweaver — heal-over-time and shield healer
 
-1200 health. **Mana** (1000): +8 per second in combat. Weak ranged auto-attack.
+1200 health. **Mana** (1000): +12 per second in combat, since there is no damage spell to win mana back with. Weak ranged auto-attack.
 
 | Key | Ability | Cost / cooldown | Effect |
 |---|---|---|---|
-| 1 | Mending Vine | 35 mana, instant | Heal 60 every 2 s for 14 s. One per ally; recasting refreshes it. |
-| 2 | Bark Ward | 55 mana, 4 s cd | Shield an ally against the next 350 damage, for 12 s. |
-| 3 | Bloom | 60 mana, 10 s cd | Every ally with Mending Vine is healed for 240 at once. The vines keep running. |
+| 1 | Mending Vine | 30 mana, instant | Heal 60 every 2 s for 14 s. One per ally; recasting refreshes it. |
+| 2 | Bark Ward | 42 mana, 3 s cd | Shield an ally against the next 350 damage, for 12 s. |
+| 3 | Bloom | 45 mana, 10 s cd | Every ally with Mending Vine is healed for 240 at once. The vines keep running. |
 | 4 | Cleansing Dew | 30 mana, 8 s cd | Dispel one ally. |
 | 5 | Bramble Guard | 45 s cd, off GCD | An ally takes 30% less damage for 8 s. |
 | 6 | Verdant Tide | 2 min cd | Put Mending Vine on every ally. For 10 s vines tick twice as fast and Bark Ward has no cooldown. |
@@ -158,7 +165,7 @@ All six have six abilities: three rotational, one interrupt or dispel, one defen
 | 3 | Flame Burst | 50 Heat, instant | 200 damage to the target and 90 to every enemy within 6 m of it. |
 | 4 | Stifle | 20 s cd, off GCD | Interrupt at range. |
 | 5 | Ember Shield | 45 s cd, off GCD | Shield yourself against the next 400 damage, for 8 s. |
-| 6 | Kindled Mind | 2 min cd, off GCD | For 12 s, Firebolt casts in half the time. |
+| 6 | Kindled Mind | 2 min cd, off GCD | For 12 s, Firebolt casts in half the time (1 s, with a 1 s global cooldown). |
 
 ## 6. AI teammates
 
@@ -249,7 +256,9 @@ At **level 9**, every trash enemy deals 25% more damage below 25% health.
 ## 9. Technical
 
 - **Simulation** runs on a fixed timestep, separate from rendering and holding no browser state.
-- **Automated runs**: the same simulation runs headless in tests with AI in all four slots. These runs tune balance and check that every party composition can finish.
+- **Automated runs**: the same simulation runs headless with AI in all four slots. `npm test` checks that every party composition times level 1; `npm run sim -- 1,5,8 2` prints times, deaths and per-hero output for the given levels and number of seeds.
+- **Balance as tuned**: all-AI parties time level 1 in 8–9 minutes and level 7 in about 13. They miss the timer around level 8 and start wiping on the last boss around level 9–10.
+- **Demo flags**: adding `?autostart&autoplay` to the URL starts a run with the AI playing your hero too; `&speed=4` runs it faster.
 - **Rendering**: Canvas for the world, HTML for the interface.
 - **Save data**: `localStorage` only — unlocked level, per-hero bests.
 - **Deploy**: a GitHub Action builds and publishes to GitHub Pages on every push to `main`.

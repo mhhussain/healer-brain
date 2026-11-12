@@ -296,10 +296,12 @@ const ACT: Record<string, (w: World, h: Unit) => void> = {
     const tank = w.heroes[0];
     const low = allies[0];
     if (low && pct(low) < 0.6 && !w.hasAura(low, 'bark') && use(w, h, 'bark', low)) return;
+    const tankOk = tank.alive && allies.includes(tank);
+    if (tankOk && !w.hasAura(tank, 'bark') && (pct(tank) < 0.8 || busterOn(w, tank)) && use(w, h, 'bark', tank)) return;
     const vines = allies.filter((a) => w.hasAura(a, 'vine'));
     if ((vines.filter((a) => pct(a) < 0.75).length >= 2 || vines.some((a) => pct(a) < 0.5)) && use(w, h, 'bloom')) return;
     if (tank.alive && allies.includes(tank) && !w.hasAura(tank, 'vine') && use(w, h, 'vine', tank)) return;
-    const need = allies.find((a) => pct(a) < 0.88 && !w.hasAura(a, 'vine'));
+    const need = allies.find((a) => pct(a) < 0.8 && !w.hasAura(a, 'vine'));
     if (need && use(w, h, 'vine', need)) return;
     if (tank.alive && allies.includes(tank) && pct(tank) < 0.85 && !w.hasAura(tank, 'bark')) use(w, h, 'bark', tank);
   },

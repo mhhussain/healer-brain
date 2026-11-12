@@ -29,11 +29,11 @@ test('setup screen, run and pause work end to end', async () => {
   window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyD' }));
   window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Tab' }));
   window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Digit3' }));
-  // click-cast: left click on the tank's frame casts Mend on the tank
-  const tankFrame = document.querySelectorAll('.frame')[0] as HTMLElement;
-  tankFrame.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true }));
+  // click-cast: left click on your own frame casts Mend on yourself
+  const ownFrame = document.querySelector('.frame.me') as HTMLElement;
+  ownFrame.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true }));
   frames(20);
-  expect((document.querySelector('.castbar span') as HTMLElement).textContent).toMatch(/Mend|Rebuke/);
+  expect((document.querySelector('.castbar span') as HTMLElement).textContent).toMatch(/^Mend /);
   frames(600);
   expect(document.querySelector('.timer')!.textContent).toMatch(/^\d+:\d\d \/ 14:00$/);
 

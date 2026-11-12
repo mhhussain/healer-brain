@@ -110,17 +110,17 @@ export const HEROES: Record<string, HeroDef> = {
 
   bloomweaver: {
     id: 'bloomweaver', name: 'Bloomweaver', role: 'healer', sub: 'Heal-over-time and shield healer', color: '#4caf7a',
-    hp: 1200, resName: 'Mana', resMax: 1000, resStart: 1000, resColor: '#3f7fd9', regen: 8, gcd: 1.5,
+    hp: 1200, resName: 'Mana', resMax: 1000, resStart: 1000, resColor: '#3f7fd9', regen: 12, gcd: 1.5,
     auto: { dmg: 22, interval: 2, range: 30 }, threatMult: 1,
     howTo: 'Heal ahead of the damage: keep Mending Vine rolling, shield whoever is about to be hit, and Bloom when several vines are out.',
     abilities: [
       {
-        id: 'vine', name: 'Mending Vine', target: 'ally', cost: 35,
+        id: 'vine', name: 'Mending Vine', target: 'ally', cost: 30,
         desc: 'Heal 60 every 2 s for 14 s. One per ally; recasting refreshes it.',
         fire: (w, u, t) => w.addAura(t, { id: 'vine', name: 'Mending Vine', dur: 14, srcId: u.id, tickEvery: 2, tickHeal: 60 }),
       },
       {
-        id: 'bark', name: 'Bark Ward', target: 'ally', cost: 55, cd: 4,
+        id: 'bark', name: 'Bark Ward', target: 'ally', cost: 42, cd: 3,
         desc: 'Shield an ally against the next 350 damage, for 12 s.',
         fire: (w, u, t) => {
           w.addAura(t, { id: 'bark', name: 'Bark Ward', dur: 12, srcId: u.id, absorb: 350 });
@@ -128,7 +128,7 @@ export const HEROES: Record<string, HeroDef> = {
         },
       },
       {
-        id: 'bloom', name: 'Bloom', target: 'self', cost: 60, cd: 10,
+        id: 'bloom', name: 'Bloom', target: 'self', cost: 45, cd: 10,
         desc: 'Every ally with Mending Vine is healed for 240 at once. The vines keep running.',
         fire: (w, u) => {
           for (const h of w.heroes) if (h.alive && w.hasAura(h, 'vine')) w.heal(u, h, 240);

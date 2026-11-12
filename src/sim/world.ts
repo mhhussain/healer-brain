@@ -732,6 +732,7 @@ export class World {
     this.alert('Wipe — the encounter resets');
     this.zones = [];
     this.gather = null;
+    this.map.restorePillars();
     let entry = this.packs[0].def.entry;
     for (const p of this.packs) {
       if (!p.engaged || p.cleared) continue;

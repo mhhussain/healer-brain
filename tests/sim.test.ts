@@ -51,3 +51,41 @@ describe('all-AI runs', () => {
     expect(w.totalTime()).toBeGreaterThan(w.elapsed);
   });
 });
+
+describe('player input', () => {
+  test('abilities with no target use the tank\'s target, and moving cancels a cast', () => {
+    const w = new World({ level: 1, party: ['warden', 'mender', 'duelist', 'pyromancer'], playerSlot: 3, seed: 3, autoplay: true });
+    const p = w.player;
+    // let the AI walk the hero into the first fight, then take over
+    const inReach = () => {
+      const t = w.unit(w.heroes[0].targetId);
+      return !!t && t.alive && t.team === 'enemy' && Math.hypot(t.x - p.x, t.y - p.y) < 26 && w.map.los(p.x, p.y, t.x, t.y);
+    };
+    while (!(w.inCombat && w.canAttack() && inReach() && !p.cast && p.gcd <= 0 && !p.moved) && w.time < 120) w.tick(DT);
+    w.autoplay = false;
+    p.targetId = -1;
+    w.press(0);
+    for (let i = 0; i < 10; i++) w.tick(DT);
+    expect(w.error?.text).toBeUndefined();
+    expect(p.cast?.name).toBe('Firebolt');
+    expect(p.targetId).toBe(w.heroes[0].targetId);
+    w.input.my = 1;
+    w.tick(DT); w.tick(DT);
+    w.input.my = 0;
+    expect(p.cast).toBeNull();
+  });
+
+  test('a healer ability lands on the ally under the mouse', () => {
+    const w = new World({ level: 1, party: ['warden', 'bloomweaver', 'duelist', 'ranger'], playerSlot: 1, seed: 2 });
+    const tank = w.heroes[0];
+    w.hoverAllyId = tank.id;
+    w.press(0);
+    w.tick(DT);
+    expect(w.hasAura(tank, 'vine')).toBe(true);
+    w.hoverAllyId = -1;
+    for (let i = 0; i < 100; i++) w.tick(DT);
+    w.press(0);
+    w.tick(DT);
+    expect(w.hasAura(w.player, 'vine')).toBe(true);
+  });
+});

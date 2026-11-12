@@ -51,6 +51,18 @@ export class GameMap {
     this.version++;
   }
 
+  restorePillars() {
+    for (const p of this.pillars) {
+      if (p.alive) continue;
+      p.alive = true;
+      for (let cy = p.y; cy < p.y + p.h; cy++) for (let cx = p.x; cx < p.x + p.w; cx++) {
+        this.cells[cy * this.w + cx] = 1;
+        this.pillarAt[cy * this.w + cx] = p.id;
+      }
+      this.version++;
+    }
+  }
+
   canStand(x: number, y: number, r = 0.45) {
     const x0 = Math.floor(x - r), x1 = Math.floor(x + r), y0 = Math.floor(y - r), y1 = Math.floor(y + r);
     for (let cy = y0; cy <= y1; cy++) for (let cx = x0; cx <= x1; cx++) if (this.wall(cx, cy)) return false;

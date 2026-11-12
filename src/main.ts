@@ -102,7 +102,8 @@ function showSetup() {
   side.append(el('h3', '', 'Controls'));
   const controls = el('ul', 'controls');
   const lines = [
-    'W A S D — move',
+    'A D — move along the hall · W S — move in depth',
+    'Space — jump (just for fun)',
     'Tab or left click — target an enemy',
     '1–6 — abilities',
     def.role === 'healer' ? 'Heals land on the ally under the mouse, or on you' : 'Enemy abilities with no target use the tank\'s target',
@@ -130,6 +131,8 @@ function startRun(level: number) {
   const heroId = world.player.hero!.id;
   const hud = new Hud(root, world, world.player.hero!.role === 'healer' ? save.bindings[heroId] : null);
   renderer.resize();
+  // ?debug exposes the run to the console and to browser tests.
+  if (params.has('debug')) Object.assign(window, { fourfold: { world, renderer } });
 
   const ac = new AbortController();
   const on = { signal: ac.signal };
@@ -164,7 +167,7 @@ function startRun(level: number) {
   window.addEventListener('contextmenu', (e) => e.preventDefault(), on);
   window.addEventListener('keyup', (e) => keys.delete(e.code), on);
   window.addEventListener('keydown', (e) => {
-    if (e.code === 'Tab') e.preventDefault();
+    if (e.code === 'Tab' || e.code === 'Space') e.preventDefault();
     if (e.repeat) return;
     if (e.code === 'KeyP') return setPaused(!paused);
     if (e.code === 'Escape') {
@@ -176,20 +179,14 @@ function startRun(level: number) {
     if (paused) return;
     keys.add(e.code);
     if (e.code === 'Tab') world.tabTarget();
+    if (e.code === 'Space') world.jump();
     const m = /^Digit([1-6])$/.exec(e.code);
     if (m) world.press(Number(m[1]) - 1);
   }, on);
 
   const unitAt = (px: number, py: number) => {
     const rect = canvas.getBoundingClientRect();
-    const p = renderer.toWorld(px - rect.left, py - rect.top);
-    let best = -1, bd = 1e9;
-    for (const u of [...world.enemies, ...world.heroes]) {
-      if (!u.alive) continue;
-      const d = Math.hypot(u.x - p.x, u.y - p.y);
-      if (d <= u.radius + 0.7 && d < bd) { bd = d; best = u.id; }
-    }
-    return best;
+    return renderer.pick(world, px - rect.left, py - rect.top);
   };
   canvas.addEventListener('mousemove', (e) => (hoverId = unitAt(e.clientX, e.clientY)), on);
   canvas.addEventListener('mouseleave', () => (hoverId = -1), on);

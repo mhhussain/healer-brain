@@ -21,6 +21,11 @@ function safeAt(w: World, x: number, y: number) {
   return !w.zones.some((z) => inZone(z, x, y, 0.6));
 }
 
+// Close enough to a pack that is not in the fight to wake it.
+function nearIdle(w: World, x: number, y: number) {
+  return w.enemies.some((e) => e.alive && !e.engaged && Math.hypot(e.x - x, e.y - y) < 14);
+}
+
 function inDanger(w: World, h: Unit) {
   return w.zones.some((z) => z.t >= h.ai!.reaction && inZone(z, h.x, h.y, 0.4));
 }
@@ -30,7 +35,7 @@ function findEscape(w: World, h: Unit): Vec | null {
     for (let k = 0; k < 16; k++) {
       const a = (k / 16) * Math.PI * 2 + h.id;
       const x = h.x + Math.cos(a) * r, y = h.y + Math.sin(a) * r;
-      if (w.map.canStand(x, y) && safeAt(w, x, y) && w.map.clearWalk(h.x, h.y, x, y)) return { x, y };
+      if (w.map.canStand(x, y) && safeAt(w, x, y) && !nearIdle(w, x, y) && w.map.clearWalk(h.x, h.y, x, y)) return { x, y };
     }
   }
   return null;
@@ -185,12 +190,12 @@ function rangedPos(w: World, h: Unit, anchor: Unit): Vec | null {
   const minD = anchor.team === 'enemy' ? 4 : 0;
   const valid = (x: number, y: number) => {
     const d = Math.hypot(x - anchor.x, y - anchor.y);
-    return d <= 26 && d >= minD && w.map.los(x, y, anchor.x, anchor.y) && !inFront(w, x, y) && safeAt(w, x, y);
+    return d <= 21 && d >= minD && w.map.los(x, y, anchor.x, anchor.y) && !inFront(w, x, y) && safeAt(w, x, y) && !nearIdle(w, x, y);
   };
   if (valid(h.x, h.y)) return (ai.pos = null);
   if (ai.pos && valid(ai.pos.x, ai.pos.y)) return ai.pos;
   let best: Vec | null = null, bd = 1e9;
-  for (const r of [16, 11, 21, 7]) {
+  for (const r of [14, 10, 18, 7]) {
     for (let k = 0; k < 12; k++) {
       const a = (k / 12) * Math.PI * 2 + h.id;
       const x = anchor.x + Math.cos(a) * r, y = anchor.y + Math.sin(a) * r;

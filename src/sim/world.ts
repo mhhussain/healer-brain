@@ -9,6 +9,8 @@ import type { AbilityDef, Aura, DmgType, EnemyAbility, Unit } from './types';
 export const TIME_LIMIT = 14 * 60;
 export const DEATH_PENALTY = 5;
 export const DT = 1 / 60;
+const JUMP_SPEED = 6.6;
+const GRAVITY = 22;
 
 export interface RunConfig {
   level: number;
@@ -143,7 +145,7 @@ export class World {
 
   private makeUnit(team: 'hero' | 'enemy', name: string, x: number, y: number): Unit {
     const u: Unit = {
-      id: this.nextId++, team, name, x, y, facing: 0, radius: 0.6, speed: 5.5,
+      id: this.nextId++, team, name, x, y, z: 0, vz: 0, jumpAt: -1, facing: 0, radius: 0.6, speed: 5.5,
       hp: 1, maxHp: 1, alive: true, res: 0, resMax: 0, combo: 0, targetId: -1,
       cast: null, gcd: 0, cds: {}, auras: [], autoTimer: 0, moved: false, moveDir: 0, lastMoveT: -9,
       stats: { dmg: 0, heal: 0, interrupts: 0, dispels: 0, deaths: 0 },
@@ -512,6 +514,11 @@ export class World {
     p.targetId = list[(i + 1) % list.length].id;
   }
 
+  // Cosmetic: it changes nothing about combat.
+  jump(u: Unit = this.player) {
+    if (u.alive && u.z === 0) u.vz = JUMP_SPEED;
+  }
+
   private fail(text: string) { this.error = { text, t: 0 }; }
 
   private updatePlayer(dt: number) {
@@ -600,7 +607,13 @@ export class World {
   }
 
   private updateUnit(u: Unit, dt: number) {
+    if (u.z > 0 || u.vz > 0) {
+      u.z += u.vz * dt;
+      u.vz -= GRAVITY * dt;
+      if (u.z <= 0) { u.z = 0; u.vz = 0; }
+    }
     if (!u.alive) return;
+    if (u.jumpAt >= 0 && this.time >= u.jumpAt) { u.jumpAt = -1; this.jump(u); }
     if (u.gcd > 0) u.gcd -= dt;
     for (const k in u.cds) if (u.cds[k] > 0) u.cds[k] -= dt;
 
@@ -712,7 +725,10 @@ export class World {
     for (const p of this.packs) {
       if (!p.engaged || p.cleared || p.units.some((u) => u.alive)) continue;
       p.cleared = true;
-      if (p.def.boss) this.alert(p.def.name + ' defeated');
+      if (p.def.boss) {
+        this.alert(p.def.name + ' defeated');
+        for (const h of this.heroes) if (!h.isPlayer || this.autoplay) h.jumpAt = this.time + 0.3 + h.slot * 0.15;
+      }
     }
     this.inCombat = this.packs.some((p) => p.engaged && !p.cleared);
     if (this.packs.every((p) => p.cleared)) { this.finished = true; return; }

@@ -38,6 +38,7 @@ export class Hud {
   private tCast = el('div', 'tcast');
   private tCastFill = el('div', 'fill');
   private tCastName = el('span');
+  private tAim = el('div', 'taim');
   private alerts = el('div', 'alerts');
   private error = el('div', 'error');
   private cast = el('div', 'castbar');
@@ -90,7 +91,7 @@ export class Hud {
     const tBar = el('div', 'bar hp');
     tBar.append(this.tHp);
     this.tCast.append(this.tCastFill, this.tCastName);
-    this.target.append(this.tName, tBar, this.tCast);
+    this.target.append(this.tName, tBar, this.tCast, this.tAim);
     this.root.append(this.target, this.alerts);
 
     const bottom = el('div', 'bottom');
@@ -117,7 +118,9 @@ export class Hud {
       actions.append(root);
       this.buttons.push({ root, cd, num });
     });
-    bottom.append(this.tip, this.error, this.cast, this.combo, self, actions);
+    bottom.append(this.tip, this.error, this.cast);
+    if (def.id === 'duelist') bottom.append(this.combo);
+    bottom.append(self, actions);
     this.root.append(bottom);
   }
 
@@ -191,12 +194,15 @@ export class Hud {
   private updateTarget(t: Unit) {
     this.tName.textContent = `${t.name} — ${Math.ceil((t.hp / t.maxHp) * 100)}%`;
     this.tHp.style.width = (t.hp / t.maxHp) * 100 + '%';
+    const aim = this.world.unit(t.targetId);
+    this.tAim.textContent = t.engaged && aim && aim.alive ? `Attacking ${aim.name}${aim.isPlayer ? ' (you)' : ''}` : 'Idle';
+    this.tAim.classList.toggle('loose', t.engaged && !!aim && aim.alive && aim.hero?.role !== 'tank');
     const c = t.cast;
     this.tCast.style.visibility = c ? 'visible' : 'hidden';
     if (c) {
       this.tCastFill.style.width = (c.t / c.total) * 100 + '%';
       this.tCast.classList.toggle('kickable', !!c.interruptible);
-      this.tCastName.textContent = c.name + (c.interruptible ? '' : ' (cannot be interrupted)');
+      this.tCastName.textContent = c.name + (c.interruptible ? '' : ' (no interrupt)');
     }
   }
 }

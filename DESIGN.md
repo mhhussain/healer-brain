@@ -10,12 +10,12 @@ Fourfold is an original, solo, browser-based dungeon runner in the style of time
 |---|---|
 | Control | You play one hero per run. AI plays the other three. |
 | Party | 1 tank, 1 healer, 2 DPS. You choose every slot, duplicates allowed. |
-| View | Real-time, 2D top-down, camera follows your hero. |
+| View | Real-time belt-scroller: figures seen from the side, a floor you move across and into, and a camera that scrolls sideways with your hero. |
 | Run | One linear dungeon: 6 trash packs, 3 bosses, 14-minute timer. |
 | Levels | Enemies gain 8% health and damage per level (compounding), plus new abilities at levels 3, 6 and 9. No cap. |
 | Unlocks | You may start any level up to one above your highest timed clear. Shared across heroes. |
 | Progression | No gear or talents. Highest timed level and best time are recorded per hero. |
-| Visuals | Shapes, colour-coded roles, text buttons. No art assets, no audio. |
+| Visuals | Simple drawn figures, colour-coded roles, text buttons. No art assets, no audio. |
 | Tech | TypeScript, Vite, Canvas, no backend, `localStorage`, GitHub Pages. Desktop keyboard and mouse only. |
 
 ## 2. Run flow
@@ -35,9 +35,11 @@ Result rules:
 
 | Input | Action |
 |---|---|
-| W A S D | Move. Your hero faces its target, or the move direction if it has none. |
+| A D | Move along the hall. Your hero faces its target, or the move direction if it has none. |
+| W S | Move in depth: W towards the back wall, S towards the front edge. |
+| Space | Jump. Cosmetic only: it changes nothing in combat. |
 | Tab | Target the next enemy in line of sight, nearest first. |
-| Left click | Target the enemy or ally under the mouse. |
+| Left click | Target the enemy whose figure is under the mouse. |
 | 1–6 | Use ability. |
 | Esc | Clear target; again to open the pause menu. |
 | P | Pause. |
@@ -70,6 +72,8 @@ Result rules:
 - This applies to enemies too. An enemy caster or archer with no line to its target walks until it has one, so a tank can gather ranged enemies by pulling them and stepping behind a corner.
 - Ground effects and melee attacks ignore line of sight.
 - You can see the whole room; line of sight limits actions, not vision.
+- Ranges and line of sight are measured on the floor. There are no lanes: an enemy deeper in the room is hit like any other.
+- A pillar turns see-through while someone stands behind it.
 
 ### Threat
 
@@ -171,7 +175,7 @@ All six have six abilities: three rotational, one interrupt or dispel, one defen
 
 Teammates play reliably well at every level, with reaction delays of 0.3–0.6 s. They do their own job fully and never do yours.
 
-- **All roles**: step out of ground effects and frontals, stay in range and line of sight, use their defensive below 40% health.
+- **All roles**: step out of ground effects and frontals, stay in range and line of sight, use their defensive below 40% health. They keep 14 m away from packs that are not in the fight.
 - **AI tank**
   - Pulls the next pack when everyone is alive, above 80% health, and the healer is above 60% mana.
   - Gathers ranged enemies with line of sight, and faces enemies away from the party.
@@ -194,7 +198,12 @@ Teammates play reliably well at every level, with reaction delays of 0.3–0.6 s
 
 ## 7. The dungeon — The Sunken Bastion
 
-Linear: two packs, a boss, two packs, a boss, two packs, a boss. Rooms are joined by corridors; several rooms have pillars.
+Linear: two packs, a boss, two packs, a boss, two packs, a boss.
+
+- **Layout**: one straight hall running left to right. Pack rooms are 28 m long and 16 m deep; boss rooms are 34 m long and 20 m deep.
+- **Dividing walls**: each room is split from the next by a 3 m wall that juts out from the back and leaves a 6 m doorway along the front edge. The tank pulls from the doorway; for a line-of-sight pull it steps back behind the wall.
+- **Pillars**: several rooms have pillars that block movement and sight.
+- **View**: depth is drawn at 60% scale. The front edge of the floor is open; nothing stands between the camera and the party except pillars.
 
 ### Enemy types
 
@@ -244,12 +253,14 @@ At **level 9**, every trash enemy deals 25% more damage below 25% health.
 
 ## 8. Interface
 
-- **Party frames**: health, resource, shields, heal-over-time, dispellable debuffs (highlighted), active defensives.
-- **Target frame**: health, cast bar, your debuffs.
+- **Party frames**: health, resource, shields, heal-over-time, dispellable debuffs (highlighted), active defensives. A vertical stack at mid-height, left of your hero (30% across the screen).
+- **Target frame**: health, cast bar and who the enemy is attacking (red when it is not the tank). At mid-height, right of your hero (70% across the screen).
+- **Figures**: heroes wear their role colour with a ring under their feet; yours has a yellow ring and a marker overhead. Your target has a red ring.
 - **Nameplates** over every enemy: health, cast bar (yellow = interruptible, grey = not, **KICK** = your turn), and a border that turns red when the enemy is attacking a non-tank.
 - **Action bar**: six buttons with key, cooldown sweep, cost and out-of-range or no-line-of-sight dimming. Hover for a tooltip.
 - **Run bar**: timer against 14:00, packs and bosses killed, deaths.
 - **Telegraphs**: ground circles and cones drawn on the floor before they hit.
+- **Camera**: follows your hero and leans up to 7 m towards the fight, so both stay on screen. AI teammates fight within 21 m of their target for the same reason.
 - **Alerts**: a short text call for major boss casts.
 - **Party setup** shows each hero's abilities and a short "how to play".
 
@@ -257,12 +268,12 @@ At **level 9**, every trash enemy deals 25% more damage below 25% health.
 
 - **Simulation** runs on a fixed timestep, separate from rendering and holding no browser state.
 - **Automated runs**: the same simulation runs headless with AI in all four slots. `npm test` checks that every party composition times level 1; `npm run sim -- 1,5,8 2` prints times, deaths and per-hero output for the given levels and number of seeds.
-- **Balance as tuned**: all-AI parties time level 1 in 8–9 minutes and level 7 in about 13. They miss the timer around level 8 and start wiping on the last boss around level 9–10.
-- **Demo flags**: adding `?autostart&autoplay` to the URL starts a run with the AI playing your hero too; `&speed=4` runs it faster.
-- **Rendering**: Canvas for the world, HTML for the interface.
+- **Balance as tuned**: all-AI parties time level 1 in about 8 minutes and level 7 in 12–13. They miss the timer around level 8 and start wiping on the last boss around level 9–10.
+- **Demo flags**: adding `?autostart&autoplay` to the URL starts a run with the AI playing your hero too; `&speed=4` runs it faster. `?debug` exposes the running world as `window.fourfold` for browser tests.
+- **Rendering**: Canvas for the world, HTML for the interface. The simulation is still a flat floor plan; the renderer alone turns it into the side-on view.
 - **Save data**: `localStorage` only — unlocked level, per-hero bests.
 - **Deploy**: a GitHub Action builds and publishes to GitHub Pages on every push to `main`.
 
 ## 10. Out of scope for the first version
 
-Gear, talents, run modifiers, route choices, more dungeons, audio, mobile and touch, key rebinding, saving mid-run.
+Gear, talents, run modifiers, route choices, more dungeons, audio, artwork, story, mobile and touch, key rebinding, saving mid-run.

@@ -5,7 +5,7 @@ import { expect, test, vi } from 'vitest';
 test('setup screen, run and pause work end to end', async () => {
   document.body.innerHTML = '<div id="app"></div>';
   const store: Record<string, unknown> = {};
-  const ctx = new Proxy(store, { get: (t, k: string) => (k in t ? t[k] : () => {}), set: (t, k: string, v) => { t[k] = v; return true; } });
+  const ctx: unknown = new Proxy(store, { get: (t, k: string) => (k in t ? t[k] : () => ctx), set: (t, k: string, v) => { t[k] = v; return true; } });
   HTMLCanvasElement.prototype.getContext = (() => ctx) as never;
   let cb: FrameRequestCallback | null = null;
   vi.stubGlobal('requestAnimationFrame', (f: FrameRequestCallback) => { cb = f; return 1; });

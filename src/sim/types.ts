@@ -128,6 +128,10 @@ export interface Unit {
   name: string;
   x: number;
   y: number;
+  // height off the floor; jumping is cosmetic
+  z: number;
+  vz: number;
+  jumpAt: number;
   facing: number;
   radius: number;
   speed: number;

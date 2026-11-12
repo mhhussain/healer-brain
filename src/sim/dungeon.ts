@@ -16,45 +16,45 @@ interface Encounter {
   name: string;
   boss?: boolean;
   enemies: string[];
-  off: number;
   // [dx, dy, size] relative to the room centre
   pillars?: [number, number, number][];
   los?: boolean;
 }
 
 const ENCOUNTERS: Encounter[] = [
-  { name: 'Pack 1', enemies: ['brute', 'brute', 'brute', 'hexer'], off: -9 },
-  { name: 'Pack 2', enemies: ['brute', 'brute', 'archer', 'shaman'], off: 8 },
-  { name: 'Krogg the Gatebreaker', boss: true, enemies: ['krogg'], off: 0 },
-  { name: 'Pack 3', enemies: ['brute', 'brute', 'hexer', 'hexer'], off: -10, pillars: [[-8, -7, 2], [8, -7, 2], [-8, 7, 2], [8, 7, 2]], los: true },
-  { name: 'Pack 4', enemies: ['overseer', 'archer', 'archer', 'shaman'], off: 9 },
-  { name: 'Matron Velisse', boss: true, enemies: ['velisse'], off: 0 },
-  { name: 'Pack 5', enemies: ['berserker', 'berserker', 'hexer', 'shaman'], off: 10, pillars: [[-9, 0, 2], [9, 0, 2]] },
-  { name: 'Pack 6', enemies: ['overseer', 'berserker', 'archer', 'archer'], off: -8 },
-  { name: 'Archon Sulmar', boss: true, enemies: ['sulmar'], off: 0, pillars: [[-9, -8, 3], [9, -8, 3], [-9, 8, 3], [9, 8, 3]] },
+  { name: 'Pack 1', enemies: ['brute', 'brute', 'brute', 'hexer'] },
+  { name: 'Pack 2', enemies: ['brute', 'brute', 'archer', 'shaman'] },
+  { name: 'Krogg the Gatebreaker', boss: true, enemies: ['krogg'] },
+  { name: 'Pack 3', enemies: ['brute', 'brute', 'hexer', 'hexer'], pillars: [[-8, -4, 2], [8, -4, 2], [-8, 4, 2], [8, 4, 2]], los: true },
+  { name: 'Pack 4', enemies: ['overseer', 'archer', 'archer', 'shaman'] },
+  { name: 'Matron Velisse', boss: true, enemies: ['velisse'] },
+  { name: 'Pack 5', enemies: ['berserker', 'berserker', 'hexer', 'shaman'], pillars: [[-9, 0, 2], [9, 0, 2]] },
+  { name: 'Pack 6', enemies: ['overseer', 'berserker', 'archer', 'archer'] },
+  { name: 'Archon Sulmar', boss: true, enemies: ['sulmar'], pillars: [[-9, -5, 3], [9, -5, 3], [-9, 5, 3], [9, 5, 3]] },
 ];
 
-const MID = 42;
-const CORRIDOR = 12;
+// One straight hall, left to right. x runs along it, y is depth: small y is the back wall,
+// FRONT is the open front edge. Rooms are split by walls that jut out from the back and
+// leave a doorway along the front.
+export const FRONT = 24;
+const ROOM_DEPTH = 16;
+const BOSS_DEPTH = 20;
+const WALL = 3;
+const DOOR = 6;
 
 export function buildDungeon(): { map: GameMap; packs: PackDef[]; start: Vec } {
-  const width = 4 + 14 + ENCOUNTERS.reduce((n, e) => n + CORRIDOR + (e.boss ? 34 : 28), 0) + 4;
-  const map = new GameMap(width, 84);
-  map.carve(4, MID - 7, 18, MID + 7);
-  const start = { x: 11, y: MID };
+  const width = 4 + 14 + ENCOUNTERS.reduce((n, e) => n + WALL + (e.boss ? 34 : 28), 0) + 4;
+  const map = new GameMap(width, FRONT + 2);
+  map.carve(4, FRONT - ROOM_DEPTH, 18, FRONT);
+  const start = { x: 11, y: FRONT - ROOM_DEPTH / 2 };
   const packs: PackDef[] = [];
-  let right = 18, prevCy = MID;
+  let right = 18;
   ENCOUNTERS.forEach((enc, id) => {
-    const rw = enc.boss ? 34 : 28, rh = enc.boss ? 32 : 24;
-    const cy = MID + enc.off;
-    const left = right + CORRIDOR;
-    const bend = right + CORRIDOR / 2;
-    // corridor: out of the previous room, along the bend, into this room
-    map.carve(right, prevCy - 3, bend + 3, prevCy + 3);
-    map.carve(bend - 3, Math.min(prevCy, cy) - 3, bend + 3, Math.max(prevCy, cy) + 3);
-    map.carve(bend - 3, cy - 3, left, cy + 3);
-    map.carve(left, cy - rh / 2, left + rw, cy + rh / 2);
-    const cx = left + rw / 2;
+    const rw = enc.boss ? 34 : 28, rd = enc.boss ? BOSS_DEPTH : ROOM_DEPTH;
+    const left = right + WALL;
+    map.carve(right, FRONT - DOOR, left, FRONT);
+    map.carve(left, FRONT - rd, left + rw, FRONT);
+    const cx = left + rw / 2, cy = FRONT - rd / 2;
     for (const [dx, dy, s] of enc.pillars ?? []) map.addPillar(Math.round(cx + dx - s / 2), Math.round(cy + dy - s / 2), s, s);
     packs.push({
       id,
@@ -62,12 +62,12 @@ export function buildDungeon(): { map: GameMap; packs: PackDef[]; start: Vec } {
       boss: !!enc.boss,
       enemies: enc.enemies,
       center: { x: cx, y: cy },
-      entry: { x: bend, y: cy },
-      pullFrom: { x: left - 2, y: cy },
-      losSpot: enc.los ? { x: bend, y: prevCy } : undefined,
+      entry: { x: right - 3, y: FRONT - DOOR / 2 },
+      pullFrom: { x: right + WALL / 2, y: FRONT - DOOR / 2 },
+      // behind the dividing wall, on the near side
+      losSpot: enc.los ? { x: right - 1.5, y: FRONT - DOOR - 3.5 } : undefined,
     });
     right = left + rw;
-    prevCy = cy;
   });
   return { map, packs, start };
 }

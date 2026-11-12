@@ -75,6 +75,19 @@ describe('player input', () => {
     expect(p.cast).toBeNull();
   });
 
+  test('jumping is cosmetic and lands again', () => {
+    const w = new World({ level: 1, party: ['warden', 'mender', 'duelist', 'ranger'], playerSlot: 2, seed: 2 });
+    const p = w.player;
+    const { x, y } = p;
+    w.jump();
+    w.tick(DT);
+    expect(p.z).toBeGreaterThan(0);
+    w.jump();
+    for (let i = 0; i < 60; i++) w.tick(DT);
+    expect(p.z).toBe(0);
+    expect([p.x, p.y]).toEqual([x, y]);
+  });
+
   test('a healer ability lands on the ally under the mouse', () => {
     const w = new World({ level: 1, party: ['warden', 'bloomweaver', 'duelist', 'ranger'], playerSlot: 1, seed: 2 });
     const tank = w.heroes[0];

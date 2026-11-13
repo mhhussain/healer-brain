@@ -3,7 +3,9 @@ import { DPS, HEALERS, HEROES, TANKS } from './sim/heroes';
 import { DT, TIME_LIMIT, World } from './sim/world';
 import { sound } from './ui/audio';
 import { Hud, abilityMeta, el, fmtTime } from './ui/hud';
+import { drawFigure, lookOf } from './ui/figures';
 import { Renderer } from './ui/render';
+import { ENDING_IN_TIME, ENDING_LATE, OPENING, Story } from './ui/story';
 import { COMBOS, comboLabel, loadSave, storeSave, type Save } from './ui/save';
 
 const app = document.getElementById('app')!;
@@ -27,6 +29,9 @@ function wakeSound() {
 }
 window.addEventListener('pointerdown', wakeSound, true);
 window.addEventListener('keydown', wakeSound, true);
+
+// 'Sister Wren' is Wren, 'Hale Dunmarrow' is Hale.
+const short = (name: string) => (/^(Sister|Old) /.test(name) ? name.split(' ')[1] : name.split(' ')[0]);
 
 function button(text: string, cls: string, onClick: () => void) {
   const b = el('button', cls, text);
@@ -57,6 +62,19 @@ function soundControls() {
   });
   box.append(mute, vol);
   return box;
+}
+
+// A small standing portrait of a hero, drawn the same way as in the abbey.
+function portrait(heroId: string) {
+  const c = document.createElement('canvas');
+  c.className = 'portrait';
+  c.width = 144; c.height = 168;
+  const g = c.getContext('2d');
+  if (g) {
+    g.translate(66, 156);
+    drawFigure(g, lookOf(heroId, undefined), { H: 140, dir: 1, step: 0, swing: 0, casting: false, flash: false, grey: false, rest: 0, time: 0 });
+  }
+  return c;
 }
 
 // Click-to-cast editor for a healer's ally spells.
@@ -92,13 +110,13 @@ function showSetup() {
   app.innerHTML = '';
   const root = el('div', 'screen setup');
   const head = el('header');
-  head.append(el('h1', '', 'Fourfold'), el('p', 'tag', 'Fourteen minutes of low tide. Three lamps to light. Pick who you play; the other three look after themselves.'));
+  head.append(el('div', 'eyebrow', 'The Drowned Abbey'), el('h1', '', 'Fourfold'), el('p', 'tag', 'Fourteen minutes of low tide. Three lamps to light. Pick who you play; the other three look after themselves.'));
   root.append(head);
 
   const party = el('div', 'slots');
   SLOTS.forEach((slot, i) => {
     const card = el('div', 'slot' + (save.slot === i ? ' mine' : ''));
-    card.append(el('div', 'slot-label', slot.label));
+    card.append(el('div', 'slot-label', slot.label), portrait(save.party[i]));
     const opts = el('div', 'opts');
     for (const id of slot.options) {
       const def = HEROES[id];
@@ -106,8 +124,8 @@ function showSetup() {
       b.style.setProperty('--c', def.color);
       opts.append(b);
     }
-    card.append(opts, el('div', 'sub', `${HEROES[save.party[i]].title} · ${HEROES[save.party[i]].sub}`));
-    card.append(button(save.slot === i ? 'You play this hero' : 'Play this hero', 'play' + (save.slot === i ? ' on' : ''), () => { save.slot = i; storeSave(save); showSetup(); }));
+    card.append(opts, el('div', 'sub', `${HEROES[save.party[i]].title} · ${HEROES[save.party[i]].sub.toLowerCase()}`));
+    card.append(button(save.slot === i ? 'You play ' + short(HEROES[save.party[i]].name) : 'Play ' + short(HEROES[save.party[i]].name), 'play' + (save.slot === i ? ' on' : ''), () => { save.slot = i; storeSave(save); showSetup(); }));
     party.append(card);
   });
   root.append(party);
@@ -115,7 +133,7 @@ function showSetup() {
   const cols = el('div', 'cols');
   const def = HEROES[save.party[save.slot]];
   const kit = el('section', 'kit');
-  const title = el('h2', '', def.name);
+  const title = el('h2', '', `${def.name}, ${def.title}`);
   title.style.color = def.color;
   kit.append(title, el('p', 'how', def.howTo));
   def.abilities.forEach((ab, i) => {
@@ -126,7 +144,7 @@ function showSetup() {
     kit.append(row);
   });
   const best = save.bests[def.id];
-  kit.append(el('p', 'best', best ? `Best with ${def.name}: level ${best.level} in ${fmtTime(best.time)}` : `No timed run with ${def.name} yet.`));
+  kit.append(el('p', 'best', best ? `Best with ${def.name}: level ${best.level} in ${fmtTime(best.time)}` : `${def.name} has not yet beaten the tide.`));
   cols.append(kit);
 
   const side = el('section', 'side');
@@ -136,16 +154,16 @@ function showSetup() {
   for (let l = 1; l <= save.unlocked; l++) {
     levels.append(button(String(l), 'lvl' + (l === save.level ? ' on' : ''), () => { save.level = l; storeSave(save); showSetup(); }));
   }
-  side.append(levels, el('p', 'note', 'Each level gives enemies 8% more health and damage. They gain new abilities at levels 3, 6 and 9. Beat the 14:00 timer to unlock the next level.'));
+  side.append(levels, el('p', 'note', 'Each level gives the drowned 8% more health and damage. They gain new abilities at levels 3, 6 and 9. Light all three lamps before the tide returns at 14:00 to unlock the next level.'));
   side.append(el('h3', '', 'Controls'));
   const controls = el('ul', 'controls');
   const lines = [
-    'A D — move along the hall · W S — move in depth',
-    'Space — jump (just for fun)',
-    'Tab or left click — target an enemy',
-    '1–6 — abilities',
-    def.role === 'healer' ? 'Heals land on the ally under the mouse, or on you' : 'Enemy abilities with no target use the tank\'s target',
-    'Esc — clear target, then pause · P — pause',
+    'A D: move along the hall · W S: move in depth',
+    'Space: jump (just for fun)',
+    'Tab or left click: target an enemy',
+    '1 to 6: abilities',
+    def.role === 'healer' ? 'Heals land on the ally under the mouse, or on you' : 'Attacks with no target use the tank\'s target',
+    'Esc: clear target, then pause · P: pause · M: sound on or off',
   ];
   for (const l of lines) controls.append(el('li', '', l));
   side.append(controls);
@@ -171,6 +189,27 @@ function startRun(level: number) {
   const renderer = new Renderer(canvas);
   const heroId = world.player.hero!.id;
   const hud = new Hud(root, world, world.player.hero!.role === 'healer' ? save.bindings[heroId] : null);
+  const story = new Story(world, (id, text) => renderer.say(id, text));
+
+  // The opening card lies over the abbey until a click or key press. The tide does not start until the first pull.
+  let card: HTMLElement | null = null;
+  const closeCard = () => {
+    if (!card) return;
+    const c = card;
+    card = null;
+    c.classList.add('gone');
+    setTimeout(() => c.remove(), 700);
+  };
+  if (!params.has('autostart')) {
+    card = el('div', 'storycard');
+    const page = el('div', 'page');
+    page.append(el('h2', '', 'The Last Vespers'));
+    for (const line of OPENING) page.append(el('p', '', line));
+    page.append(el('p', 'hint', 'Click or press any key'));
+    card.append(page);
+    card.addEventListener('mousedown', closeCard);
+    root.append(card);
+  }
   renderer.resize();
   // ?debug exposes the run to the console and to browser tests.
   if (params.has('debug')) Object.assign(window, { fourfold: { world, renderer, sound } });
@@ -199,7 +238,7 @@ function startRun(level: number) {
     panel.append(soundControls());
     panel.append(
       button('Resume', 'start', () => setPaused(false)),
-      button('Abandon run', 'ghost', () => { end(); showSetup(); }),
+      button('Climb back out', 'ghost', () => { end(); showSetup(); }),
     );
     overlay.append(panel);
     root.append(overlay);
@@ -212,6 +251,8 @@ function startRun(level: number) {
   window.addEventListener('keydown', (e) => {
     if (e.code === 'Tab' || e.code === 'Space') e.preventDefault();
     if (e.repeat) return;
+    closeCard();
+    if (e.code === 'KeyM') { save.muted = !save.muted; sound.setMuted(save.muted); storeSave(save); return; }
     if (e.code === 'KeyP') return setPaused(!paused);
     if (e.code === 'Escape') {
       if (paused) setPaused(false);
@@ -256,6 +297,7 @@ function startRun(level: number) {
     if (world.error && world.error !== lastError && !world.autoplay) sound.ui('error');
     lastError = world.error;
     sound.events(world, world.events);
+    if (!paused) story.frame(world.events, real * speed);
     world.events.length = 0;
     sound.frame(world, renderer.zoneAt(world.player.x), real, paused);
     if (world.finished) { end(); showSummary(world); return; }
@@ -279,14 +321,16 @@ function showSummary(world: World) {
 
   app.innerHTML = '';
   const root = el('div', 'screen summary');
-  root.append(el('h1', timed ? 'good' : 'bad', timed ? `Level ${world.level} timed` : `Level ${world.level} completed over time`));
+  root.append(el('div', 'eyebrow', timed ? `Level ${world.level} · in time` : `Level ${world.level} · over time`));
+  root.append(el('h1', timed ? 'good' : 'bad', 'The abbey sleeps'));
+  root.append(el('p', 'ending', timed ? ENDING_IN_TIME : ENDING_LATE));
   root.append(el('p', 'tag',
-    `${fmtTime(t)} against ${fmtTime(TIME_LIMIT)} · ${world.deaths} death${world.deaths === 1 ? '' : 's'}` +
+    `${fmtTime(t)} against a ${fmtTime(TIME_LIMIT)} tide · ${world.deaths} fall${world.deaths === 1 ? '' : 's'}` +
     (unlockedNow ? ` · Level ${world.level + 1} unlocked` : '')));
 
   const table = el('table');
   const headRow = el('tr');
-  for (const h of ['Hero', 'Damage', 'Per second', 'Healing', 'Interrupts', 'Dispels', 'Deaths']) headRow.append(el('th', '', h));
+  for (const h of ['The Fourfold', 'Damage', 'Per second', 'Healing', 'Silences', 'Cleanses', 'Falls']) headRow.append(el('th', '', h));
   table.append(headRow);
   for (const h of world.heroes) {
     const row = el('tr', h.isPlayer ? 'me' : '');
@@ -304,8 +348,8 @@ function showSummary(world: World) {
   const actions = el('div', 'row');
   if (timed) actions.append(button(`Level ${world.level + 1}`, 'start', () => { save.level = world.level + 1; storeSave(save); startRun(save.level); }));
   actions.append(
-    button('Run it again', timed ? 'ghost' : 'start', () => startRun(world.level)),
-    button('Party setup', 'ghost', showSetup),
+    button('Go down again', timed ? 'ghost' : 'start', () => startRun(world.level)),
+    button('Choose the Fourfold', 'ghost', showSetup),
   );
   root.append(actions);
   app.append(root);

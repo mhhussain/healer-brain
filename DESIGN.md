@@ -15,7 +15,9 @@ Fourfold is an original, solo, browser-based dungeon runner in the style of time
 | Levels | Enemies gain 8% health and damage per level (compounding), plus new abilities at levels 3, 6 and 9. No cap. |
 | Unlocks | You may start any level up to one above your highest timed clear. Shared across heroes. |
 | Progression | No gear or talents. Highest timed level and best time are recorded per hero. |
-| Visuals | Simple drawn figures, colour-coded roles, text buttons. No art assets, no audio. |
+| Visuals | Storybook figures and scenery drawn in code, one colour and one hat per character. No image files. See section 11. |
+| Sound | Music, ambience and effects synthesised in the browser. No audio files. See section 11. |
+| Story | The Last Vespers: a light story told through one opening card, speech bubbles and an ending. See section 11. |
 | Tech | TypeScript, Vite, Canvas, no backend, `localStorage`, GitHub Pages. Desktop keyboard and mouse only. |
 
 ## 2. Run flow
@@ -196,7 +198,9 @@ Teammates play reliably well at every level, with reaction delays of 0.3–0.6 s
 - When the turn is yours, the enemy cast bar is marked **KICK**. AI teammates do not cover a turn that is yours.
 - If your interrupt is on cooldown, the turn goes to someone else.
 
-## 7. The dungeon — The Sunken Bastion
+## 7. The dungeon — The Drowned Abbey
+
+Sections 4 to 7 describe mechanics under their original working names. The names players see are listed in section 11.
 
 Linear: two packs, a boss, two packs, a boss, two packs, a boss.
 
@@ -276,4 +280,78 @@ At **level 9**, every trash enemy deals 25% more damage below 25% health.
 
 ## 10. Out of scope for the first version
 
-Gear, talents, run modifiers, route choices, more dungeons, audio, artwork, story, mobile and touch, key rebinding, saving mid-run.
+Gear, talents, run modifiers, route choices, more dungeons, mobile and touch, key rebinding, saving mid-run.
+
+## 11. Theme: The Drowned Abbey
+
+The theme is a reskin. Ids, numbers and mechanics are unchanged; only names, drawing, sound and words differ.
+
+### Settled decisions
+
+| Area | Decision |
+|---|---|
+| World | A monastery drowned under a tidal sea. |
+| Tone | Melancholy but warm: a small party doing a hard, kind job. |
+| Premise | The Last Vespers. A century ago Abbot Sulmar rang the great bell against a storm and the sea took the abbey. Once a season the tide draws back for fourteen minutes. A crew of four, a Fourfold, goes down to relight three sanctuary lamps. |
+| Timer | The 14:00 timer is the tide. The sea at the front edge of the hall rises as it runs, and covers the floor once time is up. |
+| Enemies | The monks who stayed. They are not evil; they are still at their posts. When one falls it rises into light and bubbles: laid to rest, not killed. |
+| Palette | Tidelight: sea-teal glow, candle gold, coral for danger, bone for text. Defined in `src/ui/palette.ts` and `src/style.css`. |
+| Figures | Storybook: bell-shaped body, big round head, soft shading, one hat and one prop each. `src/ui/figures.ts`. |
+| Level space | Three zones of three encounters, each ending in a lamp. `src/ui/scenery.ts`. |
+| Interface | Wet slate: dark see-through panels with gold edges and old-print lettering. Parchment only for the story card and speech bubbles. |
+| Story weight | One opening card, one line of banter per pull and boss, a line per lamp, two endings. No cutscenes. `src/ui/story.ts`. |
+| Sound | All synthesised with Web Audio in `src/ui/audio.ts`. On by default, with a mute button, a volume slider and the M key. |
+
+### Zones
+
+| Zone | Encounters | Look | Sound |
+|---|---|---|---|
+| The Sea Gate | The Cloister Walk, The Wet Stair, Brother Krogg | A ruin open to the evening sky: low broken walls, arches onto the sea, hanging kelp, a moon. | Surf and gulls. |
+| The Infirmary | The Undercroft, The Dispensary, Sister Velisse | A dark vaulted undercroft: cots, pilasters, clusters of glowing eggs. | Drips and a slow heartbeat. |
+| The Nave | The Choir Stalls, The Bell Stair, Abbot Sulmar | Tall coloured-glass windows, candle stands, the great bell overhead. | Creaking rope and a faint choir. |
+
+When a boss is laid to rest its lamp lights and warm gold light floods back through its zone.
+
+### Music
+
+- D minor, 75 beats a minute, scheduled one bar at a time from the state of the run.
+- Wandering: a low drone and one or two bells a bar.
+- A fight adds a drum and a running figure in the bells.
+- A boss adds the drowned choir. It has three voices for Krogg, two for Velisse and one for Sulmar: one voice is lost for each lamp already lit.
+- A lit lamp turns the key major for a moment.
+- In the last two minutes a low tide bell tolls each bar and the sea grows louder.
+- An enemy cast is a sung note that swells until it lands and cuts off when silenced. Boss warnings toll the great bell.
+
+### The cast
+
+| Id | Name | Title | Colour | Hat and prop |
+|---|---|---|---|---|
+| warden | Hale Dunmarrow | The Gatewarden | Steel blue | Helm, shield and mace |
+| mender | Sister Wren | The Lamplighter | Bone and teal | Hood, lantern staff |
+| bloomweaver | Old Maren | The Kelpwife | Kelp green | Kelp crown, crook |
+| duelist | Corvin Ashby | The Wrecker | Plum | Bandana, cutlass |
+| ranger | Isolde Fenn | The Harpooner | Oilskin yellow | Sou'wester, harpoon |
+| pyromancer | Tobias Wick | The Chandler | Burnt umber | Candle hat, candle staff |
+
+### Renames
+
+| Was | Is |
+|---|---|
+| Warden: Rage; Shield Strike, Sweep, Challenge, Shield Bash, Brace, Unbreakable | Grit; Bulwark Blow, Mooring Sweep, Pilot's Hail, Breakwater Bash, Brace, Seawall |
+| Mender: Mana; Mend, Quick Mend, Rebuke, Purify, Guardian Ward, Sanctuary | Lamplight; Warm Light, Spark, Rebuke, Absolve, Lantern Ward, Sanctuary |
+| Bloomweaver: Mana; Mending Vine, Bark Ward, Bloom, Cleansing Dew, Bramble Guard, Verdant Tide | Tidewater; Mending Kelp, Shell Ward, Kelp Bloom, Salt Rinse, Barnacle Guard, Green Tide |
+| Duelist: Energy; Slash, Whirl, Finishing Thrust, Hilt Jab, Riposte, Bloodrush | Nerve; Cutlass, Round Turn, Final Cut, Hilt Jab, Riposte, Wrecker's Luck |
+| Ranger: Focus; Quick Shot, Piercing Shot, Scatter Volley, Jarring Shot, Tumble, Hawk's Focus | Focus; Snap Throw, Whaler's Lance, Barb Scatter, Jarring Barb, Deck Roll, Gull's Eye |
+| Pyromancer: Heat; Firebolt, Ignite, Flame Burst, Stifle, Ember Shield, Kindled Mind | Heat; Wickfire, Tallow Burn, Flare-Up, Snuff, Wax Seal, Steady Flame |
+| Brute: Crushing Blow | Drowned Porter: Heavy Load |
+| Hexer: Wither, Dark Bolt | Brine Cantor: Withering Verse, Sour Note |
+| Archer: Arrow Rain | Net-Brother: Rain of Hooks |
+| Shaman: Restore | Tide Almoner: Alms |
+| Berserker: Enrage | Penitent: Fervour |
+| Overseer: Sweeping Cut | The Prior: Banner Sweep |
+| Hatchling: Venom Bolt | Brineling: Brine Spit |
+| Krogg the Gatebreaker: Skullcrack, Rending Sweep, Tremor, Frenzy | Brother Krogg: The Great Key, Chain Sweep, Falling Stones, None Shall Pass |
+| Matron Velisse: Brood Mending, Brood | Sister Velisse: Bedside Manner, Wake the Ward |
+| Archon Sulmar: Annihilation, Dirge, Ashfall, Searing Brand | Abbot Sulmar: The Last Toll, Dirge, Saltfall, Brine Brand |
+| Interrupt, dispel, death | Silence, cleanse, fall |
+| Packs 1 to 6 | The Cloister Walk, The Wet Stair, The Undercroft, The Dispensary, The Choir Stalls, The Bell Stair |

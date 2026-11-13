@@ -16,7 +16,7 @@ export function abilityMeta(ab: AbilityDef, hero: HeroDef) {
   if (ab.cost) parts.push(`${ab.cost} ${hero.resName.toLowerCase()}`);
   parts.push(ab.cast ? `${ab.cast} s cast` : 'instant');
   if (ab.cd) parts.push(`${ab.cd >= 60 ? ab.cd / 60 + ' min' : ab.cd + ' s'} cooldown`);
-  if (ab.offGcd) parts.push('off GCD');
+  if (ab.offGcd) parts.push('any time');
   if (ab.target !== 'self') parts.push(ab.range && ab.range < 5 ? 'melee' : '30 m');
   return parts.join(' · ');
 }
@@ -135,8 +135,8 @@ export class Hud {
     const packs = w.packs.filter((k) => !k.def.boss), bosses = w.packs.filter((k) => k.def.boss);
     const next = w.nextPack();
     this.progress.textContent =
-      `Packs ${packs.filter((k) => k.cleared).length}/${packs.length} · Bosses ${bosses.filter((k) => k.cleared).length}/${bosses.length}` +
-      ` · Deaths ${w.deaths}${w.deaths ? ` (+${w.deaths * DEATH_PENALTY} s)` : ''}` +
+      `Rooms ${packs.filter((k) => k.cleared).length}/${packs.length} · Lamps ${bosses.filter((k) => k.cleared).length}/${bosses.length}` +
+      ` · Falls ${w.deaths}${w.deaths ? ` (+${w.deaths * DEATH_PENALTY} s)` : ''}` +
       (next ? ` · Next: ${next.def.name}` : '');
 
     w.heroes.forEach((h, i) => {
@@ -146,7 +146,7 @@ export class Hud {
       f.hp.classList.toggle('low', h.hp / h.maxHp < 0.35);
       const shield = h.auras.reduce((n, a) => n + (a.absorb ?? 0), 0);
       f.shield.style.width = Math.min(100, (shield / h.maxHp) * 100) + '%';
-      f.txt.textContent = h.alive ? `${Math.ceil(h.hp)}` : 'Dead';
+      f.txt.textContent = h.alive ? `${Math.ceil(h.hp)}` : 'Down';
       f.res.style.width = (h.res / h.resMax) * 100 + '%';
       const key = h.auras.filter((a) => a.dur < 100).map((a) => `${a.id}:${Math.ceil(a.t)}`).join(',');
       if (key !== f.last) {
@@ -192,17 +192,17 @@ export class Hud {
   }
 
   private updateTarget(t: Unit) {
-    this.tName.textContent = `${t.name} — ${Math.ceil((t.hp / t.maxHp) * 100)}%`;
+    this.tName.textContent = `${t.name} · ${Math.ceil((t.hp / t.maxHp) * 100)}%`;
     this.tHp.style.width = (t.hp / t.maxHp) * 100 + '%';
     const aim = this.world.unit(t.targetId);
-    this.tAim.textContent = t.engaged && aim && aim.alive ? `Attacking ${aim.name}${aim.isPlayer ? ' (you)' : ''}` : 'Idle';
+    this.tAim.textContent = t.engaged && aim && aim.alive ? `After ${aim.name}${aim.isPlayer ? ' (you)' : ''}` : 'At their post';
     this.tAim.classList.toggle('loose', t.engaged && !!aim && aim.alive && aim.hero?.role !== 'tank');
     const c = t.cast;
     this.tCast.style.visibility = c ? 'visible' : 'hidden';
     if (c) {
       this.tCastFill.style.width = (c.t / c.total) * 100 + '%';
       this.tCast.classList.toggle('kickable', !!c.interruptible);
-      this.tCastName.textContent = c.name + (c.interruptible ? '' : ' (no interrupt)');
+      this.tCastName.textContent = c.name + (c.interruptible ? '' : ' (cannot be silenced)');
     }
   }
 }

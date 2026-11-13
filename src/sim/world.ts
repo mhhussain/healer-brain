@@ -355,7 +355,7 @@ export class World {
     this.engageFrom(u, e);
     const c = e.cast;
     if (!c || !c.interruptible) {
-      this.text(e.x, e.y, 'Nothing to interrupt', '#9fb0b1');
+      this.text(e.x, e.y, 'Nothing to silence', '#9fb0b1');
       return;
     }
     e.cast = null;

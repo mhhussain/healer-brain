@@ -157,8 +157,8 @@ export class Renderer implements View {
 
   // A speech bubble over a unit's head.
   say(id: number, text: string) {
-    this.bubbles = this.bubbles.filter((b) => b.id !== id);
-    this.bubbles.push({ id, text, t: 0 });
+    // one at a time, so bubbles never pile up
+    this.bubbles = [{ id, text, t: 0 }];
   }
 
   private burst(x: number, y: number, z: number, n: number, color: string, ring: boolean) {

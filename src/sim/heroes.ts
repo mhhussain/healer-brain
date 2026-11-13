@@ -36,7 +36,7 @@ export const HEROES: Record<string, HeroDef> = {
       },
       {
         id: 'bash', name: 'Breakwater Bash', target: 'enemy', range: MELEE, cd: 15, offGcd: true, interrupt: true,
-        desc: 'Interrupt the target\'s cast.',
+        desc: 'Silence the target\'s cast.',
         fire: (w, u, t) => w.interrupt(u, t),
       },
       {
@@ -86,7 +86,7 @@ export const HEROES: Record<string, HeroDef> = {
       },
       {
         id: 'purify', name: 'Absolve', target: 'ally', cost: 30, cd: 8, dispel: true,
-        desc: 'Remove every dispellable debuff from an ally.',
+        desc: 'Cleanse an ally of every curse that can be lifted.',
         fire: dispel,
       },
       {
@@ -136,7 +136,7 @@ export const HEROES: Record<string, HeroDef> = {
       },
       {
         id: 'dew', name: 'Salt Rinse', target: 'ally', cost: 30, cd: 8, dispel: true,
-        desc: 'Remove every dispellable debuff from an ally.',
+        desc: 'Cleanse an ally of every curse that can be lifted.',
         fire: dispel,
       },
       {
@@ -186,7 +186,7 @@ export const HEROES: Record<string, HeroDef> = {
       },
       {
         id: 'jab', name: 'Hilt Jab', target: 'enemy', range: MELEE, cd: 15, offGcd: true, interrupt: true,
-        desc: 'Interrupt the target\'s cast.',
+        desc: 'Silence the target\'s cast.',
         fire: (w, u, t) => w.interrupt(u, t),
       },
       {
@@ -228,7 +228,7 @@ export const HEROES: Record<string, HeroDef> = {
       },
       {
         id: 'jarring', name: 'Jarring Barb', target: 'enemy', cd: 20, offGcd: true, interrupt: true,
-        desc: 'Interrupt the target\'s cast, at range.',
+        desc: 'Silence the target\'s cast, at range.',
         fire: (w, u, t) => w.interrupt(u, t),
       },
       {
@@ -279,7 +279,7 @@ export const HEROES: Record<string, HeroDef> = {
       },
       {
         id: 'stifle', name: 'Snuff', target: 'enemy', cd: 20, offGcd: true, interrupt: true,
-        desc: 'Interrupt the target\'s cast, at range.',
+        desc: 'Silence the target\'s cast, at range.',
         fire: (w, u, t) => w.interrupt(u, t),
       },
       {

@@ -30,4 +30,10 @@ mkdir -p build/web
 godot --headless --path game --export-release Web "$PWD/build/web/index.html"
 ```
 
+To try it in a browser, serve the folder and open http://localhost:8060 (add `?debug` to publish the hero's state as `window.fourfold` for browser tests):
+
+```sh
+python3 -m http.server 8060 -d build/web
+```
+
 `build/` is not committed. CI uploads the same export as the `fourfold-web` artifact on every push to `godot-rebuild`.

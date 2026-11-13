@@ -1,24 +1,26 @@
 [gd_scene format=3]
 
+[ext_resource type="Script" path="res://scripts/iso_camera.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/hero.tscn" id="2"]
+[ext_resource type="Shader" path="res://shaders/grid.gdshader" id="3"]
+[ext_resource type="Script" path="res://scripts/feel_readout.gd" id="4"]
+[ext_resource type="Script" path="res://scripts/web_probe.gd" id="5"]
+
 [sub_resource type="Environment" id="env"]
 background_mode = 1
 background_color = Color(0.09, 0.11, 0.14, 1)
 ambient_light_source = 2
 ambient_light_color = Color(0.62, 0.68, 0.78, 1)
-ambient_light_energy = 0.6
+ambient_light_energy = 0.5
 
-[sub_resource type="BoxMesh" id="floor_mesh"]
-size = Vector3(30, 0.5, 20)
+[sub_resource type="ShaderMaterial" id="floor_mat"]
+shader = ExtResource("3")
 
-[sub_resource type="StandardMaterial3D" id="floor_mat"]
-albedo_color = Color(0.36, 0.38, 0.42, 1)
+[sub_resource type="StandardMaterial3D" id="wall_mat"]
+albedo_color = Color(0.5, 0.52, 0.56, 1)
 
-[sub_resource type="CapsuleMesh" id="hero_mesh"]
-radius = 0.4
-height = 1.8
-
-[sub_resource type="StandardMaterial3D" id="hero_mat"]
-albedo_color = Color(0.85, 0.7, 0.35, 1)
+[sub_resource type="StandardMaterial3D" id="prop_mat"]
+albedo_color = Color(0.44, 0.4, 0.36, 1)
 
 [node name="Main" type="Node3D"]
 
@@ -26,29 +28,113 @@ albedo_color = Color(0.85, 0.7, 0.35, 1)
 environment = SubResource("env")
 
 [node name="Sun" type="DirectionalLight3D" parent="."]
-transform = Transform3D(0.866, 0.4096, -0.2868, 0, 0.5736, 0.8192, 0.5, -0.7094, 0.4967, 0, 12, 0)
+transform = Transform3D(-0.195, 0.827, -0.527, 0, 0.5375, 0.843, 0.981, 0.164, -0.105, 0, 12, 0)
 
-[node name="Camera" type="Camera3D" parent="."]
-transform = Transform3D(0.7071, -0.5, 0.5, 0, 0.7071, 0.7071, -0.7071, -0.5, 0.5, 15, 21.21, 15)
+[node name="Camera" type="Camera3D" parent="." node_paths=PackedStringArray("target")]
+transform = Transform3D(0.7071, 0.5, -0.5, 0, 0.7071, 0.7071, 0.7071, -0.5, 0.5, -13, 21.21, 15)
 projection = 1
-size = 24.0
 current = true
+size = 18.0
+script = ExtResource("1")
+target = NodePath("../Hero")
 
-[node name="Floor" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
-mesh = SubResource("floor_mesh")
-surface_material_override/0 = SubResource("floor_mat")
+[node name="Hero" parent="." instance=ExtResource("2")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 0)
+facing = -1.5708
 
-[node name="Hero" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
-mesh = SubResource("hero_mesh")
-surface_material_override/0 = SubResource("hero_mat")
+[node name="Room" type="Node3D" parent="."]
+
+[node name="Floor" type="CSGBox3D" parent="Room"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 26, -0.25, 0)
+size = Vector3(60, 0.5, 14)
+material = SubResource("floor_mat")
+
+[node name="BackWall" type="CSGBox3D" parent="Room"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 26, 1.5, -7.3)
+use_collision = true
+size = Vector3(61.2, 3, 0.6)
+material = SubResource("wall_mat")
+
+[node name="EndWall" type="CSGBox3D" parent="Room"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 56.3, 1.5, 0)
+use_collision = true
+size = Vector3(0.6, 3, 14)
+material = SubResource("wall_mat")
+
+[node name="FrontWall" type="CSGBox3D" parent="Room"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 26, 0.5, 7.3)
+use_collision = true
+size = Vector3(61.2, 1, 0.6)
+material = SubResource("wall_mat")
+
+[node name="StartWall" type="CSGBox3D" parent="Room"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.3, 0.5, 0)
+use_collision = true
+size = Vector3(0.6, 1, 14)
+material = SubResource("wall_mat")
+
+[node name="DividerBack" type="CSGBox3D" parent="Room"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 26, 1, -4.5)
+use_collision = true
+size = Vector3(0.6, 2, 5)
+material = SubResource("wall_mat")
+
+[node name="DividerFront" type="CSGBox3D" parent="Room"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 26, 1, 4.5)
+use_collision = true
+size = Vector3(0.6, 2, 5)
+material = SubResource("wall_mat")
+
+[node name="Pillar1" type="CSGCylinder3D" parent="Room"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 1.5, -3)
+use_collision = true
+radius = 0.8
+height = 3.0
+sides = 20
+material = SubResource("prop_mat")
+
+[node name="Pillar2" type="CSGCylinder3D" parent="Room"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 1.5, 3)
+use_collision = true
+radius = 0.8
+height = 3.0
+sides = 20
+material = SubResource("prop_mat")
+
+[node name="Pillar3" type="CSGCylinder3D" parent="Room"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 36, 1.5, -2)
+use_collision = true
+radius = 0.8
+height = 3.0
+sides = 20
+material = SubResource("prop_mat")
+
+[node name="Pillar4" type="CSGCylinder3D" parent="Room"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 44, 1.5, 3)
+use_collision = true
+radius = 0.8
+height = 3.0
+sides = 20
+material = SubResource("prop_mat")
+
+[node name="Crate" type="CSGBox3D" parent="Room"]
+transform = Transform3D(0.94, 0, 0.342, 0, 1, 0, -0.342, 0, 0.94, 20, 0.6, -4.6)
+use_collision = true
+size = Vector3(1.2, 1.2, 1.2)
+material = SubResource("prop_mat")
 
 [node name="Hud" type="CanvasLayer" parent="."]
 
-[node name="Title" type="Label" parent="Hud"]
+[node name="Readout" type="Label" parent="Hud" node_paths=PackedStringArray("unit", "camera")]
 offset_left = 24.0
 offset_top = 20.0
 offset_right = 600.0
-offset_bottom = 60.0
-text = "Fourfold: pipeline check"
+offset_bottom = 80.0
+script = ExtResource("4")
+unit = NodePath("../../Hero")
+camera = NodePath("../../Camera")
+
+[node name="WebProbe" type="Node" parent="." node_paths=PackedStringArray("unit", "camera")]
+script = ExtResource("5")
+unit = NodePath("../Hero")
+camera = NodePath("../Camera")

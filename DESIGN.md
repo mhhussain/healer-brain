@@ -1,6 +1,8 @@
 # Fourfold — design
 
-Status: **approved and built**. Numbers below are the tuned values in the game.
+Status: **approved and built** as the TypeScript game on `main`. Numbers below are the tuned values in that game.
+
+On the `godot-rebuild` branch the game is being rebuilt in Godot with an isometric view (see [`docs/godot-rebuild-handoff.md`](docs/godot-rebuild-handoff.md) and [`game/README.md`](game/README.md)). The rules here still hold; the view and section 3 (controls) describe the rebuild, and the rest of the interface is rebuilt milestone by milestone.
 
 Fourfold is an original, solo, browser-based dungeon runner in the style of timed five-player MMO dungeons. You play one hero in a party of four; AI plays the other three.
 
@@ -10,7 +12,7 @@ Fourfold is an original, solo, browser-based dungeon runner in the style of time
 |---|---|
 | Control | You play one hero per run. AI plays the other three. |
 | Party | 1 tank, 1 healer, 2 DPS. You choose every slot, duplicates allowed. |
-| View | Real-time belt-scroller: figures seen from the side, a floor you move across and into, and a camera that scrolls sideways with your hero. |
+| View | Real-time isometric: a 3D floor seen from a fixed camera looking down from one corner, which follows your hero. (The TypeScript game is a belt-scroller seen from the side.) |
 | Run | One linear dungeon: 6 trash packs, 3 bosses, 14-minute timer. |
 | Levels | Enemies gain 8% health and damage per level (compounding), plus new abilities at levels 3, 6 and 9. No cap. |
 | Unlocks | You may start any level up to one above your highest timed clear. Shared across heroes. |
@@ -37,9 +39,9 @@ Result rules:
 
 | Input | Action |
 |---|---|
-| A D, or Q E | Move along the hall. Your hero faces its target, or the move direction if it has none. |
-| W S | Move in depth: W towards the back wall, S towards the front edge. |
-| Space | Jump. Cosmetic only: it changes nothing in combat. |
+| W A S D | Move as the screen shows it: W up the screen, S down it, A left, D right. Two keys together move on the diagonal at the same speed. Your hero faces its target, or the move direction if it has none. |
+| Q E | Also left and right. |
+| Mouse wheel | Zoom in and out between two limits. Two-finger scroll or pinch does the same on a trackpad. |
 | Tab | Target the next enemy in line of sight, nearest first. |
 | Left click | Target the enemy whose figure is under the mouse. |
 | 1–6 | Use ability. T is also the interrupt and ` is also the personal defensive (the fifth ability). All of these can be changed. |
@@ -47,6 +49,9 @@ Result rules:
 | Esc | Clear target; again to open the pause menu. |
 | P | Pause. |
 
+- **Movement** is relative to the camera, not the dungeon: the halls run from the lower left of the screen to the upper right, so W and D together walk straight along them. The hero reaches full speed (8.5 m/s) in about a tenth of a second and stops as quickly.
+- **The camera** never turns. It trails the hero slightly and leads about a metre in the direction of travel.
+- There is no jump.
 - **Enemy abilities** go to your enemy target. With no target, they go to the tank's target.
 - **Ally abilities** go to the ally under the mouse (hero on the map or party frame). With no ally under the mouse, they go to yourself.
 - **Auto-attacks** fire on your enemy target whenever it is in range and in line of sight.
@@ -55,7 +60,7 @@ Result rules:
 
 - Every ability has two key slots and one mouse-button slot (middle, side back, side forward). The editor is on the party setup screen and in the pause menu, and bindings are saved per hero.
 - A key or button does one thing: binding it to an ability takes it away from the ability that had it.
-- Movement, Space, Tab, Esc, P and M are kept for the game and cannot be bound.
+- Movement, Tab, Esc, P and M are kept for the game and cannot be bound.
 - An ally ability cast from a key or mouse button lands on the ally under the pointer, as usual.
 
 ### Click-to-cast (healers)

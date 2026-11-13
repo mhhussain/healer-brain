@@ -25,7 +25,7 @@ const LINES: Record<string, Record<Moment, string[]>> = {
     late: ['The tide is turning. I can hear it.'],
   },
   warden: {
-    pull: ['Behind me. All of you. Yes, you too.', 'Steady. I have seen worse weather.', 'My knees remember these stairs.'],
+    pull: ['In, all of you. The sea takes the doorways first.', 'Behind me. All of you. Yes, you too.', 'Steady. I have seen worse weather.', 'My knees remember these stairs.'],
     krogg: ['A gatekeeper. I know the type.'],
     velisse: ['Mind the little ones. They nip.'],
     sulmar: ['When that bell swings, find a pillar.'],

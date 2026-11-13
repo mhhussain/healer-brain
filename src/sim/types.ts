@@ -120,6 +120,10 @@ export interface AIState {
   posT: number;
   tankSpot: Vec | null;
   hide: Vec | null;
+  // id of the pack whose room the tank has already gone into
+  entered: number;
+  // walked last tick; goals use it so a hero does not start and stop on a threshold
+  moving: boolean;
 }
 
 export interface Stats { dmg: number; heal: number; interrupts: number; dispels: number; deaths: number }
@@ -132,6 +136,10 @@ export interface Unit {
   y: number;
   // height off the floor; jumping is cosmetic
   z: number;
+  // where the unit was one tick ago, so the renderer can draw between ticks
+  px: number;
+  py: number;
+  pz: number;
   vz: number;
   jumpAt: number;
   facing: number;

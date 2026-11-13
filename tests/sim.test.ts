@@ -21,9 +21,11 @@ describe('map', () => {
     map.destroyPillar(p.id);
     expect(map.los(cx - 4, cy, cx + 4, cy)).toBe(true);
   });
-  test('the pull spot for the pillared pack is out of sight of the room', () => {
-    const p = packs.find((k) => k.losSpot)!;
-    expect(map.los(p.losSpot!.x, p.losSpot!.y, p.center.x, p.center.y)).toBe(false);
+  test('the tank has somewhere to stand inside every room', () => {
+    for (const p of packs) {
+      expect(map.canStand(p.stand.x, p.stand.y)).toBe(true);
+      expect(p.stand.x).toBeGreaterThan(p.roomLeft + 5);
+    }
   });
 });
 
@@ -49,6 +51,35 @@ describe('all-AI runs', () => {
     expect(w.deaths).toBeGreaterThan(3);
     expect(w.packs[0].units.every((u) => u.hp > 0 || !u.alive)).toBe(true);
     expect(w.totalTime()).toBeGreaterThan(w.elapsed);
+  });
+});
+
+describe('going in', () => {
+  test('the whole party fights inside the room, not on its threshold', () => {
+    const w = new World({ level: 1, party: ['warden', 'mender', 'ranger', 'pyromancer'], playerSlot: 0, seed: 4, autoplay: true });
+    let ticks = 0, outside = 0;
+    while (!w.finished && w.time < 30 * 60) {
+      w.tick(DT);
+      const p = w.packs.find((k) => k.engaged && !k.cleared);
+      if (!p || w.time - p.engagedAt < 6) continue;
+      for (const h of w.heroes) { ticks++; if (h.alive && h.x < p.def.roomLeft) outside++; }
+    }
+    expect(w.finished).toBe(true);
+    expect(outside / ticks).toBeLessThan(0.02);
+  });
+
+  test('a taunt shows on the enemy as a timed debuff', () => {
+    const w = new World({ level: 1, party: ['warden', 'mender', 'duelist', 'ranger'], playerSlot: 0, seed: 1 });
+    const e = w.enemies[0];
+    w.player.x = e.x - 10; w.player.y = e.y;
+    w.player.targetId = e.id;
+    w.press(2);
+    w.tick(DT);
+    const a = e.auras.find((k) => k.id === 'taunt')!;
+    expect(a.debuff).toBe(true);
+    expect(a.srcId).toBe(w.player.id);
+    for (let i = 0; i < 60 * 4 + 2; i++) w.tick(DT);
+    expect(w.hasAura(e, 'taunt')).toBe(false);
   });
 });
 

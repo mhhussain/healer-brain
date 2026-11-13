@@ -2,11 +2,11 @@ import './style.css';
 import { DPS, HEALERS, HEROES, TANKS } from './sim/heroes';
 import { DT, TIME_LIMIT, World } from './sim/world';
 import { sound } from './ui/audio';
-import { Hud, abilityMeta, el, fmtTime } from './ui/hud';
+import { Hud, abilityMeta, el, fmtTime, short } from './ui/hud';
 import { drawFigure, lookOf } from './ui/figures';
 import { Renderer } from './ui/render';
 import { ENDING_IN_TIME, ENDING_LATE, OPENING, Story } from './ui/story';
-import { COMBOS, comboLabel, loadSave, storeSave, type Save } from './ui/save';
+import { COMBOS, MOUSE, MOVE_KEYS, RESERVED, bindLabel, comboLabel, defaultKeys, keyLabel, loadSave, mouseOf, storeSave, type Save } from './ui/save';
 
 const app = document.getElementById('app')!;
 const save: Save = loadSave();
@@ -29,9 +29,6 @@ function wakeSound() {
 }
 window.addEventListener('pointerdown', wakeSound, true);
 window.addEventListener('keydown', wakeSound, true);
-
-// 'Sister Wren' is Wren, 'Hale Dunmarrow' is Hale.
-const short = (name: string) => (/^(Sister|Old) /.test(name) ? name.split(' ')[1] : name.split(' ')[0]);
 
 function button(text: string, cls: string, onClick: () => void) {
   const b = el('button', cls, text);
@@ -106,6 +103,88 @@ function bindingsEditor(heroId: string) {
   return box;
 }
 
+// Only one key slot listens at a time.
+let cancelCapture: (() => void) | null = null;
+
+// Wait for the next key press and hand its code to done; '' empties the slot. Escape or a click elsewhere cancels.
+function captureKey(b: HTMLElement, note: HTMLElement, done: (code: string) => void) {
+  cancelCapture?.();
+  const was = b.textContent;
+  b.classList.add('waiting');
+  b.textContent = 'Press…';
+  const ac = new AbortController();
+  const stop = () => { ac.abort(); cancelCapture = null; b.classList.remove('waiting'); b.textContent = was; };
+  cancelCapture = stop;
+  window.addEventListener('keydown', (e) => {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    if (e.code === 'Escape') return stop();
+    if (e.code === 'Backspace' || e.code === 'Delete') { stop(); return done(''); }
+    const why = RESERVED[e.code];
+    if (why) {
+      note.textContent = `${keyLabel(e.code)} is kept for ${why}. Press another key.`;
+      note.classList.add('warn');
+      return;
+    }
+    stop();
+    done(e.code);
+  }, { capture: true, signal: ac.signal });
+  window.addEventListener('pointerdown', (e) => { if (e.target !== b) stop(); }, { capture: true, signal: ac.signal });
+}
+
+// Keys and mouse buttons for a hero's six abilities: two key slots and one mouse button each.
+function keysEditor(heroId: string, onChange: () => void = () => {}) {
+  const def = HEROES[heroId];
+  const keys = (save.keys[heroId] ??= defaultKeys(heroId));
+  const mouse = (save.mouse[heroId] ??= {});
+  const box = el('div', 'bindings');
+  const changed = () => { storeSave(save); onChange(); box.replaceWith(keysEditor(heroId, onChange)); };
+  box.append(el('h3', '', 'Keys and mouse buttons'));
+  const head = el('div', 'key-row head');
+  head.append(el('span'), el('span', '', 'Key'), el('span', '', 'Also'), el('span', '', 'Mouse button'));
+  box.append(head);
+  const note = el('p', 'bind-note', 'Click a slot, then press a key. Backspace empties it.');
+  for (const ab of def.abilities) {
+    const row = el('div', 'key-row');
+    row.append(el('span', '', ab.name));
+    const slots = (keys[ab.id] ??= ['', '']);
+    for (let i = 0; i < 2; i++) {
+      const code = slots[i] ?? '';
+      const b = el('button', 'slot-key' + (code ? '' : ' empty'), code ? keyLabel(code) : '–');
+      b.setAttribute('aria-label', `${ab.name}, ${i ? 'second key' : 'key'}: ${code ? keyLabel(code) : 'none'}`);
+      b.addEventListener('click', () => captureKey(b, note, (c) => {
+        // a key does one thing: taking it here takes it away from wherever it was
+        if (c) for (const id in keys) keys[id] = [0, 1].map((k) => (keys[id][k] === c ? '' : keys[id][k] ?? ''));
+        keys[ab.id][i] = c;
+        changed();
+      }));
+      row.append(b);
+    }
+    const sel = document.createElement('select');
+    sel.setAttribute('aria-label', `${ab.name}, mouse button`);
+    for (const m of ['', ...MOUSE]) {
+      const o = document.createElement('option');
+      o.value = m;
+      o.textContent = m ? comboLabel(m) : 'None';
+      sel.append(o);
+    }
+    sel.value = mouse[ab.id] ?? '';
+    sel.addEventListener('change', () => {
+      for (const id in mouse) if (mouse[id] === sel.value) delete mouse[id];
+      if (sel.value) mouse[ab.id] = sel.value; else delete mouse[ab.id];
+      changed();
+    });
+    row.append(sel);
+    box.append(row);
+  }
+  box.append(note, button('Back to the usual keys', 'ghost', () => {
+    save.keys[heroId] = defaultKeys(heroId);
+    save.mouse[heroId] = {};
+    changed();
+  }));
+  return box;
+}
+
 function showSetup() {
   app.innerHTML = '';
   const root = el('div', 'screen setup');
@@ -136,13 +215,17 @@ function showSetup() {
   const title = el('h2', '', `${def.name}, ${def.title}`);
   title.style.color = def.color;
   kit.append(title, el('p', 'how', def.howTo));
-  def.abilities.forEach((ab, i) => {
+  const kitKeys = def.abilities.map((ab) => {
     const row = el('div', 'kit-row');
     const body = el('div');
     body.append(el('b', '', ab.name), el('span', 'meta', abilityMeta(ab, def)), el('div', '', ab.desc));
-    row.append(el('div', 'key', String(i + 1)), body);
+    const key = el('div', 'key');
+    row.append(key, body);
     kit.append(row);
+    return key;
   });
+  const showKeys = () => def.abilities.forEach((ab, i) => (kitKeys[i].textContent = bindLabel(save, def.id, ab.id) || '–'));
+  showKeys();
   const best = save.bests[def.id];
   kit.append(el('p', 'best', best ? `Best with ${def.name}: level ${best.level} in ${fmtTime(best.time)}` : `${def.name} has not yet beaten the tide.`));
   cols.append(kit);
@@ -158,15 +241,16 @@ function showSetup() {
   side.append(el('h3', '', 'Controls'));
   const controls = el('ul', 'controls');
   const lines = [
-    'A D: move along the hall · W S: move in depth',
+    'A D or Q E: move along the hall · W S: move in depth',
     'Space: jump (just for fun)',
     'Tab or left click: target an enemy',
-    '1 to 6: abilities',
+    'Abilities: the keys and mouse buttons below',
     def.role === 'healer' ? 'Heals land on the ally under the mouse, or on you' : 'Attacks with no target use the tank\'s target',
     'Esc: clear target, then pause · P: pause · M: sound on or off',
   ];
   for (const l of lines) controls.append(el('li', '', l));
   side.append(controls);
+  side.append(keysEditor(def.id, showKeys));
   if (def.role === 'healer') side.append(bindingsEditor(def.id));
   side.append(el('h3', '', 'Sound'), soundControls());
   side.append(button(`Descend into the Drowned Abbey · level ${save.level}`, 'start', () => startRun(save.level)));
@@ -188,7 +272,21 @@ function startRun(level: number) {
   app.append(root);
   const renderer = new Renderer(canvas);
   const heroId = world.player.hero!.id;
-  const hud = new Hud(root, world, world.player.hero!.role === 'healer' ? save.bindings[heroId] : null);
+  const hero = world.player.hero!;
+  const hud = new Hud(root, world, { clicks: hero.role === 'healer' ? save.bindings[heroId] : null, label: (id) => bindLabel(save, heroId, id) });
+  // key code or mouse button -> ability index
+  const keymap = new Map<string, number>(), mousemap = new Map<string, number>();
+  const rebind = () => {
+    keymap.clear();
+    mousemap.clear();
+    hero.abilities.forEach((ab, i) => {
+      for (const c of save.keys[heroId]?.[ab.id] ?? []) if (c) keymap.set(c, i);
+      const m = save.mouse[heroId]?.[ab.id];
+      if (m) mousemap.set(m, i);
+    });
+    hud.relabel();
+  };
+  rebind();
   const story = new Story(world, (id, text) => renderer.say(id, text));
 
   // The opening card lies over the abbey until a click or key press. The tide does not start until the first pull.
@@ -229,12 +327,13 @@ function startRun(level: number) {
     paused = p;
     overlay?.remove();
     overlay = null;
-    if (!p) return;
+    cancelCapture?.();
+    if (!p) return rebind();
     keys.clear();
     overlay = el('div', 'overlay');
     const panel = el('div', 'panel');
-    panel.append(el('h2', '', 'Paused'));
-    if (world.player.hero!.role === 'healer') panel.append(bindingsEditor(heroId));
+    panel.append(el('h2', '', 'Paused'), keysEditor(heroId));
+    if (hero.role === 'healer') panel.append(bindingsEditor(heroId));
     panel.append(soundControls());
     panel.append(
       button('Resume', 'start', () => setPaused(false)),
@@ -264,9 +363,23 @@ function startRun(level: number) {
     keys.add(e.code);
     if (e.code === 'Tab') world.tabTarget();
     if (e.code === 'Space') world.jump();
-    const m = /^Digit([1-6])$/.exec(e.code);
-    if (m) world.press(Number(m[1]) - 1);
+    const idx = keymap.get(e.code);
+    if (idx !== undefined) { e.preventDefault(); world.press(idx); }
   }, on);
+
+  // Middle and side buttons cast whatever is bound to them, wherever the pointer is.
+  // A party frame that has its own click-cast for the button has already taken the click.
+  root.addEventListener('mousedown', (e) => {
+    const m = mouseOf(e);
+    if (!m) return;
+    e.preventDefault();
+    const idx = mousemap.get(m);
+    if (idx !== undefined && !paused && !card) world.press(idx);
+  }, on);
+  // side buttons would otherwise take the browser back or forward
+  for (const type of ['mouseup', 'auxclick'] as const) {
+    window.addEventListener(type, (e) => { if (e.button === 3 || e.button === 4) e.preventDefault(); }, on);
+  }
 
   const unitAt = (px: number, py: number) => {
     const rect = canvas.getBoundingClientRect();
@@ -285,14 +398,16 @@ function startRun(level: number) {
     const real = Math.min(0.1, (now - last) / 1000);
     last = now;
     if (!paused) {
-      world.input.mx = (keys.has('KeyD') ? 1 : 0) - (keys.has('KeyA') ? 1 : 0);
-      world.input.my = (keys.has('KeyS') ? 1 : 0) - (keys.has('KeyW') ? 1 : 0);
+      const held = (codes: string[]) => (codes.some((c) => keys.has(c)) ? 1 : 0);
+      world.input.mx = held(MOVE_KEYS.right) - held(MOVE_KEYS.left);
+      world.input.my = held(MOVE_KEYS.down) - held(MOVE_KEYS.up);
       const hover = world.unit(hoverId);
       world.hoverAllyId = hud.frameHover >= 0 ? hud.frameHover : hover && hover.team === 'hero' ? hover.id : -1;
       acc += real * speed;
       while (acc >= DT) { world.tick(DT); acc -= DT; }
     }
-    renderer.draw(world, hoverId);
+    // draw part-way between the last two ticks, so motion is even whatever the screen's refresh rate
+    renderer.draw(world, hoverId, acc / DT);
     hud.update();
     if (world.error && world.error !== lastError && !world.autoplay) sound.ui('error');
     lastError = world.error;

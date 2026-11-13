@@ -2,15 +2,23 @@ import type { Unit } from '../sim/types';
 import type { World } from '../sim/world';
 import { drawFigure, lookOf } from './figures';
 import { BODY_FONT, DISPLAY_FONT, PAL, TAU, hash, rgba } from './palette';
+import { DOOR_DEPTH, FRONT } from '../sim/dungeon';
 import { DEPTH, PILLAR_H, drawBackdrop, drawHall, drawPillar, drawWater, type View } from './scenery';
+import { drawWeatherAir, drawWeatherGround } from './weather';
 
 // Belt-scroller view: x runs along the hall, y is depth (drawn squashed), z is height.
 const WALL_H = 6;
-const BOTTOM = 150;
+// room left under the floor's front edge for the frames and the action bar
+const BOTTOM = 264;
 const HERO_H = 2.6;
 // how long a drowned monk takes to turn to light
 const REST = 0.9;
 const LEAN = 7;
+// the camera runs a little ahead of the way you are walking
+const LOOK = 1;
+// a figure other than yours turns round only once it has faced the new way this long
+const TURN = 0.12;
+const MAX_SHAKE = 9;
 
 const INK = PAL.ink;
 
@@ -20,7 +28,8 @@ interface Particle { x: number; y: number; z: number; vx: number; vz: number; t:
 interface Bubble { id: number; text: string; t: number }
 const BUBBLE_TIME = 4;
 
-interface Anim { x: number; y: number; phase: number; walking: boolean; dir: 1 | -1; auto: number; gcd: number; atk: number; hp: number; flash: number; gone: number }
+interface Anim { x: number; y: number; phase: number; stride: number; dir: 1 | -1; turn: number; auto: number; gcd: number; atk: number; hp: number; flash: number; gone: number }
+interface Pos { x: number; y: number; z: number }
 
 export class Renderer implements View {
   ctx: CanvasRenderingContext2D;
@@ -30,6 +39,7 @@ export class Renderer implements View {
   oy = 0;
   private last = 0;
   private mapOf: World | null = null;
+  private auto = false;
   // per column: depth of the wall's front face, and whether the column has floor
   wallAt: number[] = [];
   front = 0;
@@ -44,6 +54,16 @@ export class Renderer implements View {
   scale = 30;
   camX = 0;
   private lean = 0;
+  private look = 0;
+  // where the camera is before the shake is added
+  private camAt = 0;
+  private oyAt = 0;
+  private shake = 0;
+  private calm = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // where each unit is drawn this frame: between its last two ticks
+  private pos = new Map<number, Pos>();
+  // 0 to 1 per doorway: how far the sea has come in over the threshold
+  private flood: number[] = [];
 
   constructor(private canvas: HTMLCanvasElement) {
     this.ctx = canvas.getContext('2d')!;
@@ -75,14 +95,16 @@ export class Renderer implements View {
       if (back >= 0) deepest = Math.max(deepest, front - back);
     }
     this.scale = Math.max(14, Math.min(48, this.w / 50, (this.h - BOTTOM - 70) / (deepest * DEPTH + WALL_H)));
-    this.oy = this.h - BOTTOM - this.front * this.scale * DEPTH;
+    this.oy = this.oyAt = this.h - BOTTOM - this.front * this.scale * DEPTH;
     const bosses = world.packs.filter((p) => p.def.boss);
     this.lampX = bosses.map((p) => p.def.center.x);
     this.zoneEnd = bosses.map((p) => p.def.center.x + 17);
     this.lit = bosses.map((p) => (p.cleared ? 1 : 0));
     this.toll = 0;
-    this.camX = world.player.x;
-    this.lean = 0;
+    this.camX = this.camAt = world.player.x;
+    this.lean = this.look = this.shake = 0;
+    this.flood = world.packs.map((p) => (p.engaged || p.cleared ? 1 : 0));
+    this.pos.clear();
     this.anims.clear();
     this.parts = [];
     this.bubbles = [];
@@ -111,9 +133,25 @@ export class Renderer implements View {
     return u.enemy!.id === 'hatchling' ? 1.2 : u.radius * 3.5;
   }
 
+  // Where a unit is drawn. The simulation moves in ticks; the screen may refresh between them.
+  private at(u: Unit): Pos { return this.pos.get(u.id) ?? u; }
+
+  private place(world: World, alpha: number) {
+    for (const u of [...world.heroes, ...world.enemies]) {
+      let q = this.pos.get(u.id);
+      if (!q) this.pos.set(u.id, (q = { x: u.x, y: u.y, z: u.z }));
+      // a jump across the room, such as a reset, is not slid through
+      const k = Math.hypot(u.x - u.px, u.y - u.py) > 3 ? 1 : alpha;
+      q.x = u.px + (u.x - u.px) * k;
+      q.y = u.py + (u.y - u.py) * k;
+      q.z = u.pz + (u.z - u.pz) * k;
+    }
+  }
+
   // Screen position of the middle of a unit's figure.
   anchor(u: Unit) {
-    return { x: this.sx(u.x), y: this.sy(u.y, u.z) - (this.figH(u) * this.scale) / 2 };
+    const q = this.at(u);
+    return { x: this.sx(q.x), y: this.sy(q.y, q.z) - (this.figH(u) * this.scale) / 2 };
   }
 
   // The unit whose figure is under a screen point; nearest to the camera wins.
@@ -121,28 +159,33 @@ export class Renderer implements View {
     let best = -1, by = -1e9;
     for (const u of [...world.enemies, ...world.heroes]) {
       if (!u.alive) continue;
-      const H = this.figH(u) * this.scale;
-      const x = this.sx(u.x), foot = this.sy(u.y, u.z);
+      const H = this.figH(u) * this.scale, q = this.at(u);
+      const x = this.sx(q.x), foot = this.sy(q.y, q.z);
       if (Math.abs(px - x) > H * 0.3 + 8 || py > foot + 8 || py < foot - H - 8) continue;
-      if (u.y > by) { by = u.y; best = u.id; }
+      if (q.y > by) { by = q.y; best = u.id; }
     }
     return best;
   }
 
   private anim(u: Unit, dt: number) {
+    const q = this.at(u);
     let a = this.anims.get(u.id);
     if (!a) {
-      a = { x: u.x, y: u.y, phase: u.id * 1.7, walking: false, dir: Math.cos(u.facing) >= 0 ? 1 : -1, auto: u.autoTimer, gcd: u.gcd, atk: 0, hp: u.hp, flash: 0, gone: u.alive ? 0 : 9 };
+      a = { x: q.x, y: q.y, phase: u.id * 1.7, stride: 0, dir: Math.cos(u.facing) >= 0 ? 1 : -1, turn: 0, auto: u.autoTimer, gcd: u.gcd, atk: 0, hp: u.hp, flash: 0, gone: u.alive ? 0 : 9 };
       this.anims.set(u.id, a);
     }
     if (!u.alive && a.gone === 0 && !u.hero) this.burst(u.x, u.y, this.figH(u) * 0.5, 16, '#d8fff4', true);
     a.gone = u.alive ? 0 : a.gone + dt;
-    const moved = Math.hypot(u.x - a.x, u.y - a.y);
-    a.walking = moved > 1e-4 && moved < 3;
-    if (a.walking) a.phase += moved * 2.4;
-    a.x = u.x; a.y = u.y;
+    // the stride eases in and out, so a figure never snaps between walking and standing
+    const moved = Math.hypot(q.x - a.x, q.y - a.y);
+    const walking = u.alive && dt > 0 && moved < 3 && moved / dt > 0.5;
+    if (walking) a.phase += moved * 2;
+    a.stride += ((walking ? 1 : 0) - a.stride) * (1 - Math.exp(-dt * 14));
+    a.x = q.x; a.y = q.y;
     const c = Math.cos(u.facing);
-    if (c > 0.15) a.dir = 1; else if (c < -0.15) a.dir = -1;
+    const want = c > 0.15 ? 1 : c < -0.15 ? -1 : a.dir;
+    if (want === a.dir) a.turn = 0;
+    else if ((u.isPlayer && !this.auto) || (a.turn += dt) >= TURN) { a.dir = want; a.turn = 0; }
     if (u.autoTimer > a.auto + 0.2 || u.gcd > a.gcd + 0.2) a.atk = 0.22;
     a.auto = u.autoTimer; a.gcd = u.gcd;
     if (u.hp < a.hp - 0.5) {
@@ -169,22 +212,44 @@ export class Renderer implements View {
     }
   }
 
-  draw(world: World, hoverId: number) {
+  // alpha: how far the clock is from the last tick towards the next, 0 to 1
+  draw(world: World, hoverId: number, alpha = 1) {
     const g = this.ctx;
     const now = performance.now();
     const dt = Math.min(0.1, Math.max(0, (now - this.last) / 1000));
     this.last = now;
     if (this.mapOf !== world) this.prepare(world);
+    this.auto = world.autoplay;
+    this.place(world, Math.max(0, Math.min(1, alpha)));
     const s = this.scale;
-    const p = world.player;
-    // The camera follows the hero and leans a little towards the fight, so it stays on screen.
+    const p = world.player, px = this.at(p).x;
+    // The camera follows the hero, runs a little ahead of it, and leans towards the fight so both stay on screen.
     const foes = world.enemies.filter((e) => e.alive && e.engaged);
-    const fight = foes.length ? foes.reduce((n, e) => n + e.x, 0) / foes.length : p.x;
-    const lean = Math.max(-LEAN, Math.min(LEAN, (fight - p.x) * 0.5));
+    const fight = foes.length ? foes.reduce((n, e) => n + e.x, 0) / foes.length : px;
+    const lean = Math.max(-LEAN, Math.min(LEAN, (fight - px) * 0.5));
     this.lean += (lean - this.lean) * (1 - Math.exp(-dt * 2.5));
-    const want = p.x + this.lean;
-    this.camX += (want - this.camX) * (1 - Math.exp(-dt * 9));
-    if (Math.abs(want - this.camX) > 40) this.camX = want;
+    const ahead = p.alive && world.time - p.lastMoveT < 0.1 ? Math.cos(p.moveDir) * LOOK : 0;
+    this.look += (ahead - this.look) * (1 - Math.exp(-dt * 3));
+    const want = px + this.lean + this.look;
+    this.camAt += (want - this.camAt) * (1 - Math.exp(-dt * 10));
+    if (Math.abs(want - this.camAt) > 40) this.camAt = want;
+
+    // Heavy blows jolt the screen: the harder the hit on you, the bigger the jolt.
+    for (const e of world.events) {
+      if (e.k === 'boom') this.shake += 1.5;
+      else if (e.k === 'death' && world.unit(e.id ?? -1)?.hero) this.shake += 4;
+      else if (e.k === 'hit' && e.id != null) {
+        const u = world.unit(e.id);
+        const part = u && u.hero ? (e.amt ?? 0) / u.maxHp : 0;
+        if (part >= 0.12) this.shake += part * (u!.isPlayer ? 26 : 12);
+      }
+    }
+    this.shake = this.calm ? 0 : Math.min(MAX_SHAKE, this.shake) * Math.exp(-dt * 8);
+    this.camX = this.camAt + (Math.sin(now * 0.071) * this.shake) / s;
+    this.oy = this.oyAt + Math.cos(now * 0.093) * this.shake * 0.7;
+    world.packs.forEach((k, i) => {
+      this.flood[i] = Math.max(0, Math.min(1, this.flood[i] + (k.engaged || k.cleared ? dt : -dt) / 1.5));
+    });
 
     // lamps come alight over a few seconds; the great bell swings while the Abbot tolls it
     world.packs.filter((k) => k.def.boss).forEach((k, i) => {
@@ -201,9 +266,11 @@ export class Renderer implements View {
     drawHall(this, world, world.time);
     drawWater(this, world, world.time);
     this.motes(world.time);
+    drawWeatherGround(this, world.time);
 
-    // floor decals: telegraphs, rings, selection, shadows
+    // floor decals: flooded thresholds, telegraphs, rings, selection, shadows
     this.floorSpace();
+    this.thresholds(world);
     for (const z of world.zones) {
       const k = Math.min(1, z.t / z.delay);
       const shape = (r: number) => {
@@ -239,10 +306,11 @@ export class Renderer implements View {
     const units = [...world.enemies.filter((e) => e.alive || (this.anims.get(e.id)?.gone ?? 9) < REST), ...world.heroes];
     for (const u of units) {
       if (!u.alive) continue;
-      const lift = Math.max(0.5, 1 - u.z * 0.3);
+      const q = this.at(u);
+      const lift = Math.max(0.5, 1 - q.z * 0.3);
       g.fillStyle = 'rgba(0,0,0,0.38)';
       g.beginPath();
-      g.arc(u.x, u.y, u.radius * 0.95 * lift, 0, TAU);
+      g.arc(q.x, q.y, u.radius * 0.95 * lift, 0, TAU);
       g.fill();
       const ring = u.id === p.targetId ? PAL.danger : u.id === hoverId ? '#ffffff' : u.isPlayer ? PAL.gold : u.hero ? u.hero.color : '';
       if (!ring) continue;
@@ -250,7 +318,7 @@ export class Renderer implements View {
       g.globalAlpha = u.hero && !u.isPlayer && u.id !== hoverId ? 0.55 : 1;
       g.lineWidth = (u.id === p.targetId || u.isPlayer ? 3 : 2) / s;
       g.beginPath();
-      g.arc(u.x, u.y, u.radius + 0.3, 0, TAU);
+      g.arc(q.x, q.y, u.radius + 0.3, 0, TAU);
       g.stroke();
       g.globalAlpha = 1;
     }
@@ -262,12 +330,15 @@ export class Renderer implements View {
       if (pl.alive) items.push({
         y: pl.y + pl.h - 0.01,
         // see-through while someone stands behind it
-        draw: () => drawPillar(this, pl.x, pl.y, pl.w, pl.h, units.some((u) => u.alive && u.y < pl.y + pl.h && u.y > pl.y - PILLAR_H / DEPTH && u.x > pl.x - 0.7 && u.x < pl.x + pl.w + 0.7)),
+        draw: () => drawPillar(this, pl.x, pl.y, pl.w, pl.h, units.some((u) => {
+          const q = this.at(u);
+          return u.alive && q.y < pl.y + pl.h && q.y > pl.y - PILLAR_H / DEPTH && q.x > pl.x - 0.7 && q.x < pl.x + pl.w + 0.7;
+        })),
       });
     }
     for (const u of units) {
       const a = this.anim(u, dt);
-      items.push({ y: u.y, draw: () => this.drawFigure(world, u, a) });
+      items.push({ y: this.at(u).y, draw: () => this.drawFigure(world, u, a) });
     }
     items.sort((a, b) => a.y - b.y);
     for (const it of items) it.draw();
@@ -291,13 +362,15 @@ export class Renderer implements View {
       g.globalCompositeOperation = 'source-over';
     }
     this.drawParticles(dt);
+    drawWeatherAir(this, world.time);
 
     const tank = world.heroes[0];
     for (const u of units) {
       if (!u.alive) continue;
-      const top = this.sy(u.y, u.z) - this.figH(u) * s;
-      if (u.hero) this.heroPlate(u, this.sx(u.x), top);
-      else this.enemyPlate(world, u, this.sx(u.x), top, u.id === p.targetId, u.id === hoverId, tank);
+      const q = this.at(u);
+      const top = this.sy(q.y, q.z) - this.figH(u) * s;
+      if (u.hero) this.heroPlate(u, this.sx(q.x), top);
+      else this.enemyPlate(world, u, this.sx(q.x), top, u.id === p.targetId, u.id === hoverId, tank);
     }
 
     for (const f of world.fx) {
@@ -322,6 +395,24 @@ export class Renderer implements View {
     vg.addColorStop(1, 'rgba(4,9,12,0.55)');
     g.fillStyle = vg;
     g.fillRect(0, 0, this.w, this.h);
+  }
+
+  // The sea comes in over each doorway once the party has gone through it. Drawn in floor space.
+  private thresholds(world: World) {
+    const g = this.ctx, t = world.time;
+    world.packs.forEach((k, i) => {
+      const f = this.flood[i], x0 = k.def.doorX, wide = k.def.roomLeft - x0, y0 = FRONT - DOOR_DEPTH;
+      if (f <= 0 || this.sx(x0) > this.w || this.sx(x0 + wide) < 0) return;
+      g.fillStyle = rgba(PAL.glow, 0.3 * f);
+      g.fillRect(x0, y0, wide, DOOR_DEPTH);
+      // light sliding across the water
+      g.fillStyle = rgba(PAL.bone, 0.3 * f);
+      for (let j = 0; j < 7; j++) {
+        const len = 0.5 + hash(i * 9 + j) * 0.9;
+        const x = x0 + (0.5 + 0.5 * Math.sin(t * (0.5 + hash(j * 3 + i) * 0.5) + j * 2.1)) * (wide - len);
+        g.fillRect(x, y0 + 0.4 + (j / 7) * (DOOR_DEPTH - 0.8), len, 0.07);
+      }
+    });
   }
 
   // Drifting specks of sea-light, purely for atmosphere.
@@ -377,8 +468,9 @@ export class Renderer implements View {
         else lines.push(word);
       }
       const wide = Math.max(...lines.map((l) => l.length)) * 7.4 + 22, tall = lines.length * 18 + 14;
-      const x = Math.max(wide / 2 + 6, Math.min(this.w - wide / 2 - 6, this.sx(u.x)));
-      const y = this.sy(u.y, u.z) - this.figH(u) * this.scale - 34 - tall;
+      const q = this.at(u), ux = this.sx(q.x);
+      const x = Math.max(wide / 2 + 6, Math.min(this.w - wide / 2 - 6, ux));
+      const y = this.sy(q.y, q.z) - this.figH(u) * this.scale - 34 - tall;
       g.globalAlpha = Math.min(1, b.t * 5, (BUBBLE_TIME - b.t) * 2);
       g.fillStyle = '#efe3c2';
       g.strokeStyle = '#8a6d3a';
@@ -387,7 +479,7 @@ export class Renderer implements View {
       g.roundRect(x - wide / 2, y, wide, tall, 10);
       g.fill(); g.stroke();
       g.beginPath();
-      g.moveTo(this.sx(u.x) - 6, y + tall - 1); g.lineTo(this.sx(u.x), y + tall + 9); g.lineTo(this.sx(u.x) + 6, y + tall - 1);
+      g.moveTo(ux - 6, y + tall - 1); g.lineTo(ux, y + tall + 9); g.lineTo(ux + 6, y + tall - 1);
       g.fill();
       g.fillStyle = '#1d2a2e';
       g.font = `italic 15px ${BODY_FONT}`;
@@ -402,8 +494,9 @@ export class Renderer implements View {
     const g = this.ctx;
     const H = this.figH(u) * this.scale;
     let rest = 0;
+    const q = this.at(u);
     g.save();
-    g.translate(this.sx(u.x), this.sy(u.y, u.z));
+    g.translate(this.sx(q.x), this.sy(q.y, q.z));
     if (!u.alive) {
       if (u.hero) {
         // a fallen hero lies on the flagstones until the fight is over
@@ -423,7 +516,7 @@ export class Renderer implements View {
     drawFigure(g, lookOf(u.hero?.id, u.enemy?.id), {
       H,
       dir: a.dir,
-      step: u.alive && a.walking ? Math.sin(a.phase) : 0,
+      step: u.alive ? Math.sin(a.phase) * a.stride : 0,
       swing: a.atk > 0 ? Math.sin((1 - a.atk / 0.22) * Math.PI) : 0,
       casting: u.alive && !!u.cast,
       flash: a.flash > 0,
@@ -489,11 +582,41 @@ export class Renderer implements View {
     }
   }
 
+  // What the party has put on an enemy and how long it has left: a chip per debuff, in its caster's colour,
+  // draining as it runs out. Yours come first and are edged in gold.
+  private debuffChips(world: World, e: Unit, x: number, y: number) {
+    const g = this.ctx, me = world.player.id;
+    const list = e.auras.filter((a) => a.debuff).sort((a, b) => Number(b.srcId === me) - Number(a.srcId === me));
+    if (!list.length) return;
+    const cw = 24, ch = 13, gap = 2;
+    let cx = x - (list.length * (cw + gap) - gap) / 2;
+    g.font = `700 11px ${BODY_FONT}`;
+    g.textAlign = 'center';
+    for (const a of list) {
+      const mine = a.srcId === me;
+      g.fillStyle = INK;
+      g.fillRect(cx, y, cw, ch);
+      g.fillStyle = rgba(world.unit(a.srcId)?.hero?.color ?? PAL.violet, mine ? 0.85 : 0.5);
+      g.fillRect(cx, y, cw * Math.max(0, Math.min(1, a.t / a.dur)), ch);
+      g.lineWidth = 1;
+      g.strokeStyle = mine ? PAL.gold : 'rgba(0,0,0,0.8)';
+      g.strokeRect(cx + 0.5, y + 0.5, cw - 1, ch - 1);
+      const left = a.t < 3 ? a.t.toFixed(1) : String(Math.ceil(a.t));
+      g.lineWidth = 2.5;
+      g.strokeStyle = 'rgba(0,0,0,0.85)';
+      g.strokeText(left, cx + cw / 2, y + ch - 3);
+      g.fillStyle = '#fff';
+      g.fillText(left, cx + cw / 2, y + ch - 3);
+      cx += cw + gap;
+    }
+  }
+
   private enemyPlate(world: World, e: Unit, x: number, top: number, targeted: boolean, hover: boolean, tank: Unit) {
     const g = this.ctx;
     const def = e.enemy!;
     const bw = def.boss ? 130 : def.elite ? 76 : 56;
     let by = top - 14;
+    this.debuffChips(world, e, x, by + 9);
     const loose = e.engaged && tank.alive && e.targetId !== tank.id && e.targetId >= 0;
     g.fillStyle = loose ? PAL.danger : INK;
     g.fillRect(x - bw / 2 - 2, by - 2, bw + 4, 10);

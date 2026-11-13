@@ -16,6 +16,16 @@ test('setup screen, run and pause work end to end', async () => {
   expect(document.querySelectorAll('.kit-row').length).toBe(6);
   // default hero is Sister Wren, a healer, so the click-cast editor is shown
   expect(document.querySelectorAll('.bind-row').length).toBe(4);
+  // every hero has the key editor: six abilities, two key slots each
+  expect(document.querySelectorAll('.slot-key').length).toBe(12);
+  // rebind Rebuke (third ability, first slot) to F; W is kept for moving and is refused
+  const slot = () => document.querySelectorAll('.slot-key')[4] as HTMLElement;
+  slot().click();
+  window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyW' }));
+  expect(slot().classList.contains('waiting')).toBe(true);
+  window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyF' }));
+  expect(slot().textContent).toBe('F');
+  expect(document.querySelectorAll('.kit-row .key')[2].textContent).toBe('F');
 
   (document.querySelector('button.start') as HTMLElement).click();
   expect(document.querySelectorAll('.frame').length).toBe(4);
@@ -28,7 +38,12 @@ test('setup screen, run and pause work end to end', async () => {
   frames(600);
   window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyD' }));
   window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Tab' }));
+  // 3 no longer casts Rebuke; F does. Q walks left like A.
   window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Digit3' }));
+  frames(5);
+  expect((document.querySelector('.castbar') as HTMLElement).style.visibility).toBe('hidden');
+  expect(document.querySelectorAll('.ability .key')[2].textContent).toBe('F');
+  expect(document.querySelectorAll('.ability .key')[4].textContent).toBe('5 · `');
   // click-cast: left click on your own frame casts Warm Light on yourself
   const ownFrame = document.querySelector('.frame.me') as HTMLElement;
   ownFrame.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true }));
@@ -39,6 +54,6 @@ test('setup screen, run and pause work end to end', async () => {
 
   window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyP' }));
   expect(document.querySelector('.overlay')).toBeTruthy();
-  (document.querySelector('.overlay button.ghost') as HTMLElement).click();
+  (document.querySelector('.overlay .panel > button.ghost') as HTMLElement).click();
   expect(document.querySelector('.setup')).toBeTruthy();
 });

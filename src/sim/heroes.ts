@@ -32,7 +32,7 @@ export const HEROES: Record<string, HeroDef> = {
       {
         id: 'challenge', name: "Pilot's Hail", target: 'enemy', cd: 8, offGcd: true,
         desc: 'The target attacks you for 4 s and you go to the top of its threat. Works at range: use it to pull.',
-        fire: (w, u, t) => w.taunt(u, t),
+        fire: (w, u, t) => w.taunt(u, t, "Pilot's Hail"),
       },
       {
         id: 'bash', name: 'Breakwater Bash', target: 'enemy', range: MELEE, cd: 15, offGcd: true, interrupt: true,
@@ -160,29 +160,29 @@ export const HEROES: Record<string, HeroDef> = {
 
   duelist: {
     id: 'duelist', name: 'Corvin Ashby', title: 'The Wrecker', role: 'dps', sub: 'Melee damage', color: '#d0668f',
-    hp: 1300, resName: 'Nerve', resMax: 100, resStart: 100, resColor: '#d9b84a', regen: 12, gcd: 1,
+    hp: 1300, resName: 'Nerve', resMax: 100, resStart: 100, resColor: '#d9b84a', regen: 20, gcd: 1,
     auto: { dmg: 55, interval: 1.2, range: MELEE }, threatMult: 1,
     howTo: 'Build combo points with Cutlass or Round Turn, spend five on Final Cut, and stay behind the enemy, out of frontals.',
     abilities: [
       {
         id: 'slash', name: 'Cutlass', target: 'enemy', range: MELEE, cost: 40,
-        desc: '95 damage. +1 combo point.',
-        fire: (w, u, t) => { w.damage(u, t, 95, 'phys'); u.combo = Math.min(5, u.combo + 1); },
+        desc: '60 damage. +1 combo point.',
+        fire: (w, u, t) => { w.damage(u, t, 60, 'phys'); u.combo = Math.min(5, u.combo + 1); },
       },
       {
         id: 'whirl', name: 'Round Turn', target: 'self', cost: 45,
-        desc: '55 damage to every enemy within 5 m. +1 combo point.',
+        desc: '35 damage to every enemy within 5 m. +1 combo point.',
         fire: (w, u) => {
-          for (const e of w.enemiesNear(u.x, u.y, 5)) w.damage(u, e, 55, 'phys');
+          for (const e of w.enemiesNear(u.x, u.y, 5)) w.damage(u, e, 35, 'phys');
           u.combo = Math.min(5, u.combo + 1);
           w.ring(u.x, u.y, 5, u.hero!.color);
         },
       },
       {
         id: 'thrust', name: 'Final Cut', target: 'enemy', range: MELEE, cost: 25,
-        desc: 'Spends all combo points. 70 damage per point.',
+        desc: 'Spends all combo points. 45 damage per point.',
         usable: (_w, u) => (u.combo > 0 ? null : 'No combo points'),
-        fire: (w, u, t) => { const c = u.combo; u.combo = 0; w.damage(u, t, 70 * c, 'phys'); },
+        fire: (w, u, t) => { const c = u.combo; u.combo = 0; w.damage(u, t, 45 * c, 'phys'); },
       },
       {
         id: 'jab', name: 'Hilt Jab', target: 'enemy', range: MELEE, cd: 15, offGcd: true, interrupt: true,

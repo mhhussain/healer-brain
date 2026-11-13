@@ -73,7 +73,10 @@ export function enemyAI(w: World, e: Unit, dt: number) {
     w.navigate(e, mt.x, mt.y, dt);
     return;
   }
-  if (d > def.range || (!melee && !w.map.los(e.x, e.y, mt.x, mt.y))) {
+  // once walking, close a little further than needed, so a small shuffle by the target is not followed step for step
+  const stopAt = melee ? Math.max(def.radius + 1, def.range - 0.5) : def.range - 0.5;
+  if (d > (e.flags.chase ? stopAt : def.range) || (!melee && !w.map.los(e.x, e.y, mt.x, mt.y))) {
+    e.flags.chase = true;
     let gx = mt.x, gy = mt.y;
     if (melee) {
       const sx = mt.x + Math.cos(e.slotAngle) * (def.radius + 0.9), sy = mt.y + Math.sin(e.slotAngle) * (def.radius + 0.9);
@@ -82,6 +85,7 @@ export function enemyAI(w: World, e: Unit, dt: number) {
     w.navigate(e, gx, gy, dt);
     return;
   }
+  e.flags.chase = false;
   e.facing = Math.atan2(mt.y - e.y, mt.x - e.x);
   if (!def.auto) return;
   let haste = 1;

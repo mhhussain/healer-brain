@@ -13,7 +13,11 @@ export interface PackDef {
   center: Vec;
   entry: Vec;
   pullFrom: Vec;
-  losSpot?: Vec;
+  // where the tank plants its feet: well inside the room, so the whole party follows it in
+  stand: Vec;
+  // the doorway into the room runs from doorX to roomLeft
+  doorX: number;
+  roomLeft: number;
 }
 
 interface Encounter {
@@ -23,14 +27,13 @@ interface Encounter {
   enemies: string[];
   // [dx, dy, size] relative to the room centre
   pillars?: [number, number, number][];
-  los?: boolean;
 }
 
 const ENCOUNTERS: Encounter[] = [
   { name: 'The Cloister Walk', enemies: ['brute', 'brute', 'brute', 'hexer'] },
   { name: 'The Wet Stair', enemies: ['brute', 'brute', 'archer', 'shaman'] },
   { name: 'Brother Krogg', boss: true, lamp: 'The Gate Lamp burns. Brother Krogg sets down his keys.', enemies: ['krogg'] },
-  { name: 'The Undercroft', enemies: ['brute', 'brute', 'hexer', 'hexer'], pillars: [[-8, -4, 2], [8, -4, 2], [-8, 4, 2], [8, 4, 2]], los: true },
+  { name: 'The Undercroft', enemies: ['brute', 'brute', 'hexer', 'hexer'], pillars: [[-8, -4, 2], [8, -4, 2], [-8, 4, 2], [8, 4, 2]] },
   { name: 'The Dispensary', enemies: ['overseer', 'archer', 'archer', 'shaman'] },
   { name: 'Sister Velisse', boss: true, lamp: 'The Ward Lamp burns. Sister Velisse\'s little ones are quiet.', enemies: ['velisse'] },
   { name: 'The Choir Stalls', enemies: ['berserker', 'berserker', 'hexer', 'shaman'], pillars: [[-9, 0, 2], [9, 0, 2]] },
@@ -42,10 +45,11 @@ const ENCOUNTERS: Encounter[] = [
 // FRONT is the open front edge. Rooms are split by walls that jut out from the back and
 // leave a doorway along the front.
 export const FRONT = 24;
+export const DOOR_DEPTH = 6;
 const ROOM_DEPTH = 16;
 const BOSS_DEPTH = 20;
 const WALL = 3;
-const DOOR = 6;
+const DOOR = DOOR_DEPTH;
 
 export function buildDungeon(): { map: GameMap; packs: PackDef[]; start: Vec } {
   const width = 4 + 14 + ENCOUNTERS.reduce((n, e) => n + WALL + (e.boss ? 34 : 28), 0) + 4;
@@ -71,8 +75,9 @@ export function buildDungeon(): { map: GameMap; packs: PackDef[]; start: Vec } {
       center: { x: cx, y: cy },
       entry: { x: right - 3, y: FRONT - DOOR / 2 },
       pullFrom: { x: right + WALL / 2, y: FRONT - DOOR / 2 },
-      // behind the dividing wall, on the near side
-      losSpot: enc.los ? { x: right - 1.5, y: FRONT - DOOR - 3.5 } : undefined,
+      stand: { x: left + (enc.boss ? 10 : 8), y: cy + 1 },
+      doorX: right,
+      roomLeft: left,
     });
     right = left + rw;
   });

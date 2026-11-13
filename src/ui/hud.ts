@@ -9,6 +9,9 @@ export function el(tag: string, cls = '', text = '') {
   return e;
 }
 
+// 'Sister Wren' is Wren, 'Hale Dunmarrow' is Hale.
+export const short = (name: string) => (/^(Sister|Old) /.test(name) ? name.split(' ')[1] : name.split(' ')[0]);
+
 export const fmtTime = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 export function abilityMeta(ab: AbilityDef, hero: HeroDef) {
@@ -22,7 +25,10 @@ export function abilityMeta(ab: AbilityDef, hero: HeroDef) {
 }
 
 interface Frame { root: HTMLElement; hp: HTMLElement; shield: HTMLElement; txt: HTMLElement; res: HTMLElement; auras: HTMLElement; last: string }
-interface Button { root: HTMLElement; cd: HTMLElement; num: HTMLElement }
+interface Button { root: HTMLElement; cd: HTMLElement; num: HTMLElement; key: HTMLElement }
+
+// How the player's abilities are bound. clicks: ability id -> click combo on a party frame, for healers.
+export interface Binds { clicks: Record<string, string> | null; label: (abilityId: string) => string }
 
 export class Hud {
   root = el('div', 'hud');
@@ -39,6 +45,8 @@ export class Hud {
   private tCastFill = el('div', 'fill');
   private tCastName = el('span');
   private tAim = el('div', 'taim');
+  private tAuras = el('div', 'auras');
+  private tLast = '';
   private alerts = el('div', 'alerts');
   private error = el('div', 'error');
   private cast = el('div', 'castbar');
@@ -51,8 +59,7 @@ export class Hud {
   private combo = el('div', 'combo');
   private tip = el('div', 'tooltip');
 
-  // bindings: ability id -> click combo, for healers; null otherwise
-  constructor(parent: HTMLElement, private world: World, private bindings: Record<string, string> | null) {
+  constructor(parent: HTMLElement, private world: World, private binds: Binds) {
     parent.append(this.root);
     const p = world.player, def = p.hero!;
 
@@ -61,6 +68,22 @@ export class Hud {
     bar.append(this.timerFill);
     run.append(el('div', 'level', `Level ${world.level}`), this.timer, bar, this.progress);
     this.root.append(run);
+
+    // a click on a frame casts the spell bound to that click; anything else is left for the mouse bindings
+    const clickCast = (e: MouseEvent, allyId: number) => {
+      e.preventDefault();
+      if (!this.binds.clicks) return;
+      const combo = comboOf(e);
+      const idx = def.abilities.findIndex((a) => this.binds.clicks![a.id] === combo);
+      if (idx < 0) return;
+      e.stopPropagation();
+      world.press(idx, allyId);
+    };
+    const hoverable = (root: HTMLElement, id: number) => {
+      root.addEventListener('mouseenter', () => (this.frameHover = id));
+      root.addEventListener('mouseleave', () => { if (this.frameHover === id) this.frameHover = -1; });
+      root.addEventListener('mousedown', (e) => clickCast(e, id));
+    };
 
     const party = el('div', 'party');
     for (const h of world.heroes) {
@@ -74,41 +97,43 @@ export class Hud {
       resBar.append(res);
       const auras = el('div', 'auras');
       root.append(name, hpBar, resBar, auras);
-      root.addEventListener('mouseenter', () => (this.frameHover = h.id));
-      root.addEventListener('mouseleave', () => { if (this.frameHover === h.id) this.frameHover = -1; });
-      root.addEventListener('mousedown', (e) => {
-        e.preventDefault();
-        if (!this.bindings) return;
-        const combo = comboOf(e);
-        const idx = def.abilities.findIndex((a) => this.bindings![a.id] === combo);
-        if (idx >= 0) world.press(idx, h.id);
-      });
+      hoverable(root, h.id);
       party.append(root);
       this.frames.push({ root, hp, shield, txt, res, auras, last: '' });
     }
-    this.root.append(party);
 
     const tBar = el('div', 'bar hp');
     tBar.append(this.tHp);
     this.tCast.append(this.tCastFill, this.tCastName);
-    this.target.append(this.tName, tBar, this.tCast, this.tAim);
-    this.root.append(this.target, this.alerts);
+    const tHead = el('div', 'thead');
+    tHead.append(this.tName, this.tAim);
+    this.target.append(tHead, tBar, this.tCast, this.tAuras);
+    this.root.append(this.alerts);
 
+    // Bottom of the screen, from the top down: your frame and the target's, the party, the action bar.
     const bottom = el('div', 'bottom');
     this.cast.append(this.castFill, this.castName);
     const self = el('div', 'self');
+    const selfHead = el('div', 'fname', def.name);
+    selfHead.style.color = def.color;
+    if (def.id === 'duelist') selfHead.append(this.combo);
     const hpBar = el('div', 'bar hp');
     hpBar.append(this.selfHp, this.selfHpTxt);
     const resBar = el('div', 'bar res');
     this.selfRes.style.background = def.resColor;
     resBar.append(this.selfRes, this.selfResTxt);
-    self.append(hpBar, resBar);
+    self.append(selfHead, hpBar, resBar);
+    hoverable(self, p.id);
+    const mid = el('div', 'mid');
+    mid.append(this.error, this.cast);
+    const units = el('div', 'units');
+    units.append(self, mid, this.target);
     const actions = el('div', 'actions');
     def.abilities.forEach((ab, i) => {
       const root = el('div', 'ability');
-      const cd = el('div', 'cd'), num = el('div', 'num');
-      root.append(el('div', 'key', String(i + 1)), el('div', 'aname', ab.name), cd, num);
-      root.addEventListener('mousedown', (e) => { e.preventDefault(); world.press(i); });
+      const cd = el('div', 'cd'), num = el('div', 'num'), key = el('div', 'key', this.binds.label(ab.id));
+      root.append(key, el('div', 'aname', ab.name), cd, num);
+      root.addEventListener('mousedown', (e) => { if (e.button !== 0) return; e.preventDefault(); e.stopPropagation(); world.press(i); });
       root.addEventListener('mouseenter', () => {
         this.tip.innerHTML = '';
         this.tip.append(el('b', '', ab.name), el('div', 'meta', abilityMeta(ab, def)), el('div', '', ab.desc));
@@ -116,12 +141,15 @@ export class Hud {
       });
       root.addEventListener('mouseleave', () => (this.tip.style.display = 'none'));
       actions.append(root);
-      this.buttons.push({ root, cd, num });
+      this.buttons.push({ root, cd, num, key });
     });
-    bottom.append(this.tip, this.error, this.cast);
-    if (def.id === 'duelist') bottom.append(this.combo);
-    bottom.append(self, actions);
+    bottom.append(this.tip, units, party, actions);
     this.root.append(bottom);
+  }
+
+  // Bindings changed in the pause menu.
+  relabel() {
+    this.world.player.hero!.abilities.forEach((ab, i) => (this.buttons[i].key.textContent = this.binds.label(ab.id)));
   }
 
   update() {
@@ -162,7 +190,7 @@ export class Hud {
 
     const tg = w.unit(p.targetId);
     const show = !!tg && tg.alive && tg.team === 'enemy';
-    this.target.style.display = show ? 'block' : 'none';
+    this.target.style.visibility = show ? 'visible' : 'hidden';
     if (show) this.updateTarget(tg!);
 
     const alert = w.alerts[w.alerts.length - 1];
@@ -195,8 +223,19 @@ export class Hud {
     this.tName.textContent = `${t.name} · ${Math.ceil((t.hp / t.maxHp) * 100)}%`;
     this.tHp.style.width = (t.hp / t.maxHp) * 100 + '%';
     const aim = this.world.unit(t.targetId);
-    this.tAim.textContent = t.engaged && aim && aim.alive ? `After ${aim.name}${aim.isPlayer ? ' (you)' : ''}` : 'At their post';
+    this.tAim.textContent = t.engaged && aim && aim.alive ? `After ${aim.isPlayer ? 'you' : short(aim.name)}` : 'At their post';
     this.tAim.classList.toggle('loose', t.engaged && !!aim && aim.alive && aim.hero?.role !== 'tank');
+    // what is on it and for how long; yours are marked
+    const me = this.world.player.id;
+    const key = t.id + '|' + t.auras.map((a) => `${a.id}:${a.dur < 100 ? Math.ceil(a.t) : ''}`).join(',');
+    if (key !== this.tLast) {
+      this.tLast = key;
+      this.tAuras.innerHTML = '';
+      for (const a of [...t.auras].sort((a, b) => Number(b.srcId === me) - Number(a.srcId === me))) {
+        const cls = a.debuff ? 'aura debuff' + (a.srcId === me ? ' mine' : '') : 'aura buff';
+        this.tAuras.append(el('span', cls, a.dur < 100 ? `${a.name} ${Math.ceil(a.t)}` : a.name));
+      }
+    }
     const c = t.cast;
     this.tCast.style.visibility = c ? 'visible' : 'hidden';
     if (c) {

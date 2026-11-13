@@ -5,7 +5,7 @@ const dist = (a: Vec, b: Vec) => Math.hypot(a.x - b.x, a.y - b.y);
 const pct = (u: Unit) => u.hp / u.maxHp;
 
 export function newAI(w: World): AIState {
-  return { reaction: 0.3 + w.rng() * 0.3, escape: null, pos: null, posT: 0, tankSpot: null, hide: null };
+  return { reaction: 0.3 + w.rng() * 0.3, escape: null, pos: null, posT: 0, tankSpot: null, hide: null, entered: -1, moving: false };
 }
 
 function use(w: World, h: Unit, id: string, t: Unit | null = null) {
@@ -106,9 +106,7 @@ function tankTravel(w: World, h: Unit): Vec | null {
   if (vis) {
     if (!ok || !ready(h, 'challenge')) return null;
     h.targetId = vis.id;
-    if (use(w, h, 'challenge', vis) && pack.def.losSpot) {
-      w.gather = { x: pack.def.losSpot.x, y: pack.def.losSpot.y, until: w.time + 8 };
-    }
+    use(w, h, 'challenge', vis);
     return null;
   }
   const human = w.autoplay ? null : w.player;
@@ -120,21 +118,22 @@ function oocGoal(w: World, h: Unit): Vec | null {
   const tank = w.heroes[0];
   if (h === tank) return tankTravel(w, h);
   const stop = 2.5 + h.slot * 1.3;
-  return dist(h, tank) > stop + 1 ? { x: tank.x, y: tank.y } : null;
+  return dist(h, tank) > (h.ai!.moving ? stop : stop + 1.5) ? { x: tank.x, y: tank.y } : null;
 }
 
 function tankCombat(w: World, h: Unit): Vec | null {
   const ai = h.ai!;
   const es = w.engagedEnemies();
   if (!es.length) return null;
-  if (w.gather) {
-    const g = w.gather;
-    const far = es.some((e) => dist(e, h) > 9);
-    if (w.time > g.until || (dist(h, g) < 1.5 && !far)) w.gather = null;
-    else {
-      h.targetId = es.reduce((a, b) => (dist(a, h) < dist(b, h) ? a : b)).id;
-      return g;
-    }
+  // go in: the fight happens inside the room, not on the threshold
+  const pack = w.packs.find((p) => p.engaged && !p.cleared);
+  if (pack && ai.entered !== pack.def.id) {
+    if (h.x >= pack.def.stand.x - 1) ai.entered = pack.def.id;
+  }
+  if (pack && ai.entered !== pack.def.id) {
+    ai.tankSpot = null;
+    h.targetId = es.reduce((a, b) => (dist(a, h) < dist(b, h) ? a : b)).id;
+    return pack.def.stand;
   }
   // pick up anything that is not on the tank
   if (ready(h, 'challenge')) {
@@ -167,7 +166,7 @@ function tankCombat(w: World, h: Unit): Vec | null {
   }
   h.targetId = best.id;
   if (!ai.tankSpot) ai.tankSpot = { x: h.x, y: h.y };
-  return dist(h, ai.tankSpot) > 1 ? ai.tankSpot : null;
+  return dist(h, ai.tankSpot) > (ai.moving ? 0.4 : 1) ? ai.tankSpot : null;
 }
 
 function meleePos(w: World, h: Unit, t: Unit): Vec | null {
@@ -177,20 +176,23 @@ function meleePos(w: World, h: Unit, t: Unit): Vec | null {
     const a = Math.atan2(t.y - tt.y, t.x - tt.x);
     const r = t.radius + 1.1;
     const p = { x: t.x + Math.cos(a) * r, y: t.y + Math.sin(a) * r };
-    if (w.map.canStand(p.x, p.y)) return dist(h, p) < 1.2 && dist(h, t) <= reach ? null : p;
+    if (w.map.canStand(p.x, p.y)) return dist(h, p) < (h.ai!.moving ? 0.5 : 1.2) && dist(h, t) <= reach ? null : p;
   }
   return dist(h, t) <= reach ? null : { x: t.x, y: t.y };
 }
 
-// Hold a spot with range and line of sight to the anchor, out of frontals and ground effects.
+// Hold a spot with range and line of sight to the anchor, out of frontals and ground effects,
+// and in the same room as the tank: nobody hangs back behind the doorway.
 function rangedPos(w: World, h: Unit, anchor: Unit): Vec | null {
   const ai = h.ai!;
   if (w.time < ai.posT) return ai.pos;
   ai.posT = w.time + 0.3;
   const minD = anchor.team === 'enemy' ? 4 : 0;
+  const tank = w.heroes[0];
+  const minX = tank.alive ? w.roomStart(tank.x) + 1.5 : 0;
   const valid = (x: number, y: number) => {
     const d = Math.hypot(x - anchor.x, y - anchor.y);
-    return d <= 21 && d >= minD && w.map.los(x, y, anchor.x, anchor.y) && !inFront(w, x, y) && safeAt(w, x, y) && !nearIdle(w, x, y);
+    return x >= minX && d <= 21 && d >= minD && w.map.los(x, y, anchor.x, anchor.y) && !inFront(w, x, y) && safeAt(w, x, y) && !nearIdle(w, x, y);
   };
   if (valid(h.x, h.y)) return (ai.pos = null);
   if (ai.pos && valid(ai.pos.x, ai.pos.y)) return ai.pos;
@@ -212,7 +214,6 @@ function combatGoal(w: World, h: Unit): Vec | null {
   if (def.role === 'tank') return tankCombat(w, h);
   const t = pickTarget(w, h);
   if (t) h.targetId = t.id;
-  if (w.gather) return dist(h, w.gather) > 2.5 ? w.gather : null;
   if (def.role === 'healer') {
     const tank = w.heroes[0];
     let anchor = tank.alive ? tank : h;
@@ -380,6 +381,14 @@ export function heroAI(w: World, h: Unit, dt: number) {
     const g = combatGoal(w, h);
     if (!urgent) goal = g;
   }
-  if (goal && dist(h, goal) > 0.35) w.navigate(h, goal.x, goal.y, dt);
+  // never walk into a telegraph: wait at its edge instead of stepping in and straight back out
+  if (goal && !urgent) {
+    const d = dist(h, goal), k = Math.min(1, 1 / Math.max(d, 1e-6));
+    if (!safeAt(w, h.x + (goal.x - h.x) * k, h.y + (goal.y - h.y) * k)) goal = null;
+  }
+  ai.moving = !!goal && dist(h, goal) > 0.35 && w.navigate(h, goal.x, goal.y, dt);
   if (w.inCombat) ACT[h.hero!.id](w, h);
+  // standing still, a hero looks at what it is fighting
+  const t = w.unit(h.targetId);
+  if (!ai.moving && !h.cast && t && t.alive && t.team === 'enemy' && t.engaged) h.facing = Math.atan2(t.y - h.y, t.x - h.x);
 }

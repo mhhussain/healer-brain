@@ -9,6 +9,8 @@ import type { AbilityDef, Aura, DmgType, EnemyAbility, Unit } from './types';
 export const TIME_LIMIT = 14 * 60;
 export const DEATH_PENALTY = 5;
 export const DT = 1 / 60;
+export const HERO_SPEED = 8.5;
+export const ENEMY_SPEED = 6.5;
 const JUMP_SPEED = 6.6;
 const GRAVITY = 22;
 
@@ -93,7 +95,6 @@ export class World {
   started = false;
   finished = false;
   inCombat = false;
-  gather: { x: number; y: number; until: number } | null = null;
 
   player: Unit;
   autoplay: boolean;
@@ -120,7 +121,7 @@ export class World {
       u.maxHp = u.hp = def.hp;
       u.resMax = def.resMax;
       u.res = def.resStart;
-      u.speed = 7;
+      u.speed = HERO_SPEED;
       u.ai = newAI(this);
       this.heroes.push(u);
     });
@@ -149,7 +150,7 @@ export class World {
 
   private makeUnit(team: 'hero' | 'enemy', name: string, x: number, y: number): Unit {
     const u: Unit = {
-      id: this.nextId++, team, name, x, y, z: 0, vz: 0, jumpAt: -1, facing: 0, radius: 0.6, speed: 5.5,
+      id: this.nextId++, team, name, x, y, z: 0, px: x, py: y, pz: 0, vz: 0, jumpAt: -1, facing: 0, radius: 0.6, speed: ENEMY_SPEED,
       hp: 1, maxHp: 1, alive: true, res: 0, resMax: 0, combo: 0, targetId: -1,
       cast: null, gcd: 0, cds: {}, auras: [], autoTimer: 0, moved: false, moveDir: 0, lastMoveT: -9,
       stats: { dmg: 0, heal: 0, interrupts: 0, dispels: 0, deaths: 0 },
@@ -197,6 +198,12 @@ export class World {
     return a.slice(0, n);
   }
   nextPack() { return this.packs.find((p) => !p.cleared) ?? null; }
+  // Left edge of the room a point is in. A doorway counts as part of the room before it.
+  roomStart(x: number) {
+    let left = 0;
+    for (const p of this.packs) if (p.def.roomLeft <= x) left = p.def.roomLeft;
+    return left;
+  }
   totalTime() { return this.elapsed + this.deaths * DEATH_PENALTY; }
   timed() { return this.finished && this.totalTime() <= TIME_LIMIT; }
 
@@ -341,13 +348,14 @@ export class World {
     if (!e.threat.has(hero.id)) this.addThreat(e, hero.id, 1);
   }
 
-  taunt(u: Unit, e: Unit) {
+  taunt(u: Unit, e: Unit, name: string) {
     this.engageFrom(u, e);
     let max = 0;
     for (const v of e.threat.values()) max = Math.max(max, v);
     e.threat.set(u.id, max * 1.1 + 100);
     e.forcedId = u.id;
     e.forcedT = this.time + 4;
+    this.addAura(e, { id: 'taunt', name, dur: 4, srcId: u.id, debuff: true });
     this.beam(u, e, u.hero!.color);
   }
 
@@ -420,7 +428,6 @@ export class World {
 
   // DPS and healers hold their damage until the tank has had a moment to take threat.
   canAttack() {
-    if (this.gather) return false;
     const pack = this.packs.find((p) => p.engaged && !p.cleared);
     if (!pack) return false;
     if (!this.heroes[0].alive) return true;
@@ -601,6 +608,7 @@ export class World {
   tick(dt: number) {
     if (this.finished) return;
     this.time += dt;
+    for (const u of this.units.values()) { u.px = u.x; u.py = u.y; u.pz = u.z; }
     if (this.started) this.elapsed += dt;
     for (const h of this.heroes) h.moved = false;
     this.updatePlayer(dt);
@@ -747,7 +755,6 @@ export class World {
     this.inCombat = this.packs.some((p) => p.engaged && !p.cleared);
     if (this.packs.every((p) => p.cleared)) { this.finished = true; return; }
     if (!this.inCombat) {
-      this.gather = null;
       for (const h of this.heroes) {
         if (h.alive) continue;
         h.alive = true;
@@ -762,7 +769,6 @@ export class World {
     this.alert('Driven back. The keepers return to their posts.');
     this.emit({ k: 'wipe' });
     this.zones = [];
-    this.gather = null;
     this.map.restorePillars();
     let entry = this.packs[0].def.entry;
     for (const p of this.packs) {

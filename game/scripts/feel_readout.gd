@@ -9,5 +9,5 @@ extends Label
 func _process(_delta: float) -> void:
 	if unit == null or camera == null:
 		return
-	text = "WASD or Q/E to move, wheel to zoom\n%.1f m/s   zoom %.0f m   %d fps" % [
+	text = "WASD or Q/E move, Space jumps, wheel zooms\nTab or click targets, Esc clears, 1 and 2 attack\n%.1f m/s   zoom %.0f m   %d fps" % [
 		unit.velocity.length(), camera.zoom, Engine.get_frames_per_second()]

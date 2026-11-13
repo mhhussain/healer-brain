@@ -1,0 +1,67 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/unit.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/enemy_brain.gd" id="2"]
+
+[sub_resource type="CapsuleShape3D" id="shape"]
+radius = 0.7
+height = 2.1
+
+[sub_resource type="CapsuleMesh" id="body"]
+radius = 0.7
+height = 2.1
+
+[sub_resource type="StandardMaterial3D" id="body_mat"]
+albedo_color = Color(0.62, 0.3, 0.3, 1)
+
+[sub_resource type="BoxMesh" id="nose"]
+size = Vector3(0.8, 0.25, 0.4)
+
+[sub_resource type="StandardMaterial3D" id="nose_mat"]
+albedo_color = Color(0.16, 0.17, 0.2, 1)
+
+[sub_resource type="CylinderMesh" id="shadow"]
+top_radius = 0.9
+bottom_radius = 0.9
+height = 0.02
+radial_segments = 24
+rings = 1
+
+[sub_resource type="StandardMaterial3D" id="shadow_mat"]
+transparency = 1
+shading_mode = 0
+albedo_color = Color(0, 0, 0, 0.32)
+
+[node name="Enemy" type="CharacterBody3D"]
+collision_layer = 2
+axis_lock_linear_y = true
+motion_mode = 1
+script = ExtResource("1")
+team = "enemy"
+def_id = "brute"
+height = 2.1
+speed = 6.5
+
+[node name="Shape" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+shape = SubResource("shape")
+
+[node name="Shadow" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, 0)
+mesh = SubResource("shadow")
+surface_material_override/0 = SubResource("shadow_mat")
+
+[node name="Visual" type="Node3D" parent="."]
+
+[node name="Body" type="MeshInstance3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+mesh = SubResource("body")
+surface_material_override/0 = SubResource("body_mat")
+
+[node name="Nose" type="MeshInstance3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.65, -0.62)
+mesh = SubResource("nose")
+surface_material_override/0 = SubResource("nose_mat")
+
+[node name="Brain" type="Node" parent="."]
+script = ExtResource("2")

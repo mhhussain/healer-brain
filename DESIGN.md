@@ -41,9 +41,10 @@ Result rules:
 |---|---|
 | W A S D | Move as the screen shows it: W up the screen, S down it, A left, D right. Two keys together move on the diagonal at the same speed. Your hero faces its target, or the move direction if it has none. |
 | Q E | Also left and right. |
+| Space | Jump. For show only: it clears nothing and changes nothing in a fight. |
 | Mouse wheel | Zoom in and out between two limits. Two-finger scroll or pinch does the same on a trackpad. |
 | Tab | Target the next enemy in line of sight, nearest first. |
-| Left click | Target the enemy whose figure is under the mouse. |
+| Left click | Target the enemy whose figure is under the mouse; a near miss still counts. |
 | 1–6 | Use ability. T is also the interrupt and ` is also the personal defensive (the fifth ability). All of these can be changed. |
 | Middle and side mouse buttons | Use the ability bound to them, wherever the pointer is. Unbound by default. |
 | Esc | Clear target; again to open the pause menu. |
@@ -51,7 +52,6 @@ Result rules:
 
 - **Movement** is relative to the camera, not the dungeon: the halls run from the lower left of the screen to the upper right, so W and D together walk straight along them. The hero reaches full speed (8.5 m/s) in about a tenth of a second and stops as quickly.
 - **The camera** never turns. It trails the hero slightly and leads about a metre in the direction of travel.
-- There is no jump.
 - **Enemy abilities** go to your enemy target. With no target, they go to the tank's target.
 - **Ally abilities** go to the ally under the mouse (hero on the map or party frame). With no ally under the mouse, they go to yourself.
 - **Auto-attacks** fire on your enemy target whenever it is in range and in line of sight.
@@ -60,7 +60,7 @@ Result rules:
 
 - Every ability has two key slots and one mouse-button slot (middle, side back, side forward). The editor is on the party setup screen and in the pause menu, and bindings are saved per hero.
 - A key or button does one thing: binding it to an ability takes it away from the ability that had it.
-- Movement, Tab, Esc, P and M are kept for the game and cannot be bound.
+- Movement, Space, Tab, Esc, P and M are kept for the game and cannot be bound.
 - An ally ability cast from a key or mouse button lands on the ally under the pointer, as usual.
 
 ### Click-to-cast (healers)

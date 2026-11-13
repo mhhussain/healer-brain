@@ -4,6 +4,13 @@ The isometric rebuild. The plan is in [`docs/godot-rebuild-handoff.md`](../docs/
 
 Godot **4.7.2**, GDScript, Compatibility renderer. CI uses the same version (`.github/workflows/godot.yml`).
 
+## Layout
+
+- `rules/`: the rules of the game as plain GDScript classes with no scene in them (heroes and enemies as data, `Combat` for cooldowns, damage, threat and who is in a fight). They are tested on their own.
+- `scripts/`: the nodes. `Run` owns the rules, tells them where each `Unit` stands, ticks them 60 times a second and shows what happens.
+- `scenes/`: the grey-box room, the hero and the enemy.
+- `tests/`: GUT tests. `tests/tools/capture.gd` is not a test: it plays a short scripted fight for `--write-movie`, to get frames to look at.
+
 ## Play
 
 Open `game/project.godot` in Godot and press F5. Or from the repo root:

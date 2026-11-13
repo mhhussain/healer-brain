@@ -21,4 +21,12 @@ func _process(_delta: float) -> void:
 		"fps": Engine.get_frames_per_second(),
 		"ticks": Engine.get_physics_frames(),
 	}
+	if unit.c:
+		var combat := unit.run.combat
+		var t := combat.unit(unit.c.target_id)
+		state.merge({
+			"hp": unit.c.hp, "res": unit.c.res, "gcd": unit.c.gcd, "lift": unit.lift,
+			"in_combat": combat.in_combat, "error": combat.error,
+			"target": t.name if t else "", "target_hp": t.hp if t else 0.0,
+		})
 	JavaScriptBridge.eval("window.fourfold=" + JSON.stringify(state), true)

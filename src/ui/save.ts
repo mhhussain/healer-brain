@@ -8,6 +8,9 @@ export interface Save {
   party: string[];
   slot: number;
   level: number;
+  // sound: 0 to 1, and whether it is switched off
+  volume: number;
+  muted: boolean;
 }
 
 export const COMBOS = ['L', 'R', 'M', 'S+L', 'S+R', 'S+M', 'C+L', 'C+R', 'C+M', 'A+L', 'A+R', 'A+M'];
@@ -33,6 +36,8 @@ function defaults(): Save {
     party: ['warden', 'mender', 'duelist', 'ranger'],
     slot: 1,
     level: 1,
+    volume: 0.6,
+    muted: false,
   };
 }
 

@@ -1,6 +1,7 @@
 import './style.css';
 import { DPS, HEALERS, HEROES, TANKS } from './sim/heroes';
 import { DT, TIME_LIMIT, World } from './sim/world';
+import { sound } from './ui/audio';
 import { Hud, abilityMeta, el, fmtTime } from './ui/hud';
 import { Renderer } from './ui/render';
 import { COMBOS, comboLabel, loadSave, storeSave, type Save } from './ui/save';
@@ -15,10 +16,47 @@ const SLOTS = [
   { label: 'Damage', options: DPS },
 ];
 
+// Sound may only start after a click or key press. Until a run is on screen, the menus keep the music going.
+sound.volume = save.volume;
+sound.muted = save.muted;
+let inRun = false;
+let menuMusic = 0;
+function wakeSound() {
+  sound.unlock();
+  if (sound.ready && !menuMusic) menuMusic = window.setInterval(() => { if (!inRun) sound.frame(null, 0, 0.1, false); }, 100);
+}
+window.addEventListener('pointerdown', wakeSound, true);
+window.addEventListener('keydown', wakeSound, true);
+
 function button(text: string, cls: string, onClick: () => void) {
   const b = el('button', cls, text);
-  b.addEventListener('click', onClick);
+  b.addEventListener('click', () => { sound.ui('click'); onClick(); });
   return b;
+}
+
+// Mute button and volume slider; the choice is remembered.
+function soundControls() {
+  const box = el('div', 'sound');
+  const mute = el('button', 'mute', save.muted ? 'Sound off' : 'Sound on');
+  mute.setAttribute('aria-pressed', String(!save.muted));
+  const vol = document.createElement('input');
+  vol.type = 'range'; vol.min = '0'; vol.max = '100'; vol.value = String(Math.round(save.volume * 100));
+  vol.setAttribute('aria-label', 'Volume');
+  mute.addEventListener('click', () => {
+    save.muted = !save.muted;
+    sound.setMuted(save.muted);
+    storeSave(save);
+    mute.textContent = save.muted ? 'Sound off' : 'Sound on';
+    mute.setAttribute('aria-pressed', String(!save.muted));
+    sound.ui('click');
+  });
+  vol.addEventListener('input', () => {
+    save.volume = Number(vol.value) / 100;
+    sound.setVolume(save.volume);
+    storeSave(save);
+  });
+  box.append(mute, vol);
+  return box;
 }
 
 // Click-to-cast editor for a healer's ally spells.
@@ -112,6 +150,7 @@ function showSetup() {
   for (const l of lines) controls.append(el('li', '', l));
   side.append(controls);
   if (def.role === 'healer') side.append(bindingsEditor(def.id));
+  side.append(el('h3', '', 'Sound'), soundControls());
   side.append(button(`Descend into the Drowned Abbey · level ${save.level}`, 'start', () => startRun(save.level)));
   cols.append(side);
   root.append(cols);
@@ -120,6 +159,8 @@ function showSetup() {
 
 function startRun(level: number) {
   app.innerHTML = '';
+  inRun = true;
+  sound.ui('start');
   const autoplay = params.has('autoplay');
   const speed = Number(params.get('speed') ?? 1);
   const world = new World({ level, party: [...save.party], playerSlot: save.slot, autoplay });
@@ -132,7 +173,7 @@ function startRun(level: number) {
   const hud = new Hud(root, world, world.player.hero!.role === 'healer' ? save.bindings[heroId] : null);
   renderer.resize();
   // ?debug exposes the run to the console and to browser tests.
-  if (params.has('debug')) Object.assign(window, { fourfold: { world, renderer } });
+  if (params.has('debug')) Object.assign(window, { fourfold: { world, renderer, sound } });
 
   const ac = new AbortController();
   const on = { signal: ac.signal };
@@ -142,7 +183,8 @@ function startRun(level: number) {
   let overlay: HTMLElement | null = null;
   let raf = 0;
 
-  const end = () => { ac.abort(); cancelAnimationFrame(raf); };
+  const end = () => { ac.abort(); cancelAnimationFrame(raf); inRun = false; sound.hush(); };
+  let lastError: unknown = null;
 
   const setPaused = (p: boolean) => {
     paused = p;
@@ -154,6 +196,7 @@ function startRun(level: number) {
     const panel = el('div', 'panel');
     panel.append(el('h2', '', 'Paused'));
     if (world.player.hero!.role === 'healer') panel.append(bindingsEditor(heroId));
+    panel.append(soundControls());
     panel.append(
       button('Resume', 'start', () => setPaused(false)),
       button('Abandon run', 'ghost', () => { end(); showSetup(); }),
@@ -210,6 +253,11 @@ function startRun(level: number) {
     }
     renderer.draw(world, hoverId);
     hud.update();
+    if (world.error && world.error !== lastError && !world.autoplay) sound.ui('error');
+    lastError = world.error;
+    sound.events(world, world.events);
+    world.events.length = 0;
+    sound.frame(world, renderer.zoneAt(world.player.x), real, paused);
     if (world.finished) { end(); showSummary(world); return; }
     raf = requestAnimationFrame(frame);
   };
@@ -220,6 +268,7 @@ function showSummary(world: World) {
   const t = world.totalTime();
   const timed = world.timed();
   const hero = world.player.hero!;
+  sound.finale(timed);
   let unlockedNow = false;
   if (timed && !world.autoplay) {
     if (world.level >= save.unlocked) { save.unlocked = world.level + 1; unlockedNow = true; }

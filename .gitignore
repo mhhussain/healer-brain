@@ -1,3 +1,6 @@
 node_modules
 dist
+build
+.DS_Store
 steel-proxy/steel-proxy.env
+game/.godot/

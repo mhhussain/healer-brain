@@ -1,0 +1,61 @@
+name: Godot tests and web export
+
+# The Godot rebuild lives in game/. This checks it and builds the web export as a download;
+# it does not publish anything. The Pages site is still the TypeScript build from main.
+
+on:
+  push:
+    branches: [godot-rebuild]
+    paths: ['game/**', '.github/workflows/godot.yml']
+  pull_request:
+    paths: ['game/**', '.github/workflows/godot.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # keep in step with the Godot installed locally (godot --version)
+  GODOT_VERSION: 4.7.2
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache Godot and the web export templates
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: ~/godot
+          key: godot-${{ env.GODOT_VERSION }}-web-nothreads
+      - name: Download Godot and the web export templates
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          base=https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable
+          mkdir -p ~/godot/templates
+          curl -fsSL -o godot.zip $base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip
+          unzip -q godot.zip
+          mv Godot_v${GODOT_VERSION}-stable_linux.x86_64 ~/godot/godot
+          curl -fsSL -o templates.tpz $base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz
+          unzip -q -j templates.tpz 'templates/web_nothreads_*' templates/version.txt -d ~/godot/templates
+          rm godot.zip templates.tpz
+      - name: Install them
+        run: |
+          mkdir -p ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          cp ~/godot/templates/* ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/
+          echo "$HOME/godot" >> $GITHUB_PATH
+      - name: Import
+        run: godot --headless --path game --import
+      - name: Test
+        run: godot --headless --path game -s addons/gut/gut_cmdln.gd -gexit
+      - name: Export for the web
+        run: |
+          mkdir -p build/web
+          godot --headless --path game --export-release Web "$PWD/build/web/index.html"
+          # the export can fail without a failing exit code, so check what it wrote
+          test -s build/web/index.html && test -s build/web/index.wasm && test -s build/web/index.pck
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fourfold-web
+          path: build/web

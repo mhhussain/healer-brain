@@ -100,6 +100,12 @@ func test_a_telegraph_is_drawn_and_goes():
 	main.combat.add_zone({"kind": "circle", "pos": Vector3(5, 0, 0), "r": 3.0, "delay": 0.3, "dmg": 10.0})
 	await wait_frames(3)
 	assert_eq(zones.get_child_count(), 1)
+	# the same kind of material as the shadow under a unit, so no new shader is built for it:
+	# building one froze the game each time a zone appeared
+	var patch: StandardMaterial3D = zones.get_child(0).get_child(0).material_override
+	var shadow: StandardMaterial3D = hero.shadow.get_surface_override_material(0)
+	for setting in ["shading_mode", "transparency", "cull_mode", "blend_mode", "no_depth_test"]:
+		assert_eq(patch.get(setting), shadow.get(setting), setting)
 	await wait_physics_frames(30)
 	await wait_frames(3)
 	assert_eq(zones.get_child_count(), 0)

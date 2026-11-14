@@ -77,11 +77,14 @@ func _draw() -> void:
 	var combat := run.combat
 	var p := combat.player
 
+	var screen := Rect2(Vector2.ZERO, size).grow(80)
 	for u: Unit in run.all_units():
 		if not u.c.alive:
 			continue
 		var head := u.get_global_transform_interpolated().origin + Vector3(0, u.height + 0.45 + u.lift, 0)
 		var s := cam.unproject_position(head)
+		if not screen.has_point(s):
+			continue
 		var enemy := u.c.team == "enemy"
 		var w := 84.0 if enemy else 64.0
 		_bar(Rect2(s.x - w / 2, s.y - 5, w, 9), u.c.hp / u.c.max_hp, HP_ENEMY if enemy else HP_HERO, p.target_id == u.c.id)
@@ -117,6 +120,7 @@ func _draw() -> void:
 
 	var mid := size.x / 2
 	var base := size.y - 24
+	_run_bar(mid)
 
 	# your frame, left of centre
 	var me := Rect2(mid - 420, base - 150, 240, 62)
@@ -173,6 +177,56 @@ func _draw() -> void:
 
 	if combat.error != "":
 		_text(Vector2(mid, base - 175), combat.error, 16, Color(RED, clampf(3.0 - combat.error_t * 2.0, 0.0, 1.0)), 500.0)
+
+
+# The run across the top: level, the clock against the limit, and how far through you are.
+func _run_bar(mid: float) -> void:
+	var combat := run.combat
+	var t := combat.total_time()
+	var over := t > Combat.TIME_LIMIT
+	var r := Rect2(mid - 170, 16, 340, 8)
+	_bar(r, t / Combat.TIME_LIMIT, RED if over else GOLD)
+	_text(Vector2(mid, 44), "Level %d    %s / %s" % [combat.level, clock(t), clock(Combat.TIME_LIMIT)], 16, RED if over else BONE, 400.0)
+	var rooms := combat.packs.filter(func(p: Pack) -> bool: return p.cleared).size()
+	var bosses := combat.packs.filter(func(p: Pack) -> bool: return p.boss)
+	var lamps := bosses.filter(func(p: Pack) -> bool: return p.cleared).size()
+	var line := "Rooms %d/%d" % [rooms, combat.packs.size()]
+	if not bosses.is_empty():
+		line += "    Lamps %d/%d" % [lamps, bosses.size()]
+	if combat.deaths > 0:
+		line += "    Deaths %d (+%d s)" % [combat.deaths, combat.deaths * Combat.DEATH_PENALTY]
+	_text(Vector2(mid, 62), line, 12, GREY, 400.0)
+	if combat.finished:
+		_summary(mid)
+
+
+static func clock(seconds: float) -> String:
+	return "%d:%02d" % [int(seconds) / 60, int(seconds) % 60]
+
+
+# The end of the run: the result, and what each hero did.
+func _summary(mid: float) -> void:
+	var combat := run.combat
+	var r := Rect2(mid - 330, 150, 660, 300)
+	draw_rect(r, Color(0.05, 0.06, 0.08, 0.94))
+	draw_rect(r, GOLD if combat.timed() else BONE, false, 2.0)
+	var result := "Timed" if combat.timed() else "Completed, over the time"
+	_text(r.position + Vector2(330, 40), "%s: %s at level %d" % [result, clock(combat.total_time()), combat.level], 24, GOLD if combat.timed() else BONE, 640.0)
+	var note := "Level %d unlocked" % (combat.level + 1) if run.unlocked_now else "The next level unlocks inside %s" % clock(Combat.TIME_LIMIT) if not combat.timed() else ""
+	_text(r.position + Vector2(330, 66), note, 14, GOLD, 640.0)
+	var cols := [150.0, 290.0, 380.0, 470.0, 545.0, 615.0]
+	var heads := ["", "damage/s", "healing/s", "silenced", "cleansed", "deaths"]
+	for i in heads.size():
+		_text(r.position + Vector2(cols[i], 104), heads[i], 12, GREY, 120.0)
+	var secs := maxf(1.0, combat.elapsed)
+	for row in combat.heroes.size():
+		var h := combat.heroes[row]
+		var y := 130.0 + row * 28.0
+		var cells := [h.name + (" (you)" if h.is_player else ""), "%d" % roundi(h.stats.dmg / secs), "%d" % roundi(h.stats.heal / secs),
+			str(h.stats.interrupts), str(h.stats.dispels), str(h.stats.deaths)]
+		for i in cells.size():
+			_text(r.position + Vector2(cols[i], y), cells[i], 14, h.hero.color if i == 0 else BONE, 240.0 if i == 0 else 120.0)
+	_text(r.position + Vector2(330, 274), "Enter runs it again.  = goes up a level,  - down.  F1 to F6 change hero.", 13, BONE, 640.0)
 
 
 # The auras on a unit, stacked upwards from a point: name and seconds left. Harmful ones are red;

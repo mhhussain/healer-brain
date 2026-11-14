@@ -2,9 +2,9 @@ extends SceneTree
 
 # Headless all-AI runs for balance tuning: the AI plays all four heroes through the real scene.
 # From the repo root:
-#   godot --headless --fixed-fps 60 --path game -s tests/tools/sim.gd -- [levels] [seeds] [-v]
-# such as "-- 1,3,5 2" for levels 1, 3 and 5 with two seeds each. --fixed-fps lets it run as
-# fast as the machine can, instead of in real time.
+#   godot --headless --fixed-fps 60 --path game -s tests/tools/sim.gd -- [levels] [seeds] [place] [-v]
+# such as "-- 1,3,5 2" for levels 1, 3 and 5 of the Abbey with two seeds each, or "-- 1 1 sandbox"
+# for the sandbox hall. --fixed-fps lets it run as fast as the machine can, instead of in real time.
 
 const GIVE_UP := 40 * 60.0
 const DPS := [["duelist", "ranger"], ["duelist", "pyromancer"], ["ranger", "pyromancer"]]
@@ -16,6 +16,7 @@ func _initialize() -> void:
 	args.erase("-v")
 	var levels: Array = (args[0] if args.size() > 0 else "1").split(",")
 	var seeds := int(args[1]) if args.size() > 1 else 1
+	Run.place = args[2] if args.size() > 2 else "abbey"
 	_go(levels, seeds, verbose)
 
 
@@ -39,7 +40,7 @@ func _run(level: int, healer: String, dps: Array, rng_seed: int, verbose: bool) 
 	Run.autoplay = true
 	Run.rng_seed = rng_seed
 	var main: Run = load("res://scenes/main.tscn").instantiate()
-	main.sandbox = false
+	main.endless = false
 	root.add_child(main)
 	await physics_frame
 	var c := main.combat

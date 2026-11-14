@@ -2,7 +2,11 @@
 
 Status: **approved and built** as the TypeScript game on `main`. Numbers below are the tuned values in that game.
 
-On the `godot-rebuild` branch the game is being rebuilt in Godot with an isometric view (see [`docs/godot-rebuild-handoff.md`](docs/godot-rebuild-handoff.md) and [`game/README.md`](game/README.md)). The rules here still hold; the view and section 3 (controls) describe the rebuild, and the rest of the interface is rebuilt milestone by milestone.
+On the `godot-rebuild` branch the game is being rebuilt in Godot with an isometric view (see [`docs/godot-rebuild-handoff.md`](docs/godot-rebuild-handoff.md) and [`game/README.md`](game/README.md)). The rules here still hold; the view and section 3 (controls) describe the rebuild, and the rest of the interface is rebuilt milestone by milestone. Where the rebuild differs:
+
+- The dungeon, heroes, enemies, AI, clock, unlocks and bests are all in and run to the same times as before (all-AI: about 7:25 to 8:05 at level 1, 10:15 to 11:00 at level 5, 12:00 to 13:00 at level 7).
+- Effects over time always get their last tick. In the TypeScript game rounding dropped it for some, so Mending Kelp healed 360 and Tallow Burn dealt 200; here they give the 420 and 240 their descriptions promise.
+- Until the title, party setup and level screens are rebuilt, keys choose the run (see `game/README.md`), and the summary is a plain panel.
 
 Fourfold is an original, solo, browser-based dungeon runner in the style of timed five-player MMO dungeons. You play one hero in a party of four; AI plays the other three.
 

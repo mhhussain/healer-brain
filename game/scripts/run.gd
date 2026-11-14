@@ -4,20 +4,23 @@ extends Node3D
 # The run controller: it builds the level, puts the party and the packs in it, owns the rules,
 # tells them where every unit stands, ticks them 60 times a second, and turns what happens into
 # things you can see.
-# For now it runs a sandbox: you pick any hero and level, and when the hall is cleared it starts
-# over a few seconds later.
+# Until the menus exist, keys choose the run: F1 to F6 the hero, - and = the level, F8 the place
+# (the Drowned Abbey or the sandbox hall), F9 whether the AI plays your hero too.
 
 ## The party (tank, healer, two damage dealers), which of them you play, and the level. They
 ## outlast a reload of the scene, which is how you switch.
 static var party: Array[String] = ["warden", "mender", "duelist", "ranger"]
 static var player_slot := 3
-static var chosen_level := 3
+static var chosen_level := 1
+## Where the run is: "abbey" or "sandbox".
+static var place := "abbey"
 ## The AI plays your hero too: for the balance runner and for watching.
 static var autoplay := false
 ## The seed for the run's dice; 0 picks one at random.
 static var rng_seed := 0
 
-@export var sandbox := true
+## In the sandbox hall, start over when it is cleared instead of finishing the run.
+@export var endless := true
 ## Sandbox: seconds after the last pack is cleared before the hall starts over.
 @export var respawn_after := 6.0
 ## Sandbox: the share of damage you take. 1 is the real game.
@@ -27,6 +30,15 @@ static var rng_seed := 0
 
 var combat: Combat
 var player: Unit
+var sandbox := false
+## Kept between runs. It is only read and written when this is the game itself, not a test.
+var save := SaveData.new()
+## Once the run is finished: whether it unlocked the next level.
+var unlocked_now := false
+
+static var _restored := false
+var _saves := false
+var _recorded := false
 
 var _units := {}  # combatant id -> Unit
 
@@ -55,11 +67,21 @@ func _ready() -> void:
 	# after the units have moved, so the rules see where they are now
 	process_physics_priority = 1
 	ring.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
-	var def := Levels.sandbox()
+	_saves = get_tree().current_scene == self
+	if _saves:
+		save = SaveStore.load_save()
+		if not _restored:
+			# the first time, pick up where you left off
+			_restored = true
+			party.assign(save.party)
+			player_slot = save.slot
+			chosen_level = save.level
+	sandbox = place == "sandbox"
+	var def := Levels.by_name(place)
 	level.build(def)
 
 	combat = Combat.new(chosen_level, rng_seed if rng_seed != 0 else randi())
-	combat.endless = sandbox
+	combat.endless = sandbox and endless
 	combat.autoplay = autoplay
 	combat.los = level.sees
 	combat.can_stand = level.can_stand
@@ -87,6 +109,8 @@ func _ready() -> void:
 			_spawn(combat.spawn_enemy(d.enemies[i], posts[i], pack.id), PI / 2.0)
 	if camera and player:
 		camera.follow(player)
+	if hud:
+		hud.alert("%s, level %d" % [def.name, chosen_level])
 
 
 # Makes the figure for a combatant, with the player's keys or the AI's legs to drive it.
@@ -118,20 +142,46 @@ func all_units() -> Array:
 
 func _unhandled_input(event: InputEvent) -> void:
 	var key := event as InputEventKey
-	if not sandbox or key == null or not key.pressed or key.echo:
+	if key == null or not key.pressed or key.echo:
 		return
+	# in the Abbey you may start any level you have unlocked; the sandbox has no such limit
+	var top := 999 if sandbox or not _saves else save.unlocked
 	match key.physical_keycode:
 		KEY_F1, KEY_F2, KEY_F3, KEY_F4, KEY_F5, KEY_F6:
 			choose(Heroes.ALL[key.physical_keycode - KEY_F1])
 		KEY_MINUS:
 			chosen_level = maxi(1, chosen_level - 1)
 		KEY_EQUAL:
-			chosen_level += 1
+			chosen_level = mini(top, chosen_level + 1)
+		KEY_F8:
+			place = "abbey" if sandbox else "sandbox"
 		KEY_F9:
 			autoplay = not autoplay
+		KEY_ENTER, KEY_KP_ENTER:
+			if not combat.finished:
+				return
 		_:
 			return
+	_remember()
 	get_tree().reload_current_scene()
+
+
+# Keeps the party and level you chose for next time.
+func _remember() -> void:
+	if not _saves:
+		return
+	save.party.assign(party)
+	save.slot = player_slot
+	save.level = clampi(chosen_level, 1, save.unlocked)
+	SaveStore.store(save)
+
+
+# The last boss is down: note the result, and unlock the next level if it was inside the time.
+func _finish() -> void:
+	_recorded = true
+	unlocked_now = save.record(combat.level, player.c.hero.id, combat.total_time(), combat.timed())
+	if _saves and not autoplay:
+		SaveStore.store(save)
 
 
 func _physics_process(delta: float) -> void:
@@ -146,7 +196,9 @@ func _physics_process(delta: float) -> void:
 	if sandbox and player and player.c.alive and sandbox_damage_taken < 1.0 and not combat.has_aura(player.c, "sandbox"):
 		combat.add_aura(player.c, {"id": "sandbox", "name": "Sandbox", "dur": 99999.0, "src_id": player.c.id, "taken": sandbox_damage_taken})
 	combat.tick(delta)
-	if sandbox and combat.packs.all(func(p: Pack) -> bool: return p.cleared and combat.time - p.cleared_at >= respawn_after):
+	if combat.finished and not _recorded:
+		_finish()
+	if combat.endless and combat.packs.all(func(p: Pack) -> bool: return p.cleared and combat.time - p.cleared_at >= respawn_after):
 		_start_over()
 
 
@@ -242,6 +294,12 @@ func _on_event(e: Dictionary) -> void:
 		"reset":
 			for c in combat.packs[e.id].units:
 				unit_of(c.id).place(c.pos)
+		"clear":
+			# a boss is down: the party hops for joy, one after another
+			if combat.packs[e.id].boss:
+				for h in combat.heroes:
+					if h.alive and (not h.is_player or autoplay):
+						get_tree().create_timer(0.3 + h.slot * 0.15).timeout.connect(unit_of(h.id).jump)
 		"pillar":
 			level.destroy_pillar(e.id)
 		"pillars_up":

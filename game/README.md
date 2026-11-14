@@ -22,12 +22,15 @@ Open `game/project.godot` in Godot and press F5. Or from the repo root:
 godot --path game
 ```
 
-For now the main scene is a sandbox: you and three AI party members against two packs in a grey-box hall.
+The game is the Drowned Abbey: you and three AI party members, nine rooms, three bosses and a 14-minute clock. Until the menus are built, keys choose the run:
 
 - F1 to F6 switch hero (Warden, Lamplighter, Kelpwife, Wrecker, Harpooner, Chandler). Your hero takes the place of its role in the party.
-- `-` and `=` lower and raise the level.
+- `-` and `=` lower and raise the level, up to the highest you have unlocked. Timing a level unlocks the next.
+- F8 switches between the Abbey and the sandbox hall: two packs in two rooms, any level, starting over when cleared.
 - F9 lets the AI play your hero too, to watch.
-- A few seconds after both packs are cleared, the hall starts over.
+- Enter runs it again once a run is finished.
+
+Your party, level, unlocks and bests are kept in `user://fourfold-save.json` (in a browser, in the browser's own storage). Tests and the tools below never read or write it.
 
 ## Balance runs
 
@@ -37,7 +40,7 @@ The AI plays all four heroes through the real scene, for every healer and pair o
 godot --headless --fixed-fps 60 --path game -s tests/tools/sim.gd -- 1,3,5 2
 ```
 
-That is levels 1, 3 and 5 with two seeds each; add `-v` for when each pack fell. Each line gives the time, deaths, and per hero damage a second, healing a second, interrupts and deaths.
+That is levels 1, 3 and 5 of the Abbey with two seeds each; add `-v` for when each pack fell, or `sandbox` as a third word for the sandbox hall. Each line gives the time, deaths, and per hero damage a second, healing a second, interrupts and deaths. A run of the Abbey takes about 20 seconds.
 
 ## Test
 

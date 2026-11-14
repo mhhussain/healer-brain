@@ -15,8 +15,10 @@ var pillars: Array[Dictionary] = []
 ## The middle of each doorway, in order along the hall.
 var doors: Array[Vector3] = []
 var start := Vector3.ZERO
-## {"name", "boss", "lamp", "enemies": [ids], "center", "entry", "pull_from", "stand", "room_left"}
+## {"name", "boss", "lamp", "enemies": [ids], "zone", "center", "entry", "pull_from", "stand", "room_left"}
 var packs: Array[Dictionary] = []
+## The parts of the place, in order; each pack's "zone" is a place in this list.
+var zones: Array[String] = []
 
 
 func add_wall(x: float, z: float, w: float, d: float, height: float) -> void:
@@ -28,11 +30,12 @@ func add_pillar(x: float, z: float, r: float, height := 3.0) -> void:
 
 
 ## Whether a spot is on the floor and clear of walls and pillars by a unit's half-width.
+## The floor's own edges do not count: every edge that matters has a wall along it.
 func can_stand(p: Vector3, margin := 0.5) -> bool:
 	var at := Vector2(p.x, p.z)
 	var on_floor := false
 	for f in floors:
-		if f.grow(-margin).has_point(at):
+		if f.grow(0.01).has_point(at):
 			on_floor = true
 			break
 	if not on_floor:

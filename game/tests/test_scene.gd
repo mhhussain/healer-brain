@@ -8,6 +8,7 @@ var enemy: Unit
 
 
 func before_each():
+	Run.place = "sandbox"
 	Run.party = ["warden", "mender", "duelist", "ranger"]
 	Run.player_slot = 3
 	Run.chosen_level = 3
@@ -20,6 +21,12 @@ func before_each():
 	hero = main.player
 	enemy = main.unit_of(main.combat.packs[0].units[0].id)
 	await wait_physics_frames(2)
+
+
+func after_all():
+	Run.place = "abbey"
+	Run.chosen_level = 1
+	Run.rng_seed = 0
 
 
 func test_the_party_and_the_packs_are_built_from_the_level():

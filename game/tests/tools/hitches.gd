@@ -5,7 +5,7 @@ extends SceneTree
 #   godot --path game -s tests/tools/hitches.gd
 
 const SLOW_MS := 40.0
-const SECONDS := 45.0
+const SECONDS := 150.0
 
 var _main: Run
 var _last := 0
@@ -17,6 +17,7 @@ var _total := 0.0
 func _initialize() -> void:
 	Run.choose("pyromancer")
 	Run.chosen_level = 3
+	Run.place = "abbey"
 	Run.autoplay = true
 	Run.rng_seed = 4
 	_main = load("res://scenes/main.tscn").instantiate()

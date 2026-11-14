@@ -32,6 +32,8 @@ var finished := false
 var in_combat := false
 ## A sandbox never finishes, however many packs are cleared.
 var endless := false
+## The AI plays the heroes that are not the player's. Tests of the rules alone turn it off.
+var ai_plays := true
 ## The AI plays the player's hero too.
 var autoplay := false
 
@@ -50,6 +52,11 @@ var los := func(_a: Vector3, _b: Vector3) -> bool: return true
 var blocker := func(_a: Vector3, _b: Vector3) -> int: return -1
 ## Whether a unit could stand on a spot: func(p: Vector3) -> bool.
 var can_stand := func(_p: Vector3) -> bool: return true
+## Whether a unit could walk straight from one spot to another: func(a: Vector3, b: Vector3) -> bool.
+var clear_walk := func(_a: Vector3, _b: Vector3) -> bool: return true
+## Columns the party can hide behind: {"pos": Vector3, "r": float, "alive": bool}. Its place in
+## the list is the id that `blocker` answers with.
+var pillars: Array[Dictionary] = []
 
 ## Why the player's last press did nothing, for the interface to show, and how long ago.
 var error := ""
@@ -78,6 +85,8 @@ func add_hero(def: HeroDef, is_player := false) -> Combatant:
 	u.hp = def.hp
 	u.res_max = def.res_max
 	u.res = def.res_start
+	u.ai = AIState.new()
+	u.ai.reaction = 0.3 + rng() * 0.3
 	heroes.append(u)
 	if is_player:
 		player = u
@@ -166,6 +175,15 @@ func next_pack() -> Pack:
 		if not p.cleared:
 			return p
 	return null
+
+
+## The x at which the room holding a spot begins. A doorway counts as part of the room before it.
+func room_start(x: float) -> float:
+	var left := -INF
+	for p in packs:
+		if p.room_left <= x:
+			left = p.room_left
+	return left
 
 
 func total_time() -> float:
@@ -655,6 +673,9 @@ func tick(dt: float) -> void:
 	if started:
 		elapsed += dt
 	_update_player()
+	for h in heroes:
+		if ai_plays and h.alive and (not h.is_player or autoplay):
+			HeroAI.think(self, h)
 	for e in enemies:
 		if e.alive:
 			_enemy_tick(e, dt)
@@ -943,6 +964,8 @@ func _update_combat() -> void:
 func _wipe() -> void:
 	alert("Driven back. The keepers return to their posts.")
 	zones.clear()
+	for p in pillars:
+		p.alive = true
 	event.emit({"k": "pillars_up"})
 	var entry := packs[0].entry
 	for p in packs:
@@ -960,6 +983,7 @@ func _wipe() -> void:
 		h.res = h.hero.res_start
 		h.combo = 0
 		h.target_id = 0
+		h.has_goal = false
 		h.pos = entry + Vector3(-2.0 + (i % 2) * 1.5, 0, -1.5 + floorf(i / 2.0) * 1.5)
 	event.emit({"k": "wipe"})
 
@@ -999,4 +1023,6 @@ func reset_pack(p: Pack) -> void:
 
 
 func destroy_pillar(id: int) -> void:
+	if id >= 0 and id < pillars.size():
+		pillars[id].alive = false
 	event.emit({"k": "pillar", "id": id})

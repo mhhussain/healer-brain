@@ -15,6 +15,7 @@ var events: Array[Dictionary]
 func start(hero_ids: Array, level := 1) -> void:
 	combat = Combat.new(level, 7)
 	combat.endless = true
+	combat.ai_plays = false
 	events = []
 	combat.event.connect(func(e: Dictionary) -> void: events.append(e))
 	for i in hero_ids.size():

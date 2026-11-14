@@ -1,3 +1,4 @@
+class_name PlayerInput
 extends Node
 
 # The player's keys and mouse for the unit this sits under: moving relative to the camera,
@@ -48,7 +49,7 @@ func _physics_process(_delta: float) -> void:
 	if _clear:
 		unit.c.target_id = 0
 	if _click:
-		var hit := run.enemy_under(cam, _click_at)
+		var hit := run.unit_under(cam, _click_at, "enemy")
 		if hit:
 			unit.c.target_id = hit.c.id
 	_tab = false

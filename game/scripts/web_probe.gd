@@ -3,7 +3,7 @@ extends Node
 # On the web build with ?debug in the address, publishes a little state as window.fourfold, so a
 # browser test can read where the hero is and how the game is running.
 
-@export var unit: Unit
+@export var run: Run
 @export var camera: IsoCamera
 
 
@@ -12,6 +12,9 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
+	var unit := run.player
+	if unit == null:
+		return
 	var state := {
 		"x": unit.global_position.x,
 		"z": unit.global_position.z,

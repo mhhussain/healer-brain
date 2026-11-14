@@ -44,6 +44,14 @@ func _ready() -> void:
 	_place()
 
 
+## Follows that unit from now on, starting right on it.
+func follow(unit: Node3D) -> void:
+	target = unit
+	_focus = unit.global_position
+	_lead = Vector3.ZERO
+	_place()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	var mb := event as InputEventMouseButton
 	if mb and mb.pressed:

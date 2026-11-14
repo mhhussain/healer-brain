@@ -17,3 +17,9 @@ var cleared_at := 0.0
 var tank_hit_at := -1.0
 ## Where the party is put back after being beaten here.
 var entry := Vector3.ZERO
+## Where the tank stops to pull it from, and where it then plants its feet: well inside the
+## room, so the whole party follows it in.
+var pull_from := Vector3.ZERO
+var stand := Vector3.ZERO
+## The x at which its room begins.
+var room_left := -INF

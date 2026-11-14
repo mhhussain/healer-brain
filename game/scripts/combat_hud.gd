@@ -18,6 +18,10 @@ const GREY := Color("9fb0b1")
 const HP_HERO := Color("5fbf6e")
 const HP_ENEMY := Color("c9503f")
 
+const PARTY_AT := Vector2(24, 190)
+const PARTY_SIZE := Vector2(190, 46)
+const PARTY_GAP := 8.0
+
 var _texts: Array[Dictionary] = []
 var _alerts: Array[Dictionary] = []
 
@@ -39,6 +43,21 @@ func float_at(at: Vector3, text: String, color: Color) -> void:
 ## A line across the top of the screen for a few seconds.
 func alert(text: String) -> void:
 	_alerts.append({"text": text, "t": 0.0})
+
+
+## The party member whose frame is under that point of the screen: its id, or 0.
+func ally_at(point: Vector2) -> int:
+	if run == null or run.combat == null:
+		return 0
+	var heroes := run.combat.heroes
+	for i in heroes.size():
+		if _party_frame(i).has_point(point):
+			return heroes[i].id
+	return 0
+
+
+func _party_frame(i: int) -> Rect2:
+	return Rect2(PARTY_AT + Vector2(0, i * (PARTY_SIZE.y + PARTY_GAP)), PARTY_SIZE)
 
 
 func _process(delta: float) -> void:
@@ -82,6 +101,19 @@ func _draw() -> void:
 	for i in _alerts.size():
 		var a := _alerts[i]
 		_text(Vector2(size.x / 2, 120.0 + i * 30.0), a.text, 22, Color(GOLD, clampf((ALERT_LIFE - a.t) * 2.0, 0.0, 1.0)), 900.0)
+
+	# the party, down the left: hold the mouse over one to aim an ally ability at them
+	for i in combat.heroes.size():
+		var h := combat.heroes[i]
+		var r := _party_frame(i)
+		draw_rect(r, DARK)
+		draw_rect(r, GOLD if combat.hover_ally_id == h.id else Color(h.hero.color, 0.8), false, 2.0 if combat.hover_ally_id == h.id else 1.0)
+		_text(r.position + Vector2(r.size.x / 2, 16), h.name if h.alive else h.name + " (dead)", 12, h.hero.color)
+		_bar(Rect2(r.position + Vector2(8, 22), Vector2(r.size.x - 16, 10)), h.hp / h.max_hp, HP_HERO)
+		_bar(Rect2(r.position + Vector2(8, 35), Vector2(r.size.x - 16, 4)), h.res / h.res_max, h.hero.res_color)
+		var harm := h.auras.filter(func(a: Aura) -> bool: return a.debuff)
+		if not harm.is_empty():
+			_text(r.position + Vector2(r.size.x + 70, 28), harm[0].name, 12, RED, 130.0)
 
 	var mid := size.x / 2
 	var base := size.y - 24

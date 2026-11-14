@@ -2,14 +2,13 @@ extends GutTest
 
 # Milestone 1: how the hero moves and how the keys map onto the floor.
 
-const HERO := preload("res://scenes/hero.tscn")
+const HERO := preload("res://scenes/unit.tscn")
 
 var hero: Unit
 
 
 func before_each():
 	hero = HERO.instantiate()
-	hero.get_node("Player").queue_free()  # the tests steer it themselves
 	add_child_autofree(hero)
 	await wait_physics_frames(2)
 

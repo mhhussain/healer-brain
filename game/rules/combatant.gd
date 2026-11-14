@@ -40,6 +40,8 @@ var auto_timer := 0.0
 var stats := {"dmg": 0.0, "heal": 0.0, "interrupts": 0, "dispels": 0, "deaths": 0}
 var last_interrupt := -99.0
 var rage_gate := -9.0
+## Heroes: what its AI remembers. Used when the AI is playing it.
+var ai: AIState
 
 # enemies only
 var pack_id := -1

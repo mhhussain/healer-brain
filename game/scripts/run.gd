@@ -1,68 +1,111 @@
 class_name Run
 extends Node3D
 
-# The run controller: it owns the rules, tells them where every unit stands, ticks them 60 times
-# a second, and turns what happens into things you can see.
-# For now it is a sandbox: you pick any hero and level, packs stand back up a few seconds after
-# they are cleared, and you take far less damage than you should, since you are alone.
+# The run controller: it builds the level, puts the party and the packs in it, owns the rules,
+# tells them where every unit stands, ticks them 60 times a second, and turns what happens into
+# things you can see.
+# For now it runs a sandbox: you pick any hero and level, and when the hall is cleared it starts
+# over a few seconds later.
 
-## The hero and level to play. They outlast a reload of the scene, which is how you switch.
-static var chosen_hero := "ranger"
+## The party (tank, healer, two damage dealers), which of them you play, and the level. They
+## outlast a reload of the scene, which is how you switch.
+static var party: Array[String] = ["warden", "mender", "duelist", "ranger"]
+static var player_slot := 3
 static var chosen_level := 3
+## The AI plays your hero too: for the balance runner and for watching.
+static var autoplay := false
+## The seed for the run's dice; 0 picks one at random.
+static var rng_seed := 0
 
 @export var sandbox := true
-## Sandbox: seconds before a cleared pack stands up again at its posts.
-@export var respawn_after := 4.0
+## Sandbox: seconds after the last pack is cleared before the hall starts over.
+@export var respawn_after := 6.0
 ## Sandbox: the share of damage you take. 1 is the real game.
-@export_range(0.05, 1.0) var sandbox_damage_taken := 0.1
+@export_range(0.05, 1.0) var sandbox_damage_taken := 1.0
 @export var hud: CombatHud
+@export var camera: IsoCamera
 
 var combat: Combat
 var player: Unit
 
 var _units := {}  # combatant id -> Unit
 
-# line of sight is judged at about chest height, so low kerbs and crates do not block it
-const EYE := Vector3(0, 1.3, 0)
-const WALLS := 1
 # loaded when first needed: the scene's own script refers back to this one
-const ENEMY := "res://scenes/enemy.tscn"
+const UNIT := "res://scenes/unit.tscn"
 
+@onready var level: LevelBuilder = $Level
 @onready var ring: MeshInstance3D = $TargetRing
+
+
+## Puts that hero in the party in the place of its role, and makes it yours.
+static func choose(hero_id: String) -> void:
+	var role := Heroes.by_id(hero_id).role
+	if role == "tank":
+		player_slot = 0
+	elif role == "healer":
+		player_slot = 1
+	else:
+		player_slot = 2
+		if party[3] == hero_id:
+			party[3] = party[2]
+	party[player_slot] = hero_id
 
 
 func _ready() -> void:
 	# after the units have moved, so the rules see where they are now
 	process_physics_priority = 1
 	ring.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
-	combat = Combat.new(chosen_level, randi())
+	var def := Levels.sandbox()
+	level.build(def)
+
+	combat = Combat.new(chosen_level, rng_seed if rng_seed != 0 else randi())
 	combat.endless = sandbox
-	combat.los = _sees
+	combat.autoplay = autoplay
+	combat.los = level.sees
+	combat.can_stand = level.can_stand
+	combat.clear_walk = level.clear_walk
+	combat.blocker = level.pillar_between
+	for p in def.pillars:
+		combat.pillars.append({"pos": p.pos, "r": p.r, "alive": true})
 	combat.event.connect(_on_event)
-	var found := get_tree().get_nodes_in_group("units").filter(func(u: Unit) -> bool: return is_ancestor_of(u))
-	for u: Unit in found:
-		if u.team == "hero":
-			var def := Heroes.by_id(chosen_hero if u.is_player else u.def_id)
-			_bind(u, combat.add_hero(def, u.is_player))
-			u.c.pos = u.global_position
-			if u.is_player:
-				player = u
-	for u: Unit in found:
-		if u.team == "enemy":
-			while combat.packs.size() <= u.pack:
-				combat.add_pack()
-			_bind(u, combat.spawn_enemy(u.def_id, u.global_position, u.pack))
-	# beaten, the party starts again from where it began
-	if player:
-		for p in combat.packs:
-			p.entry = player.global_position + Vector3(2, 0, 1.5)
+
+	for i in party.size():
+		var c := combat.add_hero(Heroes.by_id(party[i]), i == player_slot)
+		c.pos = def.start + Vector3(-i * 1.6, 0, 1.2 if i % 2 else -1.2)
+		var u := _spawn(c, PI / -2.0)
+		if c.is_player:
+			player = u
+	for d in def.packs:
+		var pack := combat.add_pack(d.name, d.boss)
+		pack.lamp = d.lamp
+		pack.entry = d.entry
+		pack.pull_from = d.pull_from
+		pack.stand = d.stand
+		pack.room_left = d.room_left
+		var posts := LevelDef.posts(d)
+		for i in d.enemies.size():
+			_spawn(combat.spawn_enemy(d.enemies[i], posts[i], pack.id), PI / 2.0)
+	if camera and player:
+		camera.follow(player)
 
 
-func _bind(u: Unit, c: Combatant) -> void:
+# Makes the figure for a combatant, with the player's keys or the AI's legs to drive it.
+func _spawn(c: Combatant, facing: float) -> Unit:
+	var u: Unit = load(UNIT).instantiate()
+	u.team = c.team
+	u.is_player = c.is_player
+	u.facing = facing
+	u.name = c.name.replace(" ", "")
+	add_child(u, true)
 	u.c = c
 	u.run = self
 	_units[c.id] = u
 	u.setup()
+	var driver: Node = PlayerInput.new() if c.is_player and not autoplay else Walker.new()
+	driver.name = "PlayerInput" if driver is PlayerInput else "Walker"
+	u.add_child(driver)
+	u.place(c.pos)
+	return u
 
 
 func unit_of(id: int) -> Unit:
@@ -77,19 +120,17 @@ func _unhandled_input(event: InputEvent) -> void:
 	var key := event as InputEventKey
 	if not sandbox or key == null or not key.pressed or key.echo:
 		return
-	var hero := Heroes.ALL.find(chosen_hero)
-	var level := chosen_level
 	match key.physical_keycode:
 		KEY_F1, KEY_F2, KEY_F3, KEY_F4, KEY_F5, KEY_F6:
-			hero = key.physical_keycode - KEY_F1
+			choose(Heroes.ALL[key.physical_keycode - KEY_F1])
 		KEY_MINUS:
-			level = maxi(1, level - 1)
+			chosen_level = maxi(1, chosen_level - 1)
 		KEY_EQUAL:
-			level += 1
+			chosen_level += 1
+		KEY_F9:
+			autoplay = not autoplay
 		_:
 			return
-	chosen_hero = Heroes.ALL[hero]
-	chosen_level = level
 	get_tree().reload_current_scene()
 
 
@@ -105,33 +146,48 @@ func _physics_process(delta: float) -> void:
 	if sandbox and player and player.c.alive and sandbox_damage_taken < 1.0 and not combat.has_aura(player.c, "sandbox"):
 		combat.add_aura(player.c, {"id": "sandbox", "name": "Sandbox", "dur": 99999.0, "src_id": player.c.id, "taken": sandbox_damage_taken})
 	combat.tick(delta)
-	if sandbox:
-		for p in combat.packs:
-			if p.cleared and combat.time - p.cleared_at >= respawn_after:
-				combat.reset_pack(p)
+	if sandbox and combat.packs.all(func(p: Pack) -> bool: return p.cleared and combat.time - p.cleared_at >= respawn_after):
+		_start_over()
+
+
+# Sandbox: with every pack cleared, the packs stand back up and the party is put back at the start.
+func _start_over() -> void:
+	for p in combat.packs:
+		combat.reset_pack(p)
+	for h in combat.heroes:
+		h.pos = level.def.start + Vector3(-h.slot * 1.6, 0, 1.2 if h.slot % 2 else -1.2)
+		h.has_goal = false
+		h.target_id = 0
+		unit_of(h.id).place(h.pos)
+	if camera and player:
+		camera.follow(player)
 
 
 func _process(_delta: float) -> void:
-	var t := unit_of(player.c.target_id) if player else null
+	if player == null:
+		return
+	var t := unit_of(player.c.target_id)
 	ring.visible = t != null and t.c.alive
 	if ring.visible:
 		ring.global_position = t.get_global_transform_interpolated().origin + Vector3(0, 0.05, 0)
 		ring.scale = Vector3.ONE * (t.c.radius / 0.6)
+	# ally abilities go to the ally under the mouse: a party frame, or the figure itself
+	var cam := get_viewport().get_camera_3d()
+	if cam:
+		var mouse := get_viewport().get_mouse_position()
+		var on_frame := hud.ally_at(mouse) if hud else 0
+		var figure := unit_under(cam, mouse, "hero")
+		combat.hover_ally_id = on_frame if on_frame > 0 else figure.c.id if figure else 0
 
 
-func _sees(a: Vector3, b: Vector3) -> bool:
-	var query := PhysicsRayQueryParameters3D.create(a + EYE, b + EYE, WALLS)
-	return get_world_3d().direct_space_state.intersect_ray(query).is_empty()
-
-
-## The living enemy whose figure is under that point of the screen, or null.
-func enemy_under(cam: Camera3D, screen: Vector2) -> Unit:
+## The living unit of that team whose figure is under that point of the screen, or null.
+func unit_under(cam: Camera3D, screen: Vector2, team: String) -> Unit:
 	var from := cam.project_ray_origin(screen)
 	var to := from + cam.project_ray_normal(screen) * 500.0
 	var best: Unit = null
 	var best_d := INF
 	for u: Unit in _units.values():
-		if u.c.team != "enemy" or not u.c.alive:
+		if u.c.team != team or not u.c.alive:
 			continue
 		var foot := u.global_position
 		var pts := Geometry3D.get_closest_points_between_segments(from, to, foot, foot + Vector3(0, u.height, 0))
@@ -173,14 +229,7 @@ func _on_event(e: Dictionary) -> void:
 		"dash":
 			unit_of(e.id).dash(e.dir, e.dist)
 		"spawn":
-			var c := combat.unit(e.id)
-			var u: Unit = load(ENEMY).instantiate()
-			u.team = "enemy"
-			u.def_id = c.enemy.id
-			u.pack = c.pack_id
-			add_child(u)
-			_bind(u, c)
-			u.place(c.pos)
+			_spawn(combat.unit(e.id), PI / 2.0)
 		"despawn":
 			var u := unit_of(e.id)
 			if u:
@@ -193,6 +242,10 @@ func _on_event(e: Dictionary) -> void:
 		"reset":
 			for c in combat.packs[e.id].units:
 				unit_of(c.id).place(c.pos)
+		"pillar":
+			level.destroy_pillar(e.id)
+		"pillars_up":
+			level.restore_pillars()
 
 
 # A streak from one unit to another: a thrown harpoon, a bolt, a heal.
@@ -201,7 +254,7 @@ func _beam(src: Unit, tgt: Unit, color: Color) -> void:
 		return
 	var a := src.global_position + Vector3(0, src.height * 0.7, 0)
 	var b := tgt.global_position + Vector3(0, tgt.height * 0.6, 0)
-	if a.distance_to(b) < 0.1:
+	if Combat.flat(a, b) < 0.1:
 		return
 	var box := BoxMesh.new()
 	box.size = Vector3(0.07, 0.07, 1.0)
@@ -230,6 +283,8 @@ func _ring(at: Vector3, r: float, color: Color) -> void:
 	tween.chain().tween_callback(hoop.queue_free)
 
 
+# Every effect uses these same material settings, so the engine builds their shader once. See
+# zone_view.gd for what happens otherwise.
 func _effect(mesh: Mesh, color: Color) -> MeshInstance3D:
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED

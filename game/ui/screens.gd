@@ -19,15 +19,66 @@ static func title(on_begin: Callable) -> Control:
 	var sub := Kit.label("The Drowned Abbey", 24)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(sub)
-	var story := Kit.para("Once a season the tide draws back for fourteen minutes. A crew of four goes down to relight three sanctuary lamps. You are one of the four.", 14, Kit.GREY, 520.0)
-	story.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	col.add_child(story)
 	var begin := Kit.button("Begin", on_begin, 18)
 	begin.name = "Begin"
 	begin.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	col.add_child(begin)
 	Kit.panel_of(root).add_child(col)
 	return root
+
+
+## The story so far, on one card: each line lights up as the narrator reaches it. Call
+## `light(root, id)` when a line begins.
+static func opening(on_done: Callable) -> Control:
+	var root := Kit.screen(1.0)
+	root.name = "Opening"
+	var col := Kit.vbox(18)
+	col.add_child(Kit.label("The Last Vespers", 26, Kit.GOLD))
+	for i in Story.OPENING.size():
+		var line := Kit.para(Story.OPENING[i], 18, Kit.BONE, 620.0)
+		line.name = "opening_%d" % (i + 1)
+		line.modulate.a = 0.3
+		col.add_child(line)
+	var go := Kit.button("Go down", on_done, 16)
+	go.name = "Continue"
+	go.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	col.add_child(go)
+	Kit.panel_of(root).add_child(col)
+	return root
+
+
+## Lights the line with that id on the opening card.
+static func light(card: Control, id: String) -> void:
+	var line := card.find_child(id, true, false) as Label
+	if line:
+		line.create_tween().tween_property(line, "modulate:a", 1.0, 0.5)
+
+
+## How loud, and whether sound is on at all. `on_change` is called when either changes.
+static func sound_row(save: SaveData, on_change: Callable) -> Control:
+	var row := Kit.hbox(10)
+	row.name = "Sound"
+	row.add_child(Kit.label("Sound", 12, Kit.GREY))
+	var slider := HSlider.new()
+	slider.name = "Volume"
+	slider.min_value = 0.0
+	slider.max_value = 1.0
+	slider.step = 0.05
+	slider.value = save.volume
+	slider.custom_minimum_size = Vector2(150, 20)
+	slider.value_changed.connect(func(v: float) -> void:
+		save.volume = v
+		on_change.call())
+	row.add_child(slider)
+	var mute := CheckBox.new()
+	mute.name = "Mute"
+	mute.text = "Off (M)"
+	mute.button_pressed = save.muted
+	mute.toggled.connect(func(off: bool) -> void:
+		save.muted = off
+		on_change.call())
+	row.add_child(mute)
+	return row
 
 
 ## The party, your hero and its keys, and the level. `on_change` is called whenever the save
@@ -81,6 +132,7 @@ static func setup(save: SaveData, on_change: Callable, on_start: Callable) -> Co
 	crew.add_child(Kit.para("The AI plays the other three. Any hero may be in the crew twice.", 12, Kit.GREY, 300.0))
 	crew.add_child(Kit.label("How to play", 16, Kit.GOLD))
 	crew.add_child(Kit.para(CONTROLS.replace("this menu", "the menu"), 12, Kit.GREY, 300.0))
+	crew.add_child(sound_row(save, on_change))
 	cols.add_child(crew)
 
 	# your hero: how to play it, what it does, and its keys
@@ -135,6 +187,7 @@ static func pause(save: SaveData, hero_id: String, on_change: Callable, on_resum
 	var col := Kit.vbox(10)
 	col.add_child(Kit.label("Paused", 24, Kit.GOLD))
 	col.add_child(Kit.para(CONTROLS, 12, Kit.GREY, 640.0))
+	col.add_child(sound_row(save, on_change))
 	var editor := KeysEditor.new()
 	editor.name = "Keys"
 	editor.show_hero(save, hero_id)
@@ -165,6 +218,9 @@ static func summary(c: Combat, unlocked_now: bool, can_go_up: bool, on_again: Ca
 	if note != "":
 		col.add_child(Kit.label(note, 14, Kit.GOLD if unlocked_now else Kit.GREY))
 	col.add_child(Kit.label(Hud.progress(c), 12, Kit.GREY))
+	var ending := Kit.para(Story.ending(timed).text, 15, Kit.BONE, 620.0)
+	ending.name = "Ending"
+	col.add_child(ending)
 	var grid := GridContainer.new()
 	grid.name = "Table"
 	grid.columns = 6

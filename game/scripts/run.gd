@@ -37,6 +37,9 @@ static var keys: SaveData = SaveData.new()
 
 var combat: Combat
 var player: Unit
+## What the party says, and the voice that says it.
+var story: Story
+var voice: Voice
 var sandbox := false
 ## The party frame under the mouse: that hero's id, or 0.
 var hover_frame_id := 0
@@ -84,6 +87,12 @@ func _ready() -> void:
 	for p in def.pillars:
 		combat.pillars.append({"pos": p.pos, "r": p.r, "alive": true})
 	combat.event.connect(_on_event)
+	story = Story.new(combat)
+	voice = Voice.new()
+	voice.name = "Voice"
+	add_child(voice)
+	story.said.connect(voice.say)
+	voice.started.connect(_on_line_started)
 
 	for i in party.size():
 		var c := combat.add_hero(Heroes.by_id(party[i]), i == player_slot)
@@ -107,6 +116,13 @@ func _ready() -> void:
 		hud.alert("%s, level %d" % [def.name, chosen_level])
 		hud.ability_clicked.connect(func(idx: int) -> void: combat.press(idx))
 		hud.frame_clicked.connect(_on_frame_clicked)
+
+
+# A line is being said: its words go in a bubble over whoever says it.
+func _on_line_started(line: Dictionary, seconds: float) -> void:
+	var speaker := unit_of(line.get("unit_id", 0))
+	if overlay and speaker:
+		overlay.say(speaker, line.text, seconds)
 
 
 func _on_frame_clicked(hero_id: int, event: InputEventMouseButton) -> void:
@@ -154,6 +170,7 @@ func _physics_process(delta: float) -> void:
 	if sandbox and player and player.c.alive and sandbox_damage_taken < 1.0 and not combat.has_aura(player.c, "sandbox"):
 		combat.add_aura(player.c, {"id": "sandbox", "name": "Sandbox", "dur": 99999.0, "src_id": player.c.id, "taken": sandbox_damage_taken})
 	combat.tick(delta)
+	story.frame(delta)
 	if combat.finished and not _told:
 		_told = true
 		finished.emit()

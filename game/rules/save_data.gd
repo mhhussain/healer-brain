@@ -11,6 +11,9 @@ var bests := {}
 var party: Array[String] = ["warden", "mender", "duelist", "ranger"]
 var slot := 3
 var level := 1
+## How loud the game is, 0 to 1, and whether sound is off.
+var volume := 0.8
+var muted := false
 ## Hero id -> ability id -> [key, key]: two slots of physical keycodes, 0 for an empty one.
 var keys := {}
 ## Hero id -> ability id -> "M", "X1" or "X2": a mouse button that casts it wherever the pointer is.
@@ -41,7 +44,7 @@ func record(run_level: int, hero_id: String, time: float, timed: bool) -> bool:
 
 func to_dict() -> Dictionary:
 	return {"unlocked": unlocked, "bests": bests, "party": party, "slot": slot, "level": level,
-		"keys": keys, "mouse": mouse, "clicks": clicks}
+		"volume": volume, "muted": muted, "keys": keys, "mouse": mouse, "clicks": clicks}
 
 
 ## Reads what it can from a dictionary and keeps the defaults for anything missing or wrong.
@@ -59,6 +62,8 @@ static func from_dict(d: Dictionary) -> SaveData:
 		s.party.assign(party)
 	s.slot = clampi(int(d.get("slot", 3)), 0, 3)
 	s.level = clampi(int(d.get("level", 1)), 1, s.unlocked)
+	s.volume = clampf(float(d.get("volume", 0.8)), 0.0, 1.0)
+	s.muted = d.get("muted", false) == true
 	s._read_bindings(d)
 	return s
 

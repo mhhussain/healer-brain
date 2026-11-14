@@ -2,5 +2,8 @@ node_modules
 dist
 build
 .DS_Store
+threads.env
+*.env
+!*.env.example
 steel-proxy/steel-proxy.env
 game/.godot/

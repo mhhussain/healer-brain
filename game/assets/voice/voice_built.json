@@ -1,0 +1,307 @@
+{
+  "bloomweaver_fallen_1": {
+    "speed": 0.88,
+    "text": "Up, dear. The kelp has you.",
+    "voice": "bf_isabella"
+  },
+  "bloomweaver_krogg_1": {
+    "speed": 0.88,
+    "text": "Poor lamb. Rusted to his post.",
+    "voice": "bf_isabella"
+  },
+  "bloomweaver_lamp_1": {
+    "speed": 0.88,
+    "text": "There. That will keep the damp off.",
+    "voice": "bf_isabella"
+  },
+  "bloomweaver_late_1": {
+    "speed": 0.88,
+    "text": "She is coming home, the sea. Quick now.",
+    "voice": "bf_isabella"
+  },
+  "bloomweaver_pull_1": {
+    "speed": 0.88,
+    "text": "The sea takes. It also gives back, if you ask nicely.",
+    "voice": "bf_isabella"
+  },
+  "bloomweaver_pull_2": {
+    "speed": 0.88,
+    "text": "Kelp does not hurry. Neither do I.",
+    "voice": "bf_isabella"
+  },
+  "bloomweaver_pull_3": {
+    "speed": 0.88,
+    "text": "Smells like low tide. Lovely.",
+    "voice": "bf_isabella"
+  },
+  "bloomweaver_sulmar_1": {
+    "speed": 0.88,
+    "text": "He never could leave that rope alone.",
+    "voice": "bf_isabella"
+  },
+  "bloomweaver_velisse_1": {
+    "speed": 0.88,
+    "text": "A ward full of crabs. She would be mortified.",
+    "voice": "bf_isabella"
+  },
+  "duelist_fallen_1": {
+    "speed": 1.05,
+    "text": "I am not carrying anyone.",
+    "voice": "bm_fable"
+  },
+  "duelist_krogg_1": {
+    "speed": 1.05,
+    "text": "Big keys. Must be a big lock.",
+    "voice": "bm_fable"
+  },
+  "duelist_lamp_1": {
+    "speed": 1.05,
+    "text": "...Fine. It is a bit lovely.",
+    "voice": "bm_fable"
+  },
+  "duelist_late_1": {
+    "speed": 1.05,
+    "text": "I cannot swim in these boots.",
+    "voice": "bm_fable"
+  },
+  "duelist_pull_1": {
+    "speed": 1.05,
+    "text": "I am only here for the candlesticks.",
+    "voice": "bm_fable"
+  },
+  "duelist_pull_2": {
+    "speed": 1.05,
+    "text": "Nobody mentioned they would still be home.",
+    "voice": "bm_fable"
+  },
+  "duelist_pull_3": {
+    "speed": 1.05,
+    "text": "Is any of this silver?",
+    "voice": "bm_fable"
+  },
+  "duelist_sulmar_1": {
+    "speed": 1.05,
+    "text": "That bell would fetch a fortune. I am only saying.",
+    "voice": "bm_fable"
+  },
+  "duelist_velisse_1": {
+    "speed": 1.05,
+    "text": "I have robbed worse hospitals.",
+    "voice": "bm_fable"
+  },
+  "ending_in_time": {
+    "speed": 0.9,
+    "text": "You climb the sea stair with dry boots. Below you, for the first time in a hundred years, the abbey sleeps.",
+    "voice": "bm_george"
+  },
+  "ending_late": {
+    "speed": 0.9,
+    "text": "The tide caught you on the stair and you came home soaked to the collar. But the lamps hold, and the abbey sleeps.",
+    "voice": "bm_george"
+  },
+  "mender_fallen_1": {
+    "speed": 0.97,
+    "text": "No, no, no. Up you get!",
+    "voice": "bf_emma"
+  },
+  "mender_krogg_1": {
+    "speed": 0.97,
+    "text": "Brother Krogg. We have come to relieve you.",
+    "voice": "bf_emma"
+  },
+  "mender_lamp_1": {
+    "speed": 0.97,
+    "text": "One more light against the dark.",
+    "voice": "bf_emma"
+  },
+  "mender_lamp_2": {
+    "speed": 0.97,
+    "text": "There. Rest now.",
+    "voice": "bf_emma"
+  },
+  "mender_late_1": {
+    "speed": 0.97,
+    "text": "The tide is turning. I can hear it.",
+    "voice": "bf_emma"
+  },
+  "mender_pull_1": {
+    "speed": 0.97,
+    "text": "Stay close to the light.",
+    "voice": "bf_emma"
+  },
+  "mender_pull_2": {
+    "speed": 0.97,
+    "text": "Hold still. This only stings if you argue.",
+    "voice": "bf_emma"
+  },
+  "mender_pull_3": {
+    "speed": 0.97,
+    "text": "They were brothers once. Be gentle.",
+    "voice": "bf_emma"
+  },
+  "mender_sulmar_1": {
+    "speed": 0.97,
+    "text": "Father Abbot. You can stop ringing now.",
+    "voice": "bf_emma"
+  },
+  "mender_velisse_1": {
+    "speed": 0.97,
+    "text": "She is still nursing them. Oh, Sister.",
+    "voice": "bf_emma"
+  },
+  "opening_1": {
+    "speed": 0.9,
+    "text": "A hundred years ago, Abbot Sulmar rang the great bell against the storm. The sea answered.",
+    "voice": "bm_george"
+  },
+  "opening_2": {
+    "speed": 0.9,
+    "text": "Tonight the tide draws back for fourteen minutes.",
+    "voice": "bm_george"
+  },
+  "opening_3": {
+    "speed": 0.9,
+    "text": "Three lamps wait in the dark. Light them, and the abbey may finally sleep.",
+    "voice": "bm_george"
+  },
+  "pyromancer_fallen_1": {
+    "speed": 1.08,
+    "text": "Was that my fault? That felt like my fault.",
+    "voice": "am_puck"
+  },
+  "pyromancer_krogg_1": {
+    "speed": 1.08,
+    "text": "Excuse us! We have an appointment?",
+    "voice": "am_puck"
+  },
+  "pyromancer_lamp_1": {
+    "speed": 1.08,
+    "text": "Oh! It caught first time.",
+    "voice": "am_puck"
+  },
+  "pyromancer_late_1": {
+    "speed": 1.08,
+    "text": "Wet wicks. This is my nightmare.",
+    "voice": "am_puck"
+  },
+  "pyromancer_pull_1": {
+    "speed": 1.08,
+    "text": "Sorry. Sorry! That one got away from me.",
+    "voice": "am_puck"
+  },
+  "pyromancer_pull_2": {
+    "speed": 1.08,
+    "text": "Six generations of candles and nobody mentioned this.",
+    "voice": "am_puck"
+  },
+  "pyromancer_pull_3": {
+    "speed": 1.08,
+    "text": "Is it meant to be this damp?",
+    "voice": "am_puck"
+  },
+  "pyromancer_sulmar_1": {
+    "speed": 1.08,
+    "text": "My great-great-grandfather made his candles.",
+    "voice": "am_puck"
+  },
+  "pyromancer_velisse_1": {
+    "speed": 1.08,
+    "text": "I am sure she is a very good nurse.",
+    "voice": "am_puck"
+  },
+  "ranger_fallen_1": {
+    "speed": 0.95,
+    "text": "Get up.",
+    "voice": "af_bella"
+  },
+  "ranger_krogg_1": {
+    "speed": 0.95,
+    "text": "Big.",
+    "voice": "af_bella"
+  },
+  "ranger_lamp_1": {
+    "speed": 0.95,
+    "text": "Good.",
+    "voice": "af_bella"
+  },
+  "ranger_late_1": {
+    "speed": 0.95,
+    "text": "Tide.",
+    "voice": "af_bella"
+  },
+  "ranger_pull_1": {
+    "speed": 0.95,
+    "text": "Mine.",
+    "voice": "af_bella"
+  },
+  "ranger_pull_2": {
+    "speed": 0.95,
+    "text": "Left one.",
+    "voice": "af_bella"
+  },
+  "ranger_pull_3": {
+    "speed": 0.95,
+    "text": "Quiet.",
+    "voice": "af_bella"
+  },
+  "ranger_sulmar_1": {
+    "speed": 0.95,
+    "text": "Loud.",
+    "voice": "af_bella"
+  },
+  "ranger_velisse_1": {
+    "speed": 0.95,
+    "text": "Too many legs.",
+    "voice": "af_bella"
+  },
+  "warden_fallen_1": {
+    "speed": 0.95,
+    "text": "Hold the line. We will fetch them after.",
+    "voice": "am_fenrir"
+  },
+  "warden_krogg_1": {
+    "speed": 0.95,
+    "text": "A gatekeeper. I know the type.",
+    "voice": "am_fenrir"
+  },
+  "warden_lamp_1": {
+    "speed": 0.95,
+    "text": "Now that is a proper harbour light.",
+    "voice": "am_fenrir"
+  },
+  "warden_late_1": {
+    "speed": 0.95,
+    "text": "Water is coming in. Pick up your feet.",
+    "voice": "am_fenrir"
+  },
+  "warden_pull_1": {
+    "speed": 0.95,
+    "text": "In, all of you. The sea takes the doorways first.",
+    "voice": "am_fenrir"
+  },
+  "warden_pull_2": {
+    "speed": 0.95,
+    "text": "Behind me. All of you. Yes, you too.",
+    "voice": "am_fenrir"
+  },
+  "warden_pull_3": {
+    "speed": 0.95,
+    "text": "Steady. I have seen worse weather.",
+    "voice": "am_fenrir"
+  },
+  "warden_pull_4": {
+    "speed": 0.95,
+    "text": "My knees remember these stairs.",
+    "voice": "am_fenrir"
+  },
+  "warden_sulmar_1": {
+    "speed": 0.95,
+    "text": "When that bell swings, find a pillar.",
+    "voice": "am_fenrir"
+  },
+  "warden_velisse_1": {
+    "speed": 0.95,
+    "text": "Mind the little ones. They nip.",
+    "voice": "am_fenrir"
+  }
+}

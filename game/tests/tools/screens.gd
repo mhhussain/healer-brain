@@ -18,6 +18,9 @@ func _initialize() -> void:
 func _walk(app: App, hero: String) -> void:
 	await _frames(40)
 	_say("title")
+	app.show_opening()
+	await _frames(200)
+	_say("opening")
 	app.save.unlocked = 6
 	app.save.level = 3
 	app.save.bests[hero] = {"level": 5, "time": 644.0}
@@ -30,7 +33,7 @@ func _walk(app: App, hero: String) -> void:
 	app.start_run()
 	# let the party pull and fight for a while, with the AI playing your hero so something happens
 	app.run.combat.autoplay = true
-	await _frames(600)
+	await _frames(330)
 	_say("run")
 	app.pause()
 	await _frames(40)

@@ -6,7 +6,7 @@ Godot **4.7.2**, GDScript, Compatibility renderer. CI uses the same version (`.g
 
 ## Layout
 
-- `rules/`: the rules of the game as plain GDScript classes with no scene in them: heroes, enemies and levels as data, `Combat` for abilities, auras, threat and who is in a fight, and `HeroAI` for what the AI party decides. They are tested on their own.
+- `rules/`: the rules of the game as plain GDScript classes with no scene in them: heroes, enemies and levels as data, `Combat` for abilities, auras, threat and who is in a fight, `HeroAI` for what the AI party decides, `Story` for what the party says and when, and `SaveData` and `Bindings` for what is kept between runs. They are tested on their own.
 - `scripts/`: the nodes. `App` is the game as a whole: it moves between the screens and the run and owns the save. `Run` builds the level, owns the rules, tells them where each `Unit` stands, ticks them 60 times a second and shows what happens. `LevelBuilder` makes the floor, walls, collision and navigation mesh from a level's description. `Walker` walks enemies and AI heroes to where the rules want them, along the navigation mesh.
 - `ui/`: the interface. `Hud` and its frames and buttons during a run, `WorldOverlay` for what is drawn over the figures, `Screens` for the title, setup, pause and summary, `KeysEditor`, and `Kit` for the colours and theme they share.
 - `scenes/`: `app.tscn` (where the game starts), `run.tscn` (one run) and `unit.tscn` (every hero and enemy).
@@ -15,6 +15,7 @@ Godot **4.7.2**, GDScript, Compatibility renderer. CI uses the same version (`.g
   - `capture.gd`: lets the AI play for `--write-movie`, to get frames to look at.
   - `hitches.gd`: lets the AI play in a window and prints frames that took too long.
   - `screens.gd`: walks the app through its screens for `--write-movie`.
+  - `voice_manifest.gd`: writes the list of voice lines from the story.
 
 ## Play
 
@@ -33,6 +34,21 @@ Three keys are for looking under the bonnet during a run:
 - F3 shows speed, zoom and frames a second.
 - F8 swaps the Abbey for the sandbox hall: two packs in two rooms, starting over when cleared.
 - F9 lets the AI play your hero too, to watch. Such a run is not recorded.
+
+## Voice
+
+Every line the game says is in `rules/story.gd`, with an id that is also the name of its recording: `assets/voice/<id>.wav`. The recordings are made by Kokoro, a text-to-speech model, through a hosted Kokoro service. To change a line or a voice:
+
+```sh
+# 1. after editing rules/story.gd, write the list of lines again
+godot --headless --path game -s tests/tools/voice_manifest.gd
+# 2. make the recordings that are new or changed (from the repo root)
+python3 tools/voice/make_voice.py
+```
+
+The script needs only Python 3.9, and the service's address and key as `KOKORO_API_URL` and `KOKORO_API_KEY`, in the environment or in `threads.env` at the top of the repo (which git ignores). Who gets which voice is the `CAST` table at the top of the script. The tests fail if a line has no recording or its recording was made from different words.
+
+To use recordings from somewhere else, such as ElevenLabs, put files with the same names in `assets/voice/`.
 
 ## Balance runs
 

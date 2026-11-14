@@ -1,0 +1,307 @@
+[
+  {
+    "id": "opening_1",
+    "speaker": "narrator",
+    "text": "A hundred years ago, Abbot Sulmar rang the great bell against the storm. The sea answered."
+  },
+  {
+    "id": "opening_2",
+    "speaker": "narrator",
+    "text": "Tonight the tide draws back for fourteen minutes."
+  },
+  {
+    "id": "opening_3",
+    "speaker": "narrator",
+    "text": "Three lamps wait in the dark. Light them, and the abbey may finally sleep."
+  },
+  {
+    "id": "ending_in_time",
+    "speaker": "narrator",
+    "text": "You climb the sea stair with dry boots. Below you, for the first time in a hundred years, the abbey sleeps."
+  },
+  {
+    "id": "ending_late",
+    "speaker": "narrator",
+    "text": "The tide caught you on the stair and you came home soaked to the collar. But the lamps hold, and the abbey sleeps."
+  },
+  {
+    "id": "warden_pull_1",
+    "speaker": "warden",
+    "text": "In, all of you. The sea takes the doorways first."
+  },
+  {
+    "id": "warden_pull_2",
+    "speaker": "warden",
+    "text": "Behind me. All of you. Yes, you too."
+  },
+  {
+    "id": "warden_pull_3",
+    "speaker": "warden",
+    "text": "Steady. I have seen worse weather."
+  },
+  {
+    "id": "warden_pull_4",
+    "speaker": "warden",
+    "text": "My knees remember these stairs."
+  },
+  {
+    "id": "warden_krogg_1",
+    "speaker": "warden",
+    "text": "A gatekeeper. I know the type."
+  },
+  {
+    "id": "warden_velisse_1",
+    "speaker": "warden",
+    "text": "Mind the little ones. They nip."
+  },
+  {
+    "id": "warden_sulmar_1",
+    "speaker": "warden",
+    "text": "When that bell swings, find a pillar."
+  },
+  {
+    "id": "warden_lamp_1",
+    "speaker": "warden",
+    "text": "Now that is a proper harbour light."
+  },
+  {
+    "id": "warden_fallen_1",
+    "speaker": "warden",
+    "text": "Hold the line. We will fetch them after."
+  },
+  {
+    "id": "warden_late_1",
+    "speaker": "warden",
+    "text": "Water is coming in. Pick up your feet."
+  },
+  {
+    "id": "mender_pull_1",
+    "speaker": "mender",
+    "text": "Stay close to the light."
+  },
+  {
+    "id": "mender_pull_2",
+    "speaker": "mender",
+    "text": "Hold still. This only stings if you argue."
+  },
+  {
+    "id": "mender_pull_3",
+    "speaker": "mender",
+    "text": "They were brothers once. Be gentle."
+  },
+  {
+    "id": "mender_krogg_1",
+    "speaker": "mender",
+    "text": "Brother Krogg. We have come to relieve you."
+  },
+  {
+    "id": "mender_velisse_1",
+    "speaker": "mender",
+    "text": "She is still nursing them. Oh, Sister."
+  },
+  {
+    "id": "mender_sulmar_1",
+    "speaker": "mender",
+    "text": "Father Abbot. You can stop ringing now."
+  },
+  {
+    "id": "mender_lamp_1",
+    "speaker": "mender",
+    "text": "One more light against the dark."
+  },
+  {
+    "id": "mender_lamp_2",
+    "speaker": "mender",
+    "text": "There. Rest now."
+  },
+  {
+    "id": "mender_fallen_1",
+    "speaker": "mender",
+    "text": "No, no, no. Up you get!"
+  },
+  {
+    "id": "mender_late_1",
+    "speaker": "mender",
+    "text": "The tide is turning. I can hear it."
+  },
+  {
+    "id": "bloomweaver_pull_1",
+    "speaker": "bloomweaver",
+    "text": "The sea takes. It also gives back, if you ask nicely."
+  },
+  {
+    "id": "bloomweaver_pull_2",
+    "speaker": "bloomweaver",
+    "text": "Kelp does not hurry. Neither do I."
+  },
+  {
+    "id": "bloomweaver_pull_3",
+    "speaker": "bloomweaver",
+    "text": "Smells like low tide. Lovely."
+  },
+  {
+    "id": "bloomweaver_krogg_1",
+    "speaker": "bloomweaver",
+    "text": "Poor lamb. Rusted to his post."
+  },
+  {
+    "id": "bloomweaver_velisse_1",
+    "speaker": "bloomweaver",
+    "text": "A ward full of crabs. She would be mortified."
+  },
+  {
+    "id": "bloomweaver_sulmar_1",
+    "speaker": "bloomweaver",
+    "text": "He never could leave that rope alone."
+  },
+  {
+    "id": "bloomweaver_lamp_1",
+    "speaker": "bloomweaver",
+    "text": "There. That will keep the damp off."
+  },
+  {
+    "id": "bloomweaver_fallen_1",
+    "speaker": "bloomweaver",
+    "text": "Up, dear. The kelp has you."
+  },
+  {
+    "id": "bloomweaver_late_1",
+    "speaker": "bloomweaver",
+    "text": "She is coming home, the sea. Quick now."
+  },
+  {
+    "id": "duelist_pull_1",
+    "speaker": "duelist",
+    "text": "I am only here for the candlesticks."
+  },
+  {
+    "id": "duelist_pull_2",
+    "speaker": "duelist",
+    "text": "Nobody mentioned they would still be home."
+  },
+  {
+    "id": "duelist_pull_3",
+    "speaker": "duelist",
+    "text": "Is any of this silver?"
+  },
+  {
+    "id": "duelist_krogg_1",
+    "speaker": "duelist",
+    "text": "Big keys. Must be a big lock."
+  },
+  {
+    "id": "duelist_velisse_1",
+    "speaker": "duelist",
+    "text": "I have robbed worse hospitals."
+  },
+  {
+    "id": "duelist_sulmar_1",
+    "speaker": "duelist",
+    "text": "That bell would fetch a fortune. I am only saying."
+  },
+  {
+    "id": "duelist_lamp_1",
+    "speaker": "duelist",
+    "text": "...Fine. It is a bit lovely."
+  },
+  {
+    "id": "duelist_fallen_1",
+    "speaker": "duelist",
+    "text": "I am not carrying anyone."
+  },
+  {
+    "id": "duelist_late_1",
+    "speaker": "duelist",
+    "text": "I cannot swim in these boots."
+  },
+  {
+    "id": "ranger_pull_1",
+    "speaker": "ranger",
+    "text": "Mine."
+  },
+  {
+    "id": "ranger_pull_2",
+    "speaker": "ranger",
+    "text": "Left one."
+  },
+  {
+    "id": "ranger_pull_3",
+    "speaker": "ranger",
+    "text": "Quiet."
+  },
+  {
+    "id": "ranger_krogg_1",
+    "speaker": "ranger",
+    "text": "Big."
+  },
+  {
+    "id": "ranger_velisse_1",
+    "speaker": "ranger",
+    "text": "Too many legs."
+  },
+  {
+    "id": "ranger_sulmar_1",
+    "speaker": "ranger",
+    "text": "Loud."
+  },
+  {
+    "id": "ranger_lamp_1",
+    "speaker": "ranger",
+    "text": "Good."
+  },
+  {
+    "id": "ranger_fallen_1",
+    "speaker": "ranger",
+    "text": "Get up."
+  },
+  {
+    "id": "ranger_late_1",
+    "speaker": "ranger",
+    "text": "Tide."
+  },
+  {
+    "id": "pyromancer_pull_1",
+    "speaker": "pyromancer",
+    "text": "Sorry. Sorry! That one got away from me."
+  },
+  {
+    "id": "pyromancer_pull_2",
+    "speaker": "pyromancer",
+    "text": "Six generations of candles and nobody mentioned this."
+  },
+  {
+    "id": "pyromancer_pull_3",
+    "speaker": "pyromancer",
+    "text": "Is it meant to be this damp?"
+  },
+  {
+    "id": "pyromancer_krogg_1",
+    "speaker": "pyromancer",
+    "text": "Excuse us! We have an appointment?"
+  },
+  {
+    "id": "pyromancer_velisse_1",
+    "speaker": "pyromancer",
+    "text": "I am sure she is a very good nurse."
+  },
+  {
+    "id": "pyromancer_sulmar_1",
+    "speaker": "pyromancer",
+    "text": "My great-great-grandfather made his candles."
+  },
+  {
+    "id": "pyromancer_lamp_1",
+    "speaker": "pyromancer",
+    "text": "Oh! It caught first time."
+  },
+  {
+    "id": "pyromancer_fallen_1",
+    "speaker": "pyromancer",
+    "text": "Was that my fault? That felt like my fault."
+  },
+  {
+    "id": "pyromancer_late_1",
+    "speaker": "pyromancer",
+    "text": "Wet wicks. This is my nightmare."
+  }
+]

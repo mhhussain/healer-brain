@@ -9,7 +9,12 @@ extends Control
 const TEXT_LIFE := 0.9
 const CHIP := Vector2(26, 13)
 
+const PARCHMENT := Color("e9dfc3")
+const INK := Color("2a2622")
+const BUBBLE_WIDTH := 230.0
+
 var _texts: Array[Dictionary] = []
+var _bubbles: Array[Dictionary] = []
 
 
 func _ready() -> void:
@@ -26,10 +31,19 @@ func float_at(at: Vector3, text: String, color: Color) -> void:
 	_texts.append({"at": at, "text": text, "color": color, "t": 0.0})
 
 
+## A speech bubble over a unit for that many seconds. One bubble a unit: a new line replaces the old.
+func say(u: Unit, text: String, seconds: float) -> void:
+	_bubbles = _bubbles.filter(func(b: Dictionary) -> bool: return b.unit != u)
+	_bubbles.append({"unit": u, "text": text, "t": 0.0, "life": seconds + 0.6})
+
+
 func _process(delta: float) -> void:
 	for t in _texts:
 		t.t += delta
 	_texts = _texts.filter(func(t: Dictionary) -> bool: return t.t < TEXT_LIFE)
+	for b in _bubbles:
+		b.t += delta
+	_bubbles = _bubbles.filter(func(b: Dictionary) -> bool: return b.t < b.life and is_instance_valid(b.unit))
 	queue_redraw()
 
 
@@ -73,6 +87,31 @@ func _draw() -> void:
 		var k: float = t.t / TEXT_LIFE
 		var s := cam.unproject_position(t.at) - Vector2(0, 50.0 * k)
 		Kit.text(self, s, t.text, 19, Color(t.color, 1.0 - k * k))
+
+	for b in _bubbles:
+		var speaker: Unit = b.unit
+		var head := speaker.get_global_transform_interpolated().origin + Vector3(0, speaker.height + 1.0 + speaker.lift, 0)
+		_bubble(cam.unproject_position(head), b.text, clampf((b.life - b.t) * 3.0, 0.0, 1.0) * clampf(b.t * 8.0, 0.0, 1.0))
+
+
+# Parchment with dark lettering and a tail down to whoever is speaking.
+func _bubble(at: Vector2, text: String, alpha: float) -> void:
+	var font := ThemeDB.fallback_font
+	var px := 14
+	var words := font.get_multiline_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, BUBBLE_WIDTH, px)
+	var box := Rect2(at.x - words.x / 2 - 10, at.y - words.y - 26, words.x + 20, words.y + 14)
+	# someone off the screen is still heard: their bubble is held at the edge nearest them,
+	# clear of the run bar at the top and the frames at the bottom
+	var held := box
+	held.position.x = clampf(box.position.x, 8.0, size.x - box.size.x - 8.0)
+	held.position.y = clampf(box.position.y, 78.0, size.y - 250.0 - box.size.y)
+	var on_screen := held.position.is_equal_approx(box.position)
+	box = held
+	draw_rect(box.grow(1.5), Color(INK, 0.9 * alpha))
+	draw_rect(box, Color(PARCHMENT, 0.96 * alpha))
+	if on_screen:
+		draw_colored_polygon(PackedVector2Array([Vector2(at.x - 7, box.end.y - 1), Vector2(at.x + 7, box.end.y - 1), Vector2(at.x, box.end.y + 9)]), Color(PARCHMENT, 0.96 * alpha))
+	draw_multiline_string(font, Vector2(box.position.x + 10, box.position.y + 7 + font.get_ascent(px)), text, HORIZONTAL_ALIGNMENT_CENTER, words.x, px, -1, Color(INK, alpha))
 
 
 # One chip for each debuff the party has put on an enemy: its caster's colour, draining as it

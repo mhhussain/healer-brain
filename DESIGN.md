@@ -7,7 +7,8 @@ On the `godot-rebuild` branch the game is being rebuilt in Godot with an isometr
 - The dungeon, heroes, enemies, AI, clock, unlocks and bests are all in and run to the same times as before (all-AI: about 7:25 to 8:05 at level 1, 10:15 to 11:00 at level 5, 12:00 to 13:00 at level 7).
 - Effects over time always get their last tick. In the TypeScript game rounding dropped it for some, so Mending Kelp healed 360 and Tallow Burn dealt 200; here they give the 420 and 240 their descriptions promise.
 - The interface is rebuilt to section 8, in plain grey-box styling: the title, the party setup (with the key editor and the level), the run's frames and action bar, the pause menu and the summary. Party setup and level select share one screen.
-- Not rebuilt yet: the story card and speech bubbles, sound, weather, the zones' looks and the rising tide. They come with the voice, art and audio milestones.
+- The story is spoken as well as shown: the opening card is read by a narrator, the party's lines are said aloud in their own voices with a speech bubble, and the summary ends on one of the two endings. The voices are made with Kokoro (text to speech); M turns sound off and on, and there is a volume slider on the setup screen and in the pause menu.
+- Not rebuilt yet: music and sound effects, weather, the zones' looks and the rising tide. They come with the art and audio milestone.
 
 Fourfold is an original, solo, browser-based dungeon runner in the style of timed five-player MMO dungeons. You play one hero in a party of four; AI plays the other three.
 

@@ -1,22 +1,25 @@
 class_name CombatHud
 extends Control
 
-# A plain, drawn-in-code interface for the grey-box stage: health bars over heads, damage numbers,
-# your frame, your target's frame and the action buttons. The real interface comes in a later
-# milestone and replaces this.
+# A plain, drawn-in-code interface for the grey-box stage: health and cast bars over heads,
+# damage numbers, your frame, your target's frame, your cast bar and the action buttons.
+# The real interface comes in a later milestone and replaces this.
 
 @export var run: Run
 
 const TEXT_LIFE := 0.9
+const ALERT_LIFE := 3.5
 const BONE := Color("d9d3c2")
 const DARK := Color(0.05, 0.06, 0.08, 0.85)
 const EDGE := Color(0, 0, 0, 0.9)
 const GOLD := Color("f0b54a")
 const RED := Color("ef5d4a")
+const GREY := Color("9fb0b1")
 const HP_HERO := Color("5fbf6e")
 const HP_ENEMY := Color("c9503f")
 
 var _texts: Array[Dictionary] = []
+var _alerts: Array[Dictionary] = []
 
 
 func _ready() -> void:
@@ -25,14 +28,26 @@ func _ready() -> void:
 
 ## A number that rises from a unit and fades.
 func float_text(u: Unit, text: String, color: Color) -> void:
-	var at := u.global_position + Vector3(randf_range(-0.35, 0.35), u.height + 1.1, 0)
+	float_at(u.global_position + Vector3(randf_range(-0.35, 0.35), u.height + 1.1, 0), text, color)
+
+
+## Words that rise from a spot and fade.
+func float_at(at: Vector3, text: String, color: Color) -> void:
 	_texts.append({"at": at, "text": text, "color": color, "t": 0.0})
+
+
+## A line across the top of the screen for a few seconds.
+func alert(text: String) -> void:
+	_alerts.append({"text": text, "t": 0.0})
 
 
 func _process(delta: float) -> void:
 	for t in _texts:
 		t.t += delta
 	_texts = _texts.filter(func(t: Dictionary) -> bool: return t.t < TEXT_LIFE)
+	for a in _alerts:
+		a.t += delta
+	_alerts = _alerts.filter(func(a: Dictionary) -> bool: return a.t < ALERT_LIFE)
 	queue_redraw()
 
 
@@ -53,27 +68,40 @@ func _draw() -> void:
 		_bar(Rect2(s.x - w / 2, s.y - 5, w, 9), u.c.hp / u.c.max_hp, HP_ENEMY if enemy else HP_HERO, p.target_id == u.c.id)
 		if enemy:
 			_text(Vector2(s.x, s.y - 11), u.c.name, 13, BONE)
+			var c := u.c.cast
+			if c:
+				# gold can be silenced, grey cannot
+				_bar(Rect2(s.x - w / 2, s.y + 8, w, 7), c.t / c.total, GOLD if c.interruptible else GREY)
+				_text(Vector2(s.x, s.y + 29), c.name, 12, GOLD if c.interruptible else GREY)
 
 	for t in _texts:
 		var k: float = t.t / TEXT_LIFE
 		var s := cam.unproject_position(t.at) - Vector2(0, 50.0 * k)
 		_text(s, t.text, 19, Color(t.color, 1.0 - k * k))
 
+	for i in _alerts.size():
+		var a := _alerts[i]
+		_text(Vector2(size.x / 2, 120.0 + i * 30.0), a.text, 22, Color(GOLD, clampf((ALERT_LIFE - a.t) * 2.0, 0.0, 1.0)), 900.0)
+
 	var mid := size.x / 2
 	var base := size.y - 24
 
 	# your frame, left of centre
-	var me := Rect2(mid - 330, base - 150, 240, 62)
-	_frame(me, p.name)
+	var me := Rect2(mid - 420, base - 150, 240, 62)
+	_frame(me, "%s, %s" % [p.name, p.hero.title])
 	_bar(Rect2(me.position + Vector2(8, 26), Vector2(224, 14)), p.hp / p.max_hp, HP_HERO)
 	_text(me.position + Vector2(120, 38), "%d / %d" % [p.hp, p.max_hp], 11, Color.WHITE)
-	_bar(Rect2(me.position + Vector2(8, 44), Vector2(224, 10)), p.res / p.res_max, Color("8fb8c9"))
+	_bar(Rect2(me.position + Vector2(8, 44), Vector2(224, 10)), p.res / p.res_max, p.hero.res_color)
 	_text(me.position + Vector2(120, 53), "%d %s" % [p.res, p.hero.res_name.to_lower()], 10, Color.WHITE)
+	_auras(me.position + Vector2(120, -8), p, -1)
+	if p.hero.id == "duelist":
+		for i in 5:
+			draw_circle(me.position + Vector2(250 + 8, 10 + i * 12), 4.5, GOLD if i < p.combo else Color(BONE, 0.25))
 
 	# your target's frame, right of centre
 	var t := combat.unit(p.target_id)
 	if t:
-		var them := Rect2(mid + 90, base - 150, 240, 62)
+		var them := Rect2(mid + 180, base - 150, 240, 62)
 		_frame(them, t.name if t.alive else t.name + " (dead)")
 		_bar(Rect2(them.position + Vector2(8, 26), Vector2(224, 14)), t.hp / t.max_hp, HP_ENEMY)
 		_text(them.position + Vector2(120, 38), "%d / %d" % [t.hp, t.max_hp], 11, Color.WHITE)
@@ -81,6 +109,13 @@ func _draw() -> void:
 		if t.alive and not combat.sees(p, t):
 			where += ", out of sight"
 		_text(them.position + Vector2(120, 55), where, 11, BONE)
+		_auras(them.position + Vector2(120, -8), t, p.id)
+
+	# your cast bar, between the frames
+	if p.cast:
+		var r := Rect2(mid - 120, base - 112, 240, 14)
+		_bar(r, p.cast.t / p.cast.total, GOLD)
+		_text(r.position + Vector2(120, -6), p.cast.name, 13, BONE)
 
 	# the action buttons
 	var n := p.hero.abilities.size()
@@ -96,16 +131,30 @@ func _draw() -> void:
 		_wrapped(r.position + Vector2(3, 36), ab.name, 11, BONE if st.usable else Color(BONE, 0.45), side - 6)
 		_text(r.position + Vector2(11, 15), Controls.label("ability_%d" % (i + 1)), 13, GOLD)
 		if ab.cost > 0.0:
-			_text(r.position + Vector2(side - 14, 15), str(int(ab.cost)), 11, Color("8fb8c9"))
+			_text(r.position + Vector2(side - 16, 15), str(int(ab.cost)), 11, p.hero.res_color)
 		if st.cd > 0.0:
 			# the cooldown drains down the button
 			var left: float = clampf(st.cd / st.cd_max, 0.0, 1.0)
 			draw_rect(Rect2(r.position + Vector2(0, side * (1.0 - left)), Vector2(side, side * left)), Color(0, 0, 0, 0.6))
 			if st.cd_max > p.hero.gcd + 0.01:
-				_text(r.position + Vector2(side / 2, side - 8), "%.1f" % st.cd, 13, Color.WHITE)
+				_text(r.position + Vector2(side / 2, side - 8), "%d" % ceili(st.cd) if st.cd >= 3.0 else "%.1f" % st.cd, 13, Color.WHITE)
 
 	if combat.error != "":
-		_text(Vector2(mid, base - 170), combat.error, 16, Color(RED, clampf(3.0 - combat.error_t * 2.0, 0.0, 1.0)))
+		_text(Vector2(mid, base - 175), combat.error, 16, Color(RED, clampf(3.0 - combat.error_t * 2.0, 0.0, 1.0)), 500.0)
+
+
+# The auras on a unit, stacked upwards from a point: name and seconds left. Harmful ones are red;
+# on an enemy, the ones you put there are gold.
+func _auras(at: Vector2, u: Combatant, mine_id: int) -> void:
+	var row := 0
+	for a in u.auras:
+		var color := BONE
+		if a.debuff:
+			color = GOLD if a.src_id == mine_id else RED if u.team == "hero" else GREY
+		var left := "" if a.t > 600.0 else "  %.0f" % a.t if a.t >= 3.0 else "  %.1f" % a.t
+		var extra := "  (%d)" % a.absorb if a.absorb > 0.0 else ""
+		_text(at - Vector2(0, row * 15.0), a.name + extra + left, 12, color)
+		row += 1
 
 
 func _frame(r: Rect2, title: String) -> void:

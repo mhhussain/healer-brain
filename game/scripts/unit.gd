@@ -10,7 +10,10 @@ extends CharacterBody3D
 ## Which hero or enemy it is, as named in rules/heroes.gd or rules/enemies.gd.
 @export var def_id := "ranger"
 @export var is_player := false
-## How tall it stands, for placing its health bar.
+## Enemies: which pack it fights with.
+@export var pack := 0
+## Its size until the rules say otherwise.
+@export var radius := 0.4
 @export var height := 1.8
 
 @export_group("Movement")
@@ -39,6 +42,8 @@ var run: Run
 var lift := 0.0
 
 var _rise := 0.0
+var _dash := Vector3.ZERO
+var _dash_t := 0.0
 var _fall := 0.0
 var _flash := 0.0
 var _body_mat: StandardMaterial3D
@@ -47,6 +52,8 @@ var _body_color := Color.WHITE
 @onready var visual: Node3D = $Visual
 @onready var shadow: Node3D = $Shadow
 @onready var body: MeshInstance3D = $Visual/Body
+@onready var nose: MeshInstance3D = $Visual/Nose
+@onready var shape: CollisionShape3D = $Shape
 
 
 func _ready() -> void:
@@ -57,6 +64,40 @@ func _ready() -> void:
 	_body_mat = body.get_surface_override_material(0).duplicate()
 	_body_color = _body_mat.albedo_color
 	body.set_surface_override_material(0, _body_mat)
+
+
+## Takes its size and colour from its side of the rules, once the run has set `c`.
+func setup() -> void:
+	if c.hero:
+		_body_color = c.hero.color
+	else:
+		var def := c.enemy
+		radius = def.radius
+		height = 0.9 + def.radius * 1.8
+		speed = 6.5
+		# bosses dark, casters violet, the rest red
+		_body_color = Color("7a2f3a") if def.boss else Color("7d5aa8") if def.reach >= 5.0 else Color("a34d4d")
+	var capsule := CapsuleMesh.new()
+	capsule.radius = radius
+	capsule.height = height
+	body.mesh = capsule
+	body.position.y = height / 2
+	var hull := CapsuleShape3D.new()
+	hull.radius = radius
+	hull.height = height
+	shape.shape = hull
+	shape.position.y = height / 2
+	var snout := BoxMesh.new()
+	snout.size = Vector3(radius * 1.25, radius * 0.5, radius * 0.75)
+	nose.mesh = snout
+	nose.position = Vector3(0, height * 0.78, -radius * 0.9)
+	var blob := CylinderMesh.new()
+	blob.top_radius = radius * 1.4
+	blob.bottom_radius = radius * 1.4
+	blob.height = 0.02
+	blob.radial_segments = 24
+	blob.rings = 1
+	shadow.mesh = blob
 
 
 func is_alive() -> bool:
@@ -74,21 +115,35 @@ func flash() -> void:
 	_flash = 1.0
 
 
+## A quick roll or lunge along the floor, stopped by walls.
+func dash(dir: Vector3, metres: float, seconds := 0.22) -> void:
+	_dash = Vector3(dir.x, 0, dir.z).normalized() * metres / seconds
+	_dash_t = seconds
+
+
 func _physics_process(delta: float) -> void:
 	var want := Vector3.ZERO
 	if is_alive():
 		want = Vector3(wish.x, 0, wish.z).limit_length(1.0) * speed
 	var steering := not want.is_zero_approx()
-	velocity = Vector3(velocity.x, 0, velocity.z).move_toward(want, (acceleration if steering else braking) * delta)
+	if _dash_t > 0.0 and is_alive():
+		_dash_t -= delta
+		velocity = _dash if _dash_t > 0.0 else want
+	else:
+		velocity = Vector3(velocity.x, 0, velocity.z).move_toward(want, (acceleration if steering else braking) * delta)
 	move_and_slide()
 
 	if steering:
 		_turn_to(want, delta)
 	elif is_alive() and c and run:
-		# standing still, it faces whoever it is fighting
-		var t := run.unit_of(c.target_id)
-		if t and t.c.alive and t.c.team != c.team and (c.team == "enemy" or t.c.engaged):
-			_turn_to(t.global_position - global_position, delta)
+		if c.cast and c.cast.dir != Vector3.ZERO:
+			# an aimed cast keeps pointing where it was aimed
+			_turn_to(c.cast.dir, delta)
+		else:
+			# standing still, it faces whoever it is fighting
+			var t := run.unit_of(c.target_id)
+			if t and t.c.alive and t.c.team != c.team and (c.team == "enemy" or t.c.engaged):
+				_turn_to(t.global_position - global_position, delta)
 
 	if lift > 0.0 or _rise > 0.0:
 		lift += _rise * delta
@@ -101,7 +156,7 @@ func _physics_process(delta: float) -> void:
 	_fall = move_toward(_fall, 0.0 if is_alive() else 1.0, delta * 5.0)
 	_flash = move_toward(_flash, 0.0, delta * 6.0)
 	visual.rotation = Vector3(0, facing, _fall * PI / 2)
-	visual.position.y = lift + _fall * 0.4
+	visual.position.y = lift + _fall * radius
 	visual.scale = Vector3.ONE * (1.0 + 0.1 * _flash)
 	shadow.scale = Vector3.ONE * (1.0 - 0.4 * minf(lift, 1.0))
 	_body_mat.albedo_color = _body_color.lerp(Color.WHITE, 0.6 * _flash).darkened(0.45 * _fall)
@@ -110,6 +165,11 @@ func _physics_process(delta: float) -> void:
 func _turn_to(dir: Vector3, delta: float) -> void:
 	if Vector2(dir.x, dir.z).length_squared() > 0.0001:
 		facing = rotate_toward(facing, atan2(-dir.x, -dir.z), turn_rate * delta)
+
+
+## The way it faces, as a direction along the floor.
+func forward() -> Vector3:
+	return Vector3(-sin(facing), 0, -cos(facing))
 
 
 ## Moves it somewhere at once, without the camera or the drawing sliding it there.

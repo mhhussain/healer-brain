@@ -19,6 +19,12 @@ Open `game/project.godot` in Godot and press F5. Or from the repo root:
 godot --path game
 ```
 
+For now the main scene is a sandbox: one hero against two packs in a grey-box hall.
+
+- F1 to F6 switch hero (Warden, Lamplighter, Kelpwife, Wrecker, Harpooner, Chandler).
+- `-` and `=` lower and raise the level.
+- A cleared pack stands back up after a few seconds, and you take a tenth of the damage you should, since you are alone. Both are settings on the `Main` node.
+
 ## Test
 
 ```sh

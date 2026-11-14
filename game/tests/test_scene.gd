@@ -11,7 +11,7 @@ func before_each():
 	main = load("res://scenes/main.tscn").instantiate()
 	add_child_autofree(main)
 	hero = main.get_node("Hero")
-	enemy = main.get_node("Enemy")
+	enemy = main.get_node("Enemies/Porter")
 	await wait_physics_frames(2)
 
 
@@ -61,13 +61,45 @@ func test_jumping_is_only_for_show():
 	assert_eq(hero.lift, 0.0, "and it comes down")
 
 
-func test_a_dead_enemy_comes_back_at_its_post():
+func test_a_cleared_pack_comes_back_at_its_posts():
 	main.respawn_after = 0.5
+	var cantor: Unit = main.get_node("Enemies/Cantor")
 	hero.c.target_id = enemy.c.id
 	enemy.c.hp = 10.0
 	main.combat.press(0)
 	await wait_physics_frames(5)
 	assert_false(enemy.c.alive)
-	await wait_physics_frames(40)
+	main.combat.damage(hero.c, cantor.c, 99999.0)
+	await wait_physics_frames(50)
 	assert_true(enemy.c.alive)
+	assert_true(cantor.c.alive)
 	assert_eq(enemy.c.hp, enemy.c.max_hp)
+	assert_almost_eq(enemy.global_position, enemy.c.home, Vector3.ONE * 0.5)
+
+
+func test_units_take_their_size_from_the_rules():
+	var prior: Unit = main.get_node("Enemies/Prior")
+	assert_eq(prior.radius, 0.95)
+	assert_gt(prior.height, enemy.height)
+	assert_eq(prior.c.pack_id, 1)
+	assert_eq(main.combat.packs.size(), 2)
+
+
+func test_a_roll_carries_the_harpooner_back():
+	var from := hero.global_position
+	hero.c.cds.clear()
+	assert_eq(main.combat.use_ability(hero.c, 4, null), "", "Deck Roll")
+	await wait_physics_frames(30)
+	# she faces up the hall, so she rolls back towards the start wall and stops against it
+	assert_lt(hero.global_position.x, from.x - 3.0)
+	assert_true(main.combat.has_aura(hero.c, "tumble"))
+
+
+func test_a_telegraph_is_drawn_and_goes():
+	var zones: Node3D = main.get_node("Zones")
+	main.combat.add_zone({"kind": "circle", "pos": Vector3(5, 0, 0), "r": 3.0, "delay": 0.3, "dmg": 10.0})
+	await wait_frames(3)
+	assert_eq(zones.get_child_count(), 1)
+	await wait_physics_frames(30)
+	await wait_frames(3)
+	assert_eq(zones.get_child_count(), 0)

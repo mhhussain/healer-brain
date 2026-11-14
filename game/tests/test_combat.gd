@@ -6,6 +6,7 @@ const DT := 1.0 / 60.0
 
 var combat: Combat
 var hero: Combatant
+var pack: Pack
 var enemy: Combatant
 var events: Array[Dictionary]
 
@@ -13,7 +14,8 @@ var events: Array[Dictionary]
 func before_each():
 	combat = Combat.new()
 	hero = combat.add_hero(Heroes.by_id("ranger"), true)
-	enemy = combat.add_enemy(Enemies.by_id("brute"), Vector3(20, 0, 0))
+	pack = combat.add_pack()
+	enemy = combat.spawn_enemy("brute", Vector3(20, 0, 0), 0)
 	hero.target_id = enemy.id
 	events = []
 	combat.event.connect(func(e: Dictionary) -> void: events.append(e))
@@ -59,11 +61,18 @@ func test_a_press_just_before_ready_is_kept():
 	assert_eq(combat.error, "")
 
 
-func test_a_press_too_early_is_refused():
+func test_a_press_too_early_is_dropped():
 	combat.use_ability(hero, 0, enemy)
+	enemy.auto_timer = 99.0
+	var before := count("ability")
 	combat.press(0)
-	run_for(0.7)
-	assert_eq(combat.error, "Not ready yet")
+	run_for(1.6)
+	assert_eq(count("ability"), before, "a press a full second early does not wait for the cooldown")
+	assert_eq(combat.error, "", "and the global cooldown says nothing about it")
+	hero.cds["jarring"] = 10.0
+	combat.press(3)
+	run_for(0.1)
+	assert_eq(combat.error, "Jarring Barb is not ready")
 	run_for(1.6)
 	assert_eq(combat.error, "", "the message clears")
 
@@ -111,12 +120,12 @@ func test_an_enemy_notices_a_hero_who_comes_close():
 	run_for(0.5)
 	assert_true(enemy.engaged)
 	assert_true(enemy.has_goal, "and it wants to walk to the hero")
-	assert_eq(enemy.goal, hero.pos)
+	assert_lt(Combat.flat(enemy.goal, hero.pos), 2.0)
 
 
 func test_an_enemy_in_reach_hits_on_its_timer():
 	hero.pos = Vector3(18.5, 0, 0)
-	combat.engage(enemy, hero)
+	combat.engage(pack, hero)
 	run_for(3.1)
 	assert_false(enemy.has_goal, "it is close enough to stand and fight")
 	# at 0, 1.5 and 3.0 s
@@ -125,6 +134,7 @@ func test_an_enemy_in_reach_hits_on_its_timer():
 
 
 func test_death_and_the_end_of_the_fight():
+	combat.endless = true
 	enemy.pos = Vector3(29, 0, 0)
 	enemy.hp = 50.0
 	combat.use_ability(hero, 0, enemy)
@@ -139,25 +149,26 @@ func test_death_and_the_end_of_the_fight():
 	assert_almost_eq(hero.res, 20.0, 0.5)
 
 
-func test_a_wipe_sends_the_enemy_home_and_the_hero_gets_up():
+func test_a_wipe_sends_the_enemy_home_and_the_hero_starts_again():
+	pack.entry = Vector3(2, 0, 1.5)
 	hero.pos = Vector3(18.5, 0, 0)
 	combat.use_ability(hero, 0, enemy)
 	hero.hp = 40.0
+	hero.res = 12.0
 	combat.tick(DT)
-	assert_false(hero.alive, "the first blow lands and the hero falls")
+	assert_eq(count("death"), 1, "the first blow lands and the hero falls")
 	assert_eq(count("wipe"), 1)
 	assert_false(enemy.engaged)
 	assert_eq(enemy.hp, enemy.max_hp, "the enemy is healed")
-	# the scene moves the hero back to the start; stand well away here too
-	hero.pos = Vector3(-10, 0, 0)
-	combat.tick(DT)
-	assert_true(hero.alive)
-	assert_eq(hero.hp, 480.0, "up again on 40% health")
-	assert_eq(count("revive"), 1)
+	assert_true(hero.alive, "and the hero starts again from the way in")
+	assert_eq(hero.hp, hero.max_hp)
+	assert_eq(hero.res, 100.0)
+	assert_eq(hero.pos, Vector3(0, 0, 0))
+	assert_false(combat.in_combat)
 
 
 func test_tab_takes_the_nearest_enemy_in_sight():
-	var far := combat.add_enemy(Enemies.by_id("brute"), Vector3(30, 0, 0))
+	var far := combat.spawn_enemy("brute", Vector3(30, 0, 0), 0)
 	hero.target_id = 0
 	combat.tab_target()
 	assert_eq(hero.target_id, enemy.id)

@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://scripts/run.gd" id="6"]
 [ext_resource type="PackedScene" path="res://scenes/enemy.tscn" id="7"]
 [ext_resource type="Script" path="res://scripts/combat_hud.gd" id="8"]
+[ext_resource type="Script" path="res://scripts/zone_view.gd" id="9"]
 
 [sub_resource type="Environment" id="env"]
 background_mode = 1
@@ -57,9 +58,39 @@ target = NodePath("../Hero")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 0)
 facing = -1.5708
 
-[node name="Enemy" parent="." instance=ExtResource("7")]
+[node name="Enemies" type="Node3D" parent="."]
+
+[node name="Porter" parent="Enemies" instance=ExtResource("7")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 0, -1)
+def_id = "brute"
 facing = 1.5708
+
+[node name="Cantor" parent="Enemies" instance=ExtResource("7")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 21, 0, 2.5)
+def_id = "hexer"
+facing = 1.5708
+
+[node name="Prior" parent="Enemies" instance=ExtResource("7")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40, 0, 0)
+def_id = "overseer"
+pack = 1
+facing = 1.5708
+
+[node name="NetBrother" parent="Enemies" instance=ExtResource("7")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 44, 0, -3.5)
+def_id = "archer"
+pack = 1
+facing = 1.5708
+
+[node name="Almoner" parent="Enemies" instance=ExtResource("7")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 44, 0, 3.5)
+def_id = "shaman"
+pack = 1
+facing = 1.5708
+
+[node name="Zones" type="Node3D" parent="." node_paths=PackedStringArray("run")]
+script = ExtResource("9")
+run = NodePath("..")
 
 [node name="TargetRing" type="MeshInstance3D" parent="."]
 visible = false
@@ -163,8 +194,8 @@ run = NodePath("../..")
 [node name="Readout" type="Label" parent="Hud" node_paths=PackedStringArray("unit", "camera")]
 offset_left = 24.0
 offset_top = 20.0
-offset_right = 600.0
-offset_bottom = 100.0
+offset_right = 700.0
+offset_bottom = 130.0
 mouse_filter = 2
 script = ExtResource("4")
 unit = NodePath("../../Hero")

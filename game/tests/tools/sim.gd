@@ -39,7 +39,7 @@ func _run(level: int, healer: String, dps: Array, rng_seed: int, verbose: bool) 
 	Run.chosen_level = level
 	Run.autoplay = true
 	Run.rng_seed = rng_seed
-	var main: Run = load("res://scenes/main.tscn").instantiate()
+	var main: Run = load("res://scenes/run.tscn").instantiate()
 	main.endless = false
 	root.add_child(main)
 	await physics_frame

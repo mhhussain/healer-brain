@@ -12,7 +12,7 @@ config_version=5
 
 config/name="Fourfold"
 config/description="Run the Drowned Abbey as one of four: tank, healer or damage dealer, with the AI playing the rest."
-run/main_scene="res://scenes/main.tscn"
+run/main_scene="res://scenes/app.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 
 [display]

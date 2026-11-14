@@ -7,12 +7,14 @@ Godot **4.7.2**, GDScript, Compatibility renderer. CI uses the same version (`.g
 ## Layout
 
 - `rules/`: the rules of the game as plain GDScript classes with no scene in them: heroes, enemies and levels as data, `Combat` for abilities, auras, threat and who is in a fight, and `HeroAI` for what the AI party decides. They are tested on their own.
-- `scripts/`: the nodes. `Run` builds the level, owns the rules, tells them where each `Unit` stands, ticks them 60 times a second and shows what happens. `LevelBuilder` makes the floor, walls, collision and navigation mesh from a level's description. `Walker` walks enemies and AI heroes to where the rules want them, along the navigation mesh.
-- `scenes/`: the main scene and the one unit scene that every hero and enemy is made from.
+- `scripts/`: the nodes. `App` is the game as a whole: it moves between the screens and the run and owns the save. `Run` builds the level, owns the rules, tells them where each `Unit` stands, ticks them 60 times a second and shows what happens. `LevelBuilder` makes the floor, walls, collision and navigation mesh from a level's description. `Walker` walks enemies and AI heroes to where the rules want them, along the navigation mesh.
+- `ui/`: the interface. `Hud` and its frames and buttons during a run, `WorldOverlay` for what is drawn over the figures, `Screens` for the title, setup, pause and summary, `KeysEditor`, and `Kit` for the colours and theme they share.
+- `scenes/`: `app.tscn` (where the game starts), `run.tscn` (one run) and `unit.tscn` (every hero and enemy).
 - `tests/`: GUT tests, and `tests/tools/` for things that are not tests:
   - `sim.gd`: all-AI runs for balance (see below).
   - `capture.gd`: lets the AI play for `--write-movie`, to get frames to look at.
   - `hitches.gd`: lets the AI play in a window and prints frames that took too long.
+  - `screens.gd`: walks the app through its screens for `--write-movie`.
 
 ## Play
 
@@ -22,15 +24,15 @@ Open `game/project.godot` in Godot and press F5. Or from the repo root:
 godot --path game
 ```
 
-The game is the Drowned Abbey: you and three AI party members, nine rooms, three bosses and a 14-minute clock. Until the menus are built, keys choose the run:
+The game is the Drowned Abbey: you and three AI party members, nine rooms, three bosses and a 14-minute clock. It opens on the title, then the party setup, where you pick the crew, your hero, its keys and the level. Timing a level unlocks the next.
 
-- F1 to F6 switch hero (Warden, Lamplighter, Kelpwife, Wrecker, Harpooner, Chandler). Your hero takes the place of its role in the party.
-- `-` and `=` lower and raise the level, up to the highest you have unlocked. Timing a level unlocks the next.
-- F8 switches between the Abbey and the sandbox hall: two packs in two rooms, any level, starting over when cleared.
-- F9 lets the AI play your hero too, to watch.
-- Enter runs it again once a run is finished.
+Your crew, level, unlocks, bests and key bindings are kept in `user://fourfold-save.json` (in a browser, in the browser's own storage). Only the app reads or writes it; tests and the tools below use files of their own or none.
 
-Your party, level, unlocks and bests are kept in `user://fourfold-save.json` (in a browser, in the browser's own storage). Tests and the tools below never read or write it.
+Three keys are for looking under the bonnet during a run:
+
+- F3 shows speed, zoom and frames a second.
+- F8 swaps the Abbey for the sandbox hall: two packs in two rooms, starting over when cleared.
+- F9 lets the AI play your hero too, to watch. Such a run is not recorded.
 
 ## Balance runs
 

@@ -13,7 +13,7 @@ func _initialize() -> void:
 	Run.place = args[2] if args.size() > 2 else "abbey"
 	Run.autoplay = true
 	Run.rng_seed = 4
-	var main: Run = load("res://scenes/main.tscn").instantiate()
+	var main: Run = load("res://scenes/run.tscn").instantiate()
 	main.endless = false
 	root.add_child(main)
 	if args.size() > 3 and args[3] == "end":

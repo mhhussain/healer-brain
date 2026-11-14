@@ -14,7 +14,7 @@ func before_each():
 	Run.chosen_level = 3
 	Run.autoplay = false
 	Run.rng_seed = 5
-	main = load("res://scenes/main.tscn").instantiate()
+	main = load("res://scenes/run.tscn").instantiate()
 	add_child_autofree(main)
 	# these tests are about the player's hero; the party stands still unless a test says otherwise
 	main.combat.ai_plays = false
@@ -124,8 +124,14 @@ func test_clicking_an_enemy_finds_it():
 
 func test_a_party_frame_aims_an_ally_ability():
 	var tank := main.combat.heroes[0]
-	assert_eq(main.hud.ally_at(CombatHud.PARTY_AT + Vector2(20, 20)), tank.id)
-	assert_eq(main.hud.ally_at(Vector2(700, 300)), 0)
+	var frame := main.hud.party_frame(0)
+	assert_eq(frame.who(), tank)
+	frame.mouse_entered.emit()
+	await wait_frames(2)
+	assert_eq(main.combat.hover_ally_id, tank.id)
+	frame.mouse_exited.emit()
+	await wait_frames(2)
+	assert_ne(main.combat.hover_ally_id, tank.id)
 
 
 func test_jumping_is_only_for_show():

@@ -4,11 +4,15 @@ extends Node3D
 # The run controller: it builds the level, puts the party and the packs in it, owns the rules,
 # tells them where every unit stands, ticks them 60 times a second, and turns what happens into
 # things you can see.
-# Until the menus exist, keys choose the run: F1 to F6 the hero, - and = the level, F8 the place
-# (the Drowned Abbey or the sandbox hall), F9 whether the AI plays your hero too.
+# What to run (the party, your place in it, the level, the place) is set on the class before
+# the scene is made; the app's screens do that, and so do the tests and the tools.
 
-## The party (tank, healer, two damage dealers), which of them you play, and the level. They
-## outlast a reload of the scene, which is how you switch.
+## The run is over: every pack is cleared.
+signal finished
+## The player asked for the menu.
+signal pause_requested
+
+## The party (tank, healer, two damage dealers), which of them you play, and the level.
 static var party: Array[String] = ["warden", "mender", "duelist", "ranger"]
 static var player_slot := 3
 static var chosen_level := 1
@@ -18,6 +22,8 @@ static var place := "abbey"
 static var autoplay := false
 ## The seed for the run's dice; 0 picks one at random.
 static var rng_seed := 0
+## Where the key and mouse bindings are read from: the player's save, or the usual keys.
+static var keys: SaveData = SaveData.new()
 
 ## In the sandbox hall, start over when it is cleared instead of finishing the run.
 @export var endless := true
@@ -25,20 +31,17 @@ static var rng_seed := 0
 @export var respawn_after := 6.0
 ## Sandbox: the share of damage you take. 1 is the real game.
 @export_range(0.05, 1.0) var sandbox_damage_taken := 1.0
-@export var hud: CombatHud
+@export var hud: Hud
+@export var overlay: WorldOverlay
 @export var camera: IsoCamera
 
 var combat: Combat
 var player: Unit
 var sandbox := false
-## Kept between runs. It is only read and written when this is the game itself, not a test.
-var save := SaveData.new()
-## Once the run is finished: whether it unlocked the next level.
-var unlocked_now := false
+## The party frame under the mouse: that hero's id, or 0.
+var hover_frame_id := 0
 
-static var _restored := false
-var _saves := false
-var _recorded := false
+var _told := false
 
 var _units := {}  # combatant id -> Unit
 
@@ -67,15 +70,6 @@ func _ready() -> void:
 	# after the units have moved, so the rules see where they are now
 	process_physics_priority = 1
 	ring.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
-	_saves = get_tree().current_scene == self
-	if _saves:
-		save = SaveStore.load_save()
-		if not _restored:
-			# the first time, pick up where you left off
-			_restored = true
-			party.assign(save.party)
-			player_slot = save.slot
-			chosen_level = save.level
 	sandbox = place == "sandbox"
 	var def := Levels.by_name(place)
 	level.build(def)
@@ -111,6 +105,14 @@ func _ready() -> void:
 		camera.follow(player)
 	if hud:
 		hud.alert("%s, level %d" % [def.name, chosen_level])
+		hud.ability_clicked.connect(func(idx: int) -> void: combat.press(idx))
+		hud.frame_clicked.connect(_on_frame_clicked)
+
+
+func _on_frame_clicked(hero_id: int, event: InputEventMouseButton) -> void:
+	var input := player.get_node_or_null("PlayerInput") as PlayerInput
+	if input:
+		input.click_frame(hero_id, event)
 
 
 # Makes the figure for a combatant, with the player's keys or the AI's legs to drive it.
@@ -140,50 +142,6 @@ func all_units() -> Array:
 	return _units.values()
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	var key := event as InputEventKey
-	if key == null or not key.pressed or key.echo:
-		return
-	# in the Abbey you may start any level you have unlocked; the sandbox has no such limit
-	var top := 999 if sandbox or not _saves else save.unlocked
-	match key.physical_keycode:
-		KEY_F1, KEY_F2, KEY_F3, KEY_F4, KEY_F5, KEY_F6:
-			choose(Heroes.ALL[key.physical_keycode - KEY_F1])
-		KEY_MINUS:
-			chosen_level = maxi(1, chosen_level - 1)
-		KEY_EQUAL:
-			chosen_level = mini(top, chosen_level + 1)
-		KEY_F8:
-			place = "abbey" if sandbox else "sandbox"
-		KEY_F9:
-			autoplay = not autoplay
-		KEY_ENTER, KEY_KP_ENTER:
-			if not combat.finished:
-				return
-		_:
-			return
-	_remember()
-	get_tree().reload_current_scene()
-
-
-# Keeps the party and level you chose for next time.
-func _remember() -> void:
-	if not _saves:
-		return
-	save.party.assign(party)
-	save.slot = player_slot
-	save.level = clampi(chosen_level, 1, save.unlocked)
-	SaveStore.store(save)
-
-
-# The last boss is down: note the result, and unlock the next level if it was inside the time.
-func _finish() -> void:
-	_recorded = true
-	unlocked_now = save.record(combat.level, player.c.hero.id, combat.total_time(), combat.timed())
-	if _saves and not autoplay:
-		SaveStore.store(save)
-
-
 func _physics_process(delta: float) -> void:
 	for u: Unit in _units.values():
 		var c := u.c
@@ -196,8 +154,9 @@ func _physics_process(delta: float) -> void:
 	if sandbox and player and player.c.alive and sandbox_damage_taken < 1.0 and not combat.has_aura(player.c, "sandbox"):
 		combat.add_aura(player.c, {"id": "sandbox", "name": "Sandbox", "dur": 99999.0, "src_id": player.c.id, "taken": sandbox_damage_taken})
 	combat.tick(delta)
-	if combat.finished and not _recorded:
-		_finish()
+	if combat.finished and not _told:
+		_told = true
+		finished.emit()
 	if combat.endless and combat.packs.all(func(p: Pack) -> bool: return p.cleared and combat.time - p.cleared_at >= respawn_after):
 		_start_over()
 
@@ -226,10 +185,21 @@ func _process(_delta: float) -> void:
 	# ally abilities go to the ally under the mouse: a party frame, or the figure itself
 	var cam := get_viewport().get_camera_3d()
 	if cam:
-		var mouse := get_viewport().get_mouse_position()
-		var on_frame := hud.ally_at(mouse) if hud else 0
-		var figure := unit_under(cam, mouse, "hero")
-		combat.hover_ally_id = on_frame if on_frame > 0 else figure.c.id if figure else 0
+		var figure := unit_under(cam, get_viewport().get_mouse_position(), "hero")
+		combat.hover_ally_id = hover_frame_id if hover_frame_id > 0 else figure.c.id if figure else 0
+	if camera:
+		camera.fight = _fight()
+
+
+# Where the fight is from your hero: the middle of the enemies in it, or nowhere.
+func _fight() -> Vector3:
+	var es := combat.engaged_enemies()
+	if es.is_empty() or not player.c.alive:
+		return Vector3.ZERO
+	var mid := Vector3.ZERO
+	for e in es:
+		mid += unit_of(e.id).global_position / es.size()
+	return Vector3(mid.x - player.global_position.x, 0, mid.z - player.global_position.z)
 
 
 ## The living unit of that team whose figure is under that point of the screen, or null.
@@ -257,18 +227,21 @@ func _on_event(e: Dictionary) -> void:
 			var tgt := unit_of(e.id)
 			var src := unit_of(e.src)
 			tgt.flash()
-			if hud:
+			# a heavy hit on a hero jolts the screen, more so when it is on you
+			if camera and tgt.c.hero and e.amt >= tgt.c.max_hp * 0.12:
+				camera.shake(0.28 if tgt.is_player else 0.14)
+			if overlay:
 				if tgt.c.team == "enemy":
 					if e.amt > 0.0:
-						hud.float_text(tgt, str(int(e.amt)), Color("f0b54a") if src and src.is_player else Color("d9d3c2"))
+						overlay.float_text(tgt, str(int(e.amt)), Kit.GOLD if src and src.is_player else Kit.BONE)
 				else:
-					hud.float_text(tgt, "-%d" % e.amt if e.amt > 0.0 else "absorbed", Color("ef5d4a"))
+					overlay.float_text(tgt, "-%d" % e.amt if e.amt > 0.0 else "absorbed", Kit.RED)
 		"heal":
-			if hud:
-				hud.float_text(unit_of(e.id), "+%d" % e.amt, Color("8fe6b4"))
+			if overlay:
+				overlay.float_text(unit_of(e.id), "+%d" % e.amt, Kit.GREEN)
 		"text":
-			if hud:
-				hud.float_at(e.at + Vector3(0, 2.6, 0), e.s, e.color)
+			if overlay:
+				overlay.float_at(e.at + Vector3(0, 2.6, 0), e.s, e.color)
 		"alert":
 			if hud:
 				hud.alert(e.s)

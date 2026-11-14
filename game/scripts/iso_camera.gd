@@ -22,16 +22,27 @@ extends Camera3D
 ## Seconds for that lead to swing round after a change of direction.
 @export var look_ahead_lag := 0.4
 
+## Metres the view leans towards the fight, at most, so the party and the enemy both stay in it.
+@export var lean_max := 7.0
+@export var lean_lag := 0.7
+## Metres the view is shifted up the screen, so your hero stands clear of the frames at the bottom.
+@export var raise := 1.6
+
 @export_group("Zoom")
 ## Metres of world from the top of the screen to the bottom.
-@export var zoom := 18.0
+@export var zoom := 21.0
 @export var zoom_min := 12.0
 @export var zoom_max := 30.0
 @export var zoom_step := 1.5
 @export var zoom_lag := 0.08
 
+## Where the fight is, relative to the target; the run sets it each frame.
+var fight := Vector3.ZERO
+
 var _focus := Vector3.ZERO
 var _lead := Vector3.ZERO
+var _lean := Vector3.ZERO
+var _shake := 0.0
 
 
 func _ready() -> void:
@@ -49,7 +60,13 @@ func follow(unit: Node3D) -> void:
 	target = unit
 	_focus = unit.global_position
 	_lead = Vector3.ZERO
+	_lean = Vector3.ZERO
 	_place()
+
+
+## A jolt of that many metres that dies away in a quarter of a second, for a heavy hit.
+func shake(metres: float) -> void:
+	_shake = maxf(_shake, metres)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -80,8 +97,12 @@ func _process(delta: float) -> void:
 		if body and body.speed > 0.0:
 			lead = (body.velocity / body.speed).limit_length(1.0) * look_ahead
 		_lead = _lead.lerp(lead, _ease(delta, look_ahead_lag))
-		_focus = _focus.lerp(at + _lead, _ease(delta, lag))
+		_lean = _lean.lerp((fight * 0.45).limit_length(lean_max), _ease(delta, lean_lag))
+		_focus = _focus.lerp(at + _lead + _lean, _ease(delta, lag))
 	size = lerpf(size, zoom, _ease(delta, zoom_lag))
+	_shake = move_toward(_shake, 0.0, delta * maxf(_shake, 0.05) * 6.0)
+	h_offset = randf_range(-1.0, 1.0) * _shake
+	v_offset = -raise + randf_range(-1.0, 1.0) * _shake
 	_place()
 
 

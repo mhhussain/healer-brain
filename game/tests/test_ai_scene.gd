@@ -10,8 +10,9 @@ func play(place: String, party: Array, level: int, rng_seed: int) -> Run:
 	Run.chosen_level = level
 	Run.autoplay = true
 	Run.rng_seed = rng_seed
-	var main: Run = load("res://scenes/main.tscn").instantiate()
+	var main: Run = load("res://scenes/run.tscn").instantiate()
 	main.endless = false
+	watch_signals(main)
 	add_child_autofree(main)
 	return main
 
@@ -77,9 +78,8 @@ func test_an_all_ai_party_times_the_abbey_in_the_real_scene():
 		if main.combat.finished:
 			break
 	assert_true(main.combat.finished, "all nine rooms cleared")
-	assert_true(main.combat.timed(), "inside 14 minutes: %s" % CombatHud.clock(main.combat.total_time()))
+	await wait_physics_frames(2)
+	assert_signal_emit_count(main, "finished", 1, "the run says so, once")
+	assert_true(main.combat.timed(), "inside 14 minutes: %s" % Kit.clock(main.combat.total_time()))
 	assert_lt(main.combat.deaths, 3)
-	gut.p("the Abbey in the scene: %s, %d deaths" % [CombatHud.clock(main.combat.total_time()), main.combat.deaths])
-	# the run is noted, but a test never touches the real save file
-	assert_true(main.unlocked_now)
-	assert_eq(main.save.unlocked, 2)
+	gut.p("the Abbey in the scene: %s, %d deaths" % [Kit.clock(main.combat.total_time()), main.combat.deaths])

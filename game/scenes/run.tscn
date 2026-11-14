@@ -5,7 +5,8 @@
 [ext_resource type="Script" path="res://scripts/web_probe.gd" id="5"]
 [ext_resource type="Script" path="res://scripts/run.gd" id="6"]
 [ext_resource type="Script" path="res://scripts/level_builder.gd" id="7"]
-[ext_resource type="Script" path="res://scripts/combat_hud.gd" id="8"]
+[ext_resource type="Script" path="res://ui/world_overlay.gd" id="8"]
+[ext_resource type="Script" path="res://ui/hud.gd" id="10"]
 [ext_resource type="Script" path="res://scripts/zone_view.gd" id="9"]
 
 [sub_resource type="Environment" id="env"]
@@ -26,9 +27,10 @@ transparency = 1
 shading_mode = 0
 albedo_color = Color(0.94, 0.36, 0.29, 1)
 
-[node name="Main" type="Node3D" node_paths=PackedStringArray("hud", "camera")]
+[node name="Run" type="Node3D" node_paths=PackedStringArray("hud", "overlay", "camera")]
 script = ExtResource("6")
-hud = NodePath("Hud/Combat")
+hud = NodePath("Screen/Hud")
+overlay = NodePath("Screen/Overlay")
 camera = NodePath("Camera")
 
 [node name="Level" type="Node3D" parent="."]
@@ -56,9 +58,9 @@ visible = false
 mesh = SubResource("ring_mesh")
 surface_material_override/0 = SubResource("ring_mat")
 
-[node name="Hud" type="CanvasLayer" parent="."]
+[node name="Screen" type="CanvasLayer" parent="."]
 
-[node name="Combat" type="Control" parent="Hud" node_paths=PackedStringArray("run")]
+[node name="Overlay" type="Control" parent="Screen" node_paths=PackedStringArray("run")]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -69,16 +71,24 @@ mouse_filter = 2
 script = ExtResource("8")
 run = NodePath("../..")
 
-[node name="Readout" type="Label" parent="Hud" node_paths=PackedStringArray("run", "camera")]
-modulate = Color(1, 1, 1, 0.7)
-anchors_preset = 2
-anchor_top = 1.0
+[node name="Hud" type="Control" parent="Screen" node_paths=PackedStringArray("run")]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("10")
+run = NodePath("../..")
+
+[node name="Readout" type="Label" parent="Screen" node_paths=PackedStringArray("run", "camera")]
+visible = false
+modulate = Color(1, 1, 1, 0.7)
 offset_left = 16.0
-offset_top = -64.0
-offset_right = 760.0
-offset_bottom = -12.0
-grow_vertical = 0
+offset_top = 12.0
+offset_right = 400.0
+offset_bottom = 30.0
 mouse_filter = 2
 theme_override_font_sizes/font_size = 11
 script = ExtResource("4")

@@ -47,6 +47,8 @@ var _dash_t := 0.0
 var _fall := 0.0
 var _flash := 0.0
 var _body_mat: StandardMaterial3D
+var _ring: MeshInstance3D
+var _marker: MeshInstance3D
 var _body_color := Color.WHITE
 
 @onready var visual: Node3D = $Visual
@@ -98,6 +100,39 @@ func setup() -> void:
 	blob.radial_segments = 24
 	blob.rings = 1
 	shadow.mesh = blob
+	if c.hero:
+		_mark()
+
+
+# A ring under a hero's feet in its colour; yours is gold, with a marker over your head.
+func _mark() -> void:
+	var hoop := TorusMesh.new()
+	hoop.inner_radius = radius * 1.45
+	hoop.outer_radius = radius * 1.7
+	hoop.rings = 32
+	hoop.ring_segments = 4
+	_ring = _sign(hoop, Kit.GOLD if is_player else c.hero.color, Vector3(0, 0.04, 0))
+	if is_player:
+		var point := CylinderMesh.new()
+		point.top_radius = 0.2
+		point.bottom_radius = 0.0
+		point.height = 0.36
+		point.radial_segments = 4
+		_marker = _sign(point, Kit.GOLD, Vector3(0, height + 1.05, 0))
+
+
+# The same material settings as every other effect, so no new shader is built for it.
+func _sign(mesh: Mesh, color: Color, at: Vector3) -> MeshInstance3D:
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = color
+	var node := MeshInstance3D.new()
+	node.mesh = mesh
+	node.material_override = mat
+	node.position = at
+	add_child(node)
+	return node
 
 
 func is_alive() -> bool:
@@ -160,6 +195,9 @@ func _physics_process(delta: float) -> void:
 	visual.scale = Vector3.ONE * (1.0 + 0.1 * _flash)
 	shadow.scale = Vector3.ONE * (1.0 - 0.4 * minf(lift, 1.0))
 	_body_mat.albedo_color = _body_color.lerp(Color.WHITE, 0.6 * _flash).darkened(0.45 * _fall)
+	if _marker:
+		_marker.visible = is_alive()
+		_marker.position.y = height + 1.05 + lift
 
 
 func _turn_to(dir: Vector3, delta: float) -> void:

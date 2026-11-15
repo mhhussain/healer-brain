@@ -2,7 +2,7 @@ class_name HeroAI
 extends RefCounted
 
 # How the AI plays a hero: where it wants to stand and which ability it uses. It only decides;
-# it sets the hero's goal and the scene does the walking. Ported from src/sim/heroAI.ts.
+# it sets the hero's goal and the scene does the walking. Ported from src/sim/heroAI.ts of the TypeScript game.
 # A spot is a Vector3, or null for none.
 
 static func _pct(u: Combatant) -> float:

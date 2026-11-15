@@ -1,8 +1,8 @@
 # Fourfold in Godot
 
-The isometric rebuild. The plan is in [`docs/godot-rebuild-handoff.md`](../docs/godot-rebuild-handoff.md); the rules of the game are in [`DESIGN.md`](../DESIGN.md).
+The game: an isometric dungeon runner, published at https://mhhussain.github.io/healer-brain/. Its rules are in [`DESIGN.md`](../DESIGN.md). It began as a rebuild of a TypeScript game; the brief for that is [`docs/godot-rebuild-handoff.md`](../docs/godot-rebuild-handoff.md).
 
-Godot **4.7.2**, GDScript, Compatibility renderer. CI uses the same version (`.github/workflows/godot.yml`).
+Godot **4.7.2**, GDScript, Compatibility renderer. CI uses the same version (`.github/workflows/deploy.yml`).
 
 ## Layout
 
@@ -88,4 +88,4 @@ To try it in a browser, serve the folder and open http://localhost:8060 (add `?d
 python3 -m http.server 8060 -d build/web
 ```
 
-`build/` is not committed. CI uploads the same export as the `fourfold-web` artifact on every push to `godot-rebuild`.
+`build/` is not committed. Every push to `main` runs the tests, makes this same export and publishes it to GitHub Pages; a pull request does the same without publishing, and attaches the export to the run as a download.

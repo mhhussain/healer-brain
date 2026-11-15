@@ -9,7 +9,8 @@ It writes game/assets/sound/ and game/assets/music/. Two kinds of sound are made
   below). They need the packs in the --kits folder; game/assets/README.md says how to get them.
   Without the folder this step is skipped.
 - Made: everything with a note in it (bells, the chant, the music) is synthesised here, from
-  the same recipe the TypeScript game used in src/ui/audio.ts. Python's standard library only.
+  the recipe the first, TypeScript version of the game used (src/ui/audio.ts at the tag
+  typescript-game). Python's standard library only.
 
 Name one or more sounds (as "heal" or "calm_0") to make only those.
 All of it is a stand-in: to replace a sound, save a file of the same name over it.

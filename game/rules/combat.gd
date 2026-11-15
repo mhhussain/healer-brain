@@ -4,7 +4,7 @@ extends RefCounted
 # The rules of a run: abilities, casts, cooldowns, auras, damage, threat, enemy abilities,
 # telegraphed zones and who is in a fight. It knows nothing about the scene. The scene tells each
 # Combatant where it stands, calls tick() 60 times a second, walks units to their goals and
-# reacts to the events emitted here. Ported from src/sim/world.ts and src/sim/enemyAI.ts.
+# reacts to the events emitted here. Ported from src/sim/world.ts and src/sim/enemyAI.ts of the TypeScript game.
 
 ## Something happened: {"k": kind, ...}. Kinds:
 ## hit, heal, death, ability, interrupt, dispel, engage, clear, wipe, revive (rules);

@@ -1,8 +1,8 @@
 # Fourfold — design
 
-Status: **approved and built** as the TypeScript game on `main`. Numbers below are the tuned values in that game.
+Status: **approved and built.** The game is the Godot project in [`game/`](game/README.md), published from `main`. Numbers below are its tuned values.
 
-On the `godot-rebuild` branch the game is being rebuilt in Godot with an isometric view (see [`docs/godot-rebuild-handoff.md`](docs/godot-rebuild-handoff.md) and [`game/README.md`](game/README.md)). The rules here still hold; the view and section 3 (controls) describe the rebuild, and the rest of the interface is rebuilt milestone by milestone. Where the rebuild differs:
+Fourfold was first built in TypeScript as a side-on belt-scroller (kept at the tag `typescript-game`), and this document was written for that game. It was then rebuilt in Godot with an isometric view, which is the game now. The rules here hold for it, and section 3 (controls) describes it. Some passages, section 11 above all, still describe how the first version looked and sounded; where the game differs from them:
 
 - The dungeon, heroes, enemies, AI, clock, unlocks and bests are all in and run to the same times as before (all-AI: about 7:25 to 8:05 at level 1, 10:15 to 11:00 at level 5, 12:00 to 13:00 at level 7).
 - Effects over time always get their last tick. In the TypeScript game rounding dropped it for some, so Mending Kelp healed 360 and Tallow Burn dealt 200; here they give the 420 and 240 their descriptions promise.
@@ -20,15 +20,15 @@ Fourfold is an original, solo, browser-based dungeon runner in the style of time
 |---|---|
 | Control | You play one hero per run. AI plays the other three. |
 | Party | 1 tank, 1 healer, 2 DPS. You choose every slot, duplicates allowed. |
-| View | Real-time isometric: a 3D floor seen from a fixed camera looking down from one corner, which follows your hero. (The TypeScript game is a belt-scroller seen from the side.) |
+| View | Real-time isometric: a 3D floor seen from a fixed camera looking down from one corner, which follows your hero. (The first version was a belt-scroller seen from the side.) |
 | Run | One linear dungeon: 6 trash packs, 3 bosses, 14-minute timer. |
 | Levels | Enemies gain 8% health and damage per level (compounding), plus new abilities at levels 3, 6 and 9. No cap. |
 | Unlocks | You may start any level up to one above your highest timed clear. Shared across heroes. |
 | Progression | No gear or talents. Highest timed level and best time are recorded per hero. |
-| Visuals | Storybook figures and scenery drawn in code, one colour and one hat per character. No image files. See section 11. |
-| Sound | Music, ambience and effects synthesised in the browser. No audio files. See section 11. |
+| Visuals | 3D figures and room pieces as files in `game/assets`, one colour and one hat per character. A starter set of stand-ins for now. |
+| Sound | Voice, effects and music as files in `game/assets`. See section 11 for the music. |
 | Story | The Last Vespers: a light story told through one opening card, speech bubbles and an ending. See section 11. |
-| Tech | TypeScript, Vite, Canvas, no backend, `localStorage`, GitHub Pages. Desktop keyboard and mouse only. |
+| Tech | Godot 4 (GDScript, Compatibility renderer), exported for the web. No backend; the save is in the browser's storage. GitHub Pages. Desktop keyboard and mouse only. |
 
 ## 2. Run flow
 
@@ -296,14 +296,13 @@ At **level 9**, every trash enemy deals 25% more damage below 25% health.
 
 ## 9. Technical
 
-- **Simulation** runs on a fixed timestep of 60 ticks a second, separate from rendering and holding no browser state.
-- **Smooth motion**: every unit remembers where it was one tick ago, and the renderer draws it part-way between the two, so movement is even on any refresh rate. A figure's stride eases in and out, and a figure other than yours only turns round after facing the new way for 0.12 s.
-- **Automated runs**: the same simulation runs headless with AI in all four slots. `npm test` checks that every party composition times level 1; `npm run sim -- 1,5,8 2` prints times, deaths and per-hero output for the given levels and number of seeds.
+- **Rules** run on a fixed step of 60 ticks a second as plain GDScript classes with no scene in them (`game/rules/`), so they can be tested on their own. The nodes ask them what is allowed and show what they report.
+- **Movement** belongs to the engine: units are physics bodies, walls block them, line of sight is a ray cast and the AI walks a navigation mesh. Physics interpolation keeps motion even on any refresh rate.
+- **Automated runs**: the same scene runs headless with AI in all four slots. The tests check that every party composition times level 1; `tests/tools/sim.gd` prints times, deaths and per-hero output for the given levels and number of seeds (see [`game/README.md`](game/README.md)).
 - **Balance as tuned**: all-AI parties time level 1 in about 8 minutes and level 7 in 12–13. Most still time level 8; they start wiping on the last boss around level 9–10.
-- **Demo flags**: adding `?autostart&autoplay` to the URL starts a run with the AI playing your hero too; `&speed=4` runs it faster. `?debug` exposes the running world as `window.fourfold` for browser tests.
-- **Rendering**: Canvas for the world, HTML for the interface. The simulation is still a flat floor plan; the renderer alone turns it into the side-on view.
-- **Save data**: `localStorage` only — unlocked level, per-hero bests.
-- **Deploy**: a GitHub Action builds and publishes to GitHub Pages on every push to `main`.
+- **Under the bonnet**: F9 lets the AI play your hero too, F8 swaps the Abbey for a sandbox hall, F3 shows speed and frames a second. Adding `?debug` to the URL exposes the hero's state as `window.fourfold` for browser tests.
+- **Save data**: the browser's storage only: crew, level, unlocked level, per-hero bests, key bindings and volume.
+- **Deploy**: a GitHub Action tests, exports and publishes to GitHub Pages on every push to `main`.
 
 ## 10. Out of scope for the first version
 
@@ -322,13 +321,13 @@ The theme is a reskin. Ids, numbers and mechanics are unchanged; only names, dra
 | Premise | The Last Vespers. A century ago Abbot Sulmar rang the great bell against a storm and the sea took the abbey. Once a season the tide draws back for fourteen minutes. A crew of four, a Fourfold, goes down to relight three sanctuary lamps. |
 | Timer | The 14:00 timer is the tide. The sea at the front edge of the hall rises as it runs, and covers the floor once time is up. |
 | Enemies | The monks who stayed. They are not evil; they are still at their posts. When one falls it rises into light and bubbles: laid to rest, not killed. |
-| Palette | Tidelight: sea-teal glow, candle gold, coral for danger, bone for text. Defined in `src/ui/palette.ts` and `src/style.css`. |
-| Figures | Storybook: bell-shaped body, big round head, soft shading, one hat and one prop each. `src/ui/figures.ts`. |
-| Level space | Three zones of three encounters, each ending in a lamp. `src/ui/scenery.ts`. |
+| Palette | Tidelight: sea-teal glow, candle gold, coral for danger, bone for text. The interface's colours are in `game/ui/kit.gd`. |
+| Figures | Storybook: bell-shaped body, big round head, soft shading, one hat and one prop each. (The first version; the stand-in figures are chunkier and have legs.) |
+| Level space | Three zones of three encounters, each ending in a lamp. |
 | Interface | Wet slate: dark see-through panels with gold edges and old-print lettering. Parchment only for the story card and speech bubbles. |
-| Story weight | One opening card, one line of banter per pull and boss, a line per lamp, two endings. No cutscenes. `src/ui/story.ts`. |
-| Sound | All synthesised with Web Audio in `src/ui/audio.ts`. On by default, with a mute button, a volume slider and the M key. |
-| Weather | Drawn from the clock in `src/ui/weather.ts`: rain that leans with the gusts at the Sea Gate, drips from the Infirmary vault, dust and candle smoke in the Nave. |
+| Story weight | One opening card, one line of banter per pull and boss, a line per lamp, two endings. No cutscenes. `game/rules/story.gd`. |
+| Sound | First synthesised as the game ran; now files made to the same recipe by `tools/audio/make_audio.py`. On by default, with a mute button, a volume slider and the M key. |
+| Weather | (Not in the game yet.) Drawn from the clock: rain that leans with the gusts at the Sea Gate, drips from the Infirmary vault, dust and candle smoke in the Nave. |
 | Thresholds | Once the party has gone through a doorway the sea comes in over it, and draws back if they are driven out. It is why nobody fights on a threshold. |
 
 ### Zones

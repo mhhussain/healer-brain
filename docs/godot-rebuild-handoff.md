@@ -1,6 +1,8 @@
 # Handoff: rebuilding Fourfold in Godot (isometric)
 
-Status: **planning settled, nothing built yet.** This is the starting brief for a new session. Read it together with [`DESIGN.md`](../DESIGN.md), which is still the source of truth for the game's rules.
+Status: **done.** Every milestone below was built, and on 14 November 2026 the Godot game replaced the TypeScript one on `main` and on the Pages site. The TypeScript game is kept at the tag `typescript-game`. What follows is the brief as it was written, kept for the record: it describes the repo as it stood before the rebuild.
+
+It was written as the starting brief for a new session. Read it together with [`DESIGN.md`](../DESIGN.md), which is still the source of truth for the game's rules.
 
 ## 1. Goal
 

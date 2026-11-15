@@ -12,7 +12,7 @@ Everything here is a starter set: stand-ins from free packs and from a synthesis
   - [80 CC0 RPG SFX](https://opengameart.org/content/80-cc0-rpg-sfx) by rubberduck: `fire_*`, `spell_*`, `strike_1`, `strike_2`, `guard_1`, `death_*`, `stones_*`.
   - [100 CC0 SFX](https://opengameart.org/content/100-cc0-sfx) by rubberduck: `blow_*`, `boom_*`.
   - [50 RPG sound effects](https://opengameart.org/content/50-rpg-sound-effects) and [51 UI sound effects](https://opengameart.org/content/51-ui-sound-effects-buttons-switches-and-clicks) by Kenney: `strike_3`, `ui_click`.
-- Every other sound, and all the music (`music/`), is made by `tools/audio/make_audio.py`, to the recipe the TypeScript game used.
+- Every other sound, and all the music (`music/`), is made by `tools/audio/make_audio.py`, to the recipe the first, TypeScript version of the game used.
 
 CC0 asks for nothing; the credit is a courtesy. The figures are recoloured, re-geared and cut down to six clips by `tools/art/make_figures.py`.
 

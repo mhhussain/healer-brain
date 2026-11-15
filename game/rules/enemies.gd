@@ -1,7 +1,7 @@
 class_name Enemies
 extends RefCounted
 
-# The enemies of the Drowned Abbey, as data. Ported from src/sim/enemies.ts; the numbers are the
+# The enemies of the Drowned Abbey, as data. Ported from src/sim/enemies.ts of the TypeScript game; the numbers are the
 # tuned ones.
 
 const GREEN := Color("8fe6b4")

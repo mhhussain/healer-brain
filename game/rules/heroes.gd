@@ -1,7 +1,7 @@
 class_name Heroes
 extends RefCounted
 
-# The six heroes, as data. Ported from src/sim/heroes.ts; the numbers are the tuned ones.
+# The six heroes, as data. Ported from src/sim/heroes.ts of the TypeScript game; the numbers are the tuned ones.
 
 const MELEE := 3.2
 const TANKS: Array[String] = ["warden"]

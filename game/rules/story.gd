@@ -1,7 +1,7 @@
 class_name Story
 extends RefCounted
 
-# The Last Vespers: what the game says, and when. Ported from src/ui/story.ts.
+# The Last Vespers: what the game says, and when. Ported from src/ui/story.ts of the TypeScript game.
 # Every line has an id, which is also the name of its voice file: assets/voice/<id>.wav.
 
 ## A party member says a line: {"id", "speaker", "text", "unit_id"}.

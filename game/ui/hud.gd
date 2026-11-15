@@ -149,11 +149,11 @@ func _draw() -> void:
 		Kit.text(self, Vector2(mid, top + 66), c.error, 14, Color(Kit.RED, clampf(3.0 - c.error_t * 2.0, 0.0, 1.0)), 260.0)
 
 
-## "Rooms 2/9    Lamps 0/3    Deaths 1 (+5 s)"
+## "Count 31%    Lamps 0/3    Deaths 1 (+5 s)"
 static func progress(c: Combat) -> String:
-	var rooms := c.packs.filter(func(p: Pack) -> bool: return p.cleared).size()
 	var bosses := c.packs.filter(func(p: Pack) -> bool: return p.boss)
-	var line := "Rooms %d/%d" % [rooms, c.packs.size()]
+	var goal := c.count_goal()
+	var line := "Count %d%%" % (c.count() * 100 / goal if goal > 0 else 100)
 	if not bosses.is_empty():
 		line += "    Lamps %d/%d" % [bosses.filter(func(p: Pack) -> bool: return p.cleared).size(), bosses.size()]
 	if c.deaths > 0:

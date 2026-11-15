@@ -2,7 +2,7 @@
 
 Status: **approved and built.** The game is the Godot project in [`game/`](game/README.md), published from `main`. Numbers below are its tuned values.
 
-**Next:** route planning, a second and larger dungeon, and gear were agreed on 15 November 2026 and are not built yet. Section 12 sums them up; the full record is [`docs/routing-and-gear-plan.md`](docs/routing-and-gear-plan.md).
+**Next:** route planning, a second and larger dungeon, and gear were agreed on 15 November 2026. The first step is built: the dungeon is rooms joined by doorways, enemies are worth count, and a beaten party starts again from a sanctuary lamp. The rest is not built yet. Section 12 sums it up; the full record is [`docs/routing-and-gear-plan.md`](docs/routing-and-gear-plan.md).
 
 Fourfold was first built in TypeScript as a side-on belt-scroller (kept at the tag `typescript-game`), and this document was written for that game. It was then rebuilt in Godot with an isometric view, which is the game now. The rules here hold for it, and section 3 (controls) describes it. Some passages, section 11 above all, still describe how the first version looked and sounded; where the game differs from them:
 
@@ -23,7 +23,7 @@ Fourfold is an original, solo, browser-based dungeon runner in the style of time
 | Control | You play one hero per run. AI plays the other three. |
 | Party | 1 tank, 1 healer, 2 DPS. You choose every slot, duplicates allowed. |
 | View | Real-time isometric: a 3D floor seen from a fixed camera looking down from one corner, which follows your hero. (The first version was a belt-scroller seen from the side.) |
-| Run | One linear dungeon: 6 trash packs, 3 bosses, 14-minute timer. Planned: routes you plan on a map, an enemy count to meet, and a second, larger dungeon with a choice of ways through (section 12). |
+| Run | One linear dungeon: 6 trash packs, 3 bosses, an enemy count to meet, 14-minute timer. Planned: routes you plan on a map, and a second, larger dungeon with a choice of ways through (section 12). |
 | Levels | Enemies gain 8% health and damage per level (compounding), plus new abilities at levels 3, 6 and 9. No cap. |
 | Unlocks | You may start any level up to one above your highest timed clear. Shared across heroes. |
 | Progression | No gear yet. Highest timed level and best time are recorded per hero. Planned: gear, teams and a shop, with levels and records kept per dungeon (section 12). No talents; gear abilities do that job. |
@@ -36,13 +36,13 @@ Fourfold is an original, solo, browser-based dungeon runner in the style of time
 
 1. **Title** → **Party setup**: pick your hero, then the heroes for the three AI slots.
 2. **Level select**: any unlocked level.
-3. **Run**: the timer starts on the first pull and stops when the third boss dies.
+3. **Run**: the timer starts on the first pull and stops when every boss is dead and the count is met.
 4. **Summary**: time, result, and per-hero damage, healing, interrupts, dispels and deaths.
 
 Result rules:
 
-- **Timed**: all three bosses dead inside 14:00. Unlocks the next level.
-- **Completed**: all three bosses dead after 14:00. Recorded, unlocks nothing.
+- **Timed**: every boss dead and the count met inside 14:00. Unlocks the next level.
+- **Completed**: the same, after 14:00. Recorded, unlocks nothing.
 - There is no way to fail outright; you can abandon from the pause menu.
 
 ## 3. Controls
@@ -112,8 +112,14 @@ Result rules:
 ### Death and recovery
 
 - A dead hero stays down until combat ends, then revives. Each death adds 5 s to the timer.
-- If all four die, the pack or boss resets to full health, destroyed pillars are rebuilt, and the party revives at the room entrance.
+- If all four die, every pack in the fight resets to full health, destroyed pillars are rebuilt, and the party revives at the sanctuary lamp it lit last. The landing counts as the first; after that each boss's lamp, which stands by the way on from its room.
 - Out of combat, health and resources refill at 10% per second.
+
+### Count
+
+- Each enemy is worth points towards the dungeon's **count**. Bosses, and anything a boss calls up, are worth nothing.
+- Count is earned as each enemy dies. If the party is then beaten, the pack stands up again and its count is taken back.
+- A run is complete when every boss is dead and the count is met. The Abbey asks for all the count it holds, 92, because nobody can walk past a pack in it. A later dungeon will hold more than it asks for.
 
 ## 5. Heroes
 
@@ -202,7 +208,7 @@ All six have six abilities: three rotational, one interrupt or dispel, one defen
 Teammates play reliably well at every level, with reaction delays of 0.3–0.6 s. They do their own job fully and never do yours.
 
 - **All roles**: step out of ground effects and frontals and never walk into one, stay in range and line of sight, use their defensive below 40% health. They keep 14 m away from packs that are not in the fight.
-- **Going in**: every fight happens inside the room. The tank pulls from the doorway and then walks to a spot about 8 m inside (10 m for a boss). Everyone else stays in whatever room the tank is in, so nobody hangs back behind the dividing wall. The story reason: the sea comes in over each doorway once the party is through it.
+- **Going in**: every fight happens inside the room. The tank pulls from the doorway and then walks to a spot about 8 m inside (10 m for a boss). Everyone else stays in whatever room the tank is in, at least 1.5 m clear of its doorways, so nobody hangs back on a threshold. While the tank stands in a doorway, either room it joins will do. The story reason: the sea comes in over each doorway once the party is through it.
 - **AI tank**
   - Pulls the next pack when everyone is alive, above 80% health, and the healer is above 60% mana.
   - Stands among the ranged enemies so the melee ones are dragged onto them, and faces enemies away from the party.
@@ -229,34 +235,34 @@ Sections 4 to 7 describe mechanics under their original working names. The names
 
 Linear: two packs, a boss, two packs, a boss, two packs, a boss.
 
-- **Layout**: one straight hall running left to right. Pack rooms are 28 m long and 16 m deep; boss rooms are 34 m long and 20 m deep.
+- **Layout**: ten rooms in a row, each joined to the next by one doorway: the landing where the party starts, then a room for each pack and boss. Pack rooms are 28 m long and 16 m deep; boss rooms are 34 m long and 20 m deep. The rules know the dungeon only as rooms and the doorways joining them, not as a row.
 - **Dividing walls**: each room is split from the next by a 3 m wall that juts out from the back and leaves a 6 m doorway along the front edge. The AI tank pulls from the doorway and then goes in. A player tank can still step back behind the wall for a line-of-sight pull; the AI party follows it.
 - **Pillars**: several rooms have pillars that block movement and sight.
 - **View**: depth is drawn at 60% scale. The front edge of the floor is open; nothing stands between the camera and the party except pillars.
 
 ### Enemy types
 
-| Enemy | Behaviour | Added at level 3 |
-|---|---|---|
-| Brute | Melee. Hits its target hard and often. | Crushing Blow: a telegraphed tank buster. |
-| Hexer | Caster. Dark Bolt (interruptible) at a random hero. | Wither: interruptible; if it lands, a dispellable damage-over-time debuff. |
-| Archer | Ranged attacks on its target. | Arrow Rain: a ground circle under a random hero. |
-| Shaman | Caster. Restore (interruptible) heals an injured enemy. Priority target. | Restore heals more. |
-| Berserker | Fast melee. Enrages below 30% health. | Enrage starts at 50%. |
-| Overseer | Elite melee. Sweeping Cut: a telegraphed frontal cone. | Rally: nearby enemies deal 15% more damage while it lives. |
+| Enemy | Count | Behaviour | Added at level 3 |
+|---|---|---|---|
+| Brute | 4 | Melee. Hits its target hard and often. | Crushing Blow: a telegraphed tank buster. |
+| Hexer | 3 | Caster. Dark Bolt (interruptible) at a random hero. | Wither: interruptible; if it lands, a dispellable damage-over-time debuff. |
+| Archer | 3 | Ranged attacks on its target. | Arrow Rain: a ground circle under a random hero. |
+| Shaman | 3 | Caster. Restore (interruptible) heals an injured enemy. Priority target. | Restore heals more. |
+| Berserker | 4 | Fast melee. Enrages below 30% health. | Enrage starts at 50%. |
+| Overseer | 8 | Elite melee. Sweeping Cut: a telegraphed frontal cone. | Rally: nearby enemies deal 15% more damage while it lives. |
 
 At **level 9**, every trash enemy deals 25% more damage below 25% health.
 
 ### Packs
 
-| Pack | Enemies | Teaches |
-|---|---|---|
-| 1 | 3 Brutes, 1 Hexer | Threat, first interrupts. |
-| 2 | 2 Brutes, 1 Archer, 1 Shaman | Priority targets. |
-| 3 | 2 Brutes, 2 Hexers (pillared room) | Casters and line of sight. |
-| 4 | 1 Overseer, 2 Archers, 1 Shaman | Frontals. |
-| 5 | 2 Berserkers, 1 Hexer, 1 Shaman | Enrage damage, cooldown use. |
-| 6 | 1 Overseer, 1 Berserker, 2 Archers | Everything together. |
+| Pack | Enemies | Count | Teaches |
+|---|---|---|---|
+| 1 | 3 Brutes, 1 Hexer | 15 | Threat, first interrupts. |
+| 2 | 2 Brutes, 1 Archer, 1 Shaman | 14 | Priority targets. |
+| 3 | 2 Brutes, 2 Hexers (pillared room) | 14 | Casters and line of sight. |
+| 4 | 1 Overseer, 2 Archers, 1 Shaman | 17 | Frontals. |
+| 5 | 2 Berserkers, 1 Hexer, 1 Shaman | 14 | Enrage damage, cooldown use. |
+| 6 | 1 Overseer, 1 Berserker, 2 Archers | 18 | Everything together. |
 
 ### Boss 1 — Krogg the Gatebreaker (tank check)
 
@@ -290,7 +296,7 @@ At **level 9**, every trash enemy deals 25% more damage below 25% health.
 - **Nameplates** over every enemy: health, cast bar (yellow = interruptible, grey = not, **KICK** = your turn), and a border that turns red when the enemy is attacking a non-tank.
 - **Debuff chips** under each nameplate: one per debuff the party has put on the enemy, in its caster's colour, draining as it runs out and showing the seconds left (tenths in the last three). Yours come first, edged in gold.
 - **Action bar**: six buttons with their keys and mouse button, cooldown sweep, cost and out-of-range or no-line-of-sight dimming. Hover for a tooltip.
-- **Run bar**: timer against 14:00, packs and bosses killed, deaths.
+- **Run bar**: timer against 14:00, the count earned as a percentage of what the dungeon asks for, lamps lit, deaths.
 - **Telegraphs**: ground circles and cones drawn on the floor before they hit.
 - **Camera**: follows your hero, runs 1 m ahead of the way you are walking, and leans up to 7 m towards the fight, so both stay on screen. AI teammates fight within 21 m of their target for the same reason. A heavy hit on a hero jolts the screen, more so when it is on you; this is off when the system asks for reduced motion.
 - **Alerts**: a short text call for major boss casts.
@@ -299,6 +305,7 @@ At **level 9**, every trash enemy deals 25% more damage below 25% health.
 ## 9. Technical
 
 - **Rules** run on a fixed step of 60 ticks a second as plain GDScript classes with no scene in them (`game/rules/`), so they can be tested on their own. The nodes ask them what is allowed and show what they report.
+- **A level** is one description in code (`game/rules/level_def.gd`): rooms and the doorways joining them, walls, pillars, packs, sanctuary lamps and the count it asks for. The scene builds the floor, collision and navigation from it; the rules ask it which room a spot is in; the tests read the same thing.
 - **Movement** belongs to the engine: units are physics bodies, walls block them, line of sight is a ray cast and the AI walks a navigation mesh. Physics interpolation keeps motion even on any refresh rate.
 - **Automated runs**: the same scene runs headless with AI in all four slots. The tests check that every party composition times level 1; `tests/tools/sim.gd` prints times, deaths and per-hero output for the given levels and number of seeds (see [`game/README.md`](game/README.md)).
 - **Balance as tuned**: all-AI parties time level 1 in about 8 minutes and level 7 in 12–13. Most still time level 8; they start wiping on the last boss around level 9–10.
@@ -390,7 +397,7 @@ When a boss is laid to rest its lamp lights and warm gold light floods back thro
 
 ## 12. Next: routing, a big dungeon and gear
 
-Agreed on 15 November 2026; not built yet. This is a summary. [`docs/routing-and-gear-plan.md`](docs/routing-and-gear-plan.md) is the full record and [`docs/routing-and-gear-handoff.md`](docs/routing-and-gear-handoff.md) is the brief for building it. As each milestone lands, its rules move into the sections above.
+Agreed on 15 November 2026. Milestone 9 (rooms, count, lamps) is built and its rules are in the sections above; the rest is not built yet. This is a summary. [`docs/routing-and-gear-plan.md`](docs/routing-and-gear-plan.md) is the full record and [`docs/routing-and-gear-handoff.md`](docs/routing-and-gear-handoff.md) is the brief for building it. As each milestone lands, its rules move into the sections above.
 
 - **Routing.** Before a run you open a map of the dungeon and plan a route: an ordered list of pulls. A pull names one or more packs taken together, where the tank holds them, and where the healer and damage dealers stand. All of it is optional; with no plan the AI follows a safe default route. The map can be opened during a run, between fights, to change the pulls not yet made.
 - **Count.** Each enemy is worth points. A run is complete when every boss is dead and the dungeon's count is met. A dungeon holds about 130% of the count it needs, so the route decides what is left alive.

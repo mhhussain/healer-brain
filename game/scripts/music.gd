@@ -54,21 +54,22 @@ static func file_of(loop: String) -> String:
 	return ""
 
 
-## The loop for a run as it stands: by where the party has got to and what it is fighting.
-static func loop_for(run: Run) -> String:
+## The loop for a run as it stands. A fight is played in the part of the place its pack stands
+## in, and a boss's fight comes before any other. Out of a fight it is the part you are standing
+## in; a doorway is in no part, so there the music stays in the part of `was`, the loop playing now.
+static func loop_for(run: Run, was := "") -> String:
 	var c := run.combat
-	var defs: Array = run.level.def.packs
-	var at := 0
-	var mood := "calm"
+	var def := run.level.def
+	var fight: Pack = null
 	for p in c.packs:
-		at = p.id
-		if p.engaged and not p.cleared:
-			mood = "boss" if p.boss else "fight"
-			break
-		if not p.cleared:
-			break
-	var zone: int = defs[at].get("zone", 0) if at < defs.size() else 0
-	return "%s_%d" % [mood, zone]
+		if p.engaged and not p.cleared and (fight == null or (p.boss and not fight.boss)):
+			fight = p
+	if fight:
+		return "%s_%d" % ["boss" if fight.boss else "fight", def.rooms[fight.room].zone if fight.room >= 0 else 0]
+	var zone := def.zone_at(c.player.pos) if c.player else -1
+	if zone < 0:
+		zone = int(was.get_slice("_", 1)) if was != "" else 0
+	return "calm_%d" % zone
 
 
 func _stream(loop: String, looping := true) -> AudioStream:

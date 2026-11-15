@@ -5,6 +5,11 @@ extends RefCounted
 # it sets the hero's goal and the scene does the walking. Ported from src/sim/heroAI.ts of the TypeScript game.
 # A spot is a Vector3, or null for none.
 
+## The tank has gone in once it is this near the spot it means to hold, in metres.
+const ARRIVED := 1.1
+## The party keeps this far inside the tank's room from the doorways into it, in metres.
+const THRESHOLD := 1.5
+
 static func _pct(u: Combatant) -> float:
 	return u.hp / u.max_hp
 
@@ -171,7 +176,7 @@ static func _tank_combat(c: Combat, h: Combatant):
 		if p.engaged and not p.cleared:
 			pack = p
 			break
-	if pack and ai.entered != pack.id and h.pos.x >= pack.stand.x - 1.0:
+	if pack and ai.entered != pack.id and Combat.flat(h.pos, pack.stand) <= ARRIVED:
 		ai.entered = pack.id
 	if pack and ai.entered != pack.id:
 		ai.tank_spot = null
@@ -237,11 +242,10 @@ static func _ranged_pos(c: Combat, h: Combatant, anchor: Combatant):
 	ai.pos_t = c.time + 0.3
 	var min_d := 4.0 if anchor.team == "enemy" else 0.0
 	var tank := c.tank()
-	var min_x := c.room_start(tank.pos.x) + 1.5 if tank.alive else -INF
 	var valid := func(p: Vector3) -> bool:
 		var d := Combat.flat(p, anchor.pos)
-		return p.x >= min_x and d <= 21.0 and d >= min_d and c.los.call(p, anchor.pos) \
-			and not _in_front(c, p) and _safe_at(c, p) and not _near_idle(c, p)
+		return (not tank.alive or c.same_room(tank.pos, p, THRESHOLD)) and d <= 21.0 and d >= min_d \
+			and c.los.call(p, anchor.pos) and not _in_front(c, p) and _safe_at(c, p) and not _near_idle(c, p)
 	if valid.call(h.pos):
 		ai.pos = null
 		return null

@@ -597,6 +597,106 @@ func test_the_prior_makes_his_brothers_hit_harder_from_level_3():
 	assert_eq(combat.damage(prior, w, 100.0), roundf(100.0 * combat.scale), "not himself")
 
 
+# ---------- count, the end of a run and lamps
+
+func test_count_is_earned_by_the_kill_and_things_called_up_are_worth_nothing():
+	start(["ranger"])
+	var h := combat.player
+	var porter := enemy("brute", Vector3(25, 0, 0))
+	var prior := enemy("overseer", Vector3(25, 0, 3))
+	var called := combat.spawn_enemy("brute", Vector3(25, 0, 6), 0, true)
+	assert_eq(combat.count_goal(), 12, "a place that asks for nothing less asks for all it holds")
+	assert_eq(combat.count(), 0)
+	combat.damage(h, porter, 99999.0)
+	assert_eq(combat.count(), 4)
+	combat.damage(h, called, 99999.0)
+	assert_eq(combat.count(), 4)
+	combat.damage(h, prior, 99999.0)
+	assert_eq(combat.count(), 12, "the Prior is worth two of the others")
+
+
+func test_a_run_ends_when_every_boss_is_at_rest_and_the_count_is_met():
+	start(["ranger"])
+	combat.endless = false
+	combat.count_needed = 8
+	var h := combat.player
+	var lair := combat.add_pack("The boss", true)
+	var spare := combat.add_pack("Left alone")
+	var a := enemy("brute", Vector3(25, 0, 0))
+	var b := enemy("brute", Vector3(25, 0, 3))
+	var boss := combat.spawn_enemy("krogg", Vector3(60, 0, 0), lair.id)
+	var left := combat.spawn_enemy("overseer", Vector3(95, 0, 0), spare.id)
+	assert_eq(combat.count_goal(), 8)
+	combat.damage(h, a, 99999.0)
+	combat.damage(h, b, 99999.0)
+	combat.tick(DT)
+	assert_eq(combat.count(), 8)
+	assert_false(combat.complete(), "the count is met, but the boss still stands")
+	assert_false(combat.finished)
+	combat.damage(h, boss, 9999999.0)
+	combat.tick(DT)
+	assert_true(combat.finished)
+	assert_true(left.alive, "with a pack left alone")
+	assert_false(spare.cleared)
+
+
+func test_a_dead_boss_does_not_end_a_run_that_is_short_of_its_count():
+	start(["ranger"])
+	combat.endless = false
+	var h := combat.player
+	var lair := combat.add_pack("The boss", true)
+	var a := enemy("brute", Vector3(25, 0, 0))
+	var boss := combat.spawn_enemy("krogg", Vector3(60, 0, 0), lair.id)
+	combat.damage(h, boss, 9999999.0)
+	combat.tick(DT)
+	assert_true(lair.cleared)
+	assert_false(combat.finished, "the count is still to be met")
+	combat.damage(h, a, 99999.0)
+	combat.tick(DT)
+	assert_true(combat.finished)
+
+
+func test_a_pack_that_wins_takes_its_count_back():
+	start(["ranger"])
+	var h := combat.player
+	var a := enemy("brute", Vector3(25, 0, 0))
+	var b := enemy("brute", Vector3(25, 0, 3))
+	combat.damage(h, a, 99999.0)
+	assert_eq(combat.count(), 4)
+	combat.damage(b, h, 99999.0, "phys", {"raw": true})
+	combat.tick(DT)
+	assert_eq(of("wipe").size(), 1)
+	assert_true(a.alive, "the whole pack stands up again")
+	assert_eq(combat.count(), 0)
+
+
+func test_a_beaten_party_starts_again_from_the_lamp_it_lit_last():
+	start(["warden", "ranger"])
+	var lair := combat.add_pack("The boss", true)
+	combat.add_lamp("the landing", Vector3(-30, 0, 0))
+	combat.add_lamp("the Gate Lamp", Vector3(40, 0, 0), lair.id)
+	var porter := enemy("brute", Vector3(2, 0, 0))
+	var boss := combat.spawn_enemy("krogg", Vector3(60, 0, 0), lair.id)
+	var fall := func() -> void:
+		combat.engage(pack, combat.heroes[0])
+		for h in combat.heroes:
+			combat.damage(porter, h, 99999.0, "phys", {"raw": true})
+		combat.tick(DT)
+	assert_eq(combat.last_lamp().name, "the landing", "the only one burning at the start")
+	fall.call()
+	assert_eq(of("wipe").size(), 1)
+	assert_eq(combat.heroes[0].pos, Vector3(-30.75, 0, -0.75))
+	assert_eq(combat.heroes[1].pos, Vector3(-29.25, 0, -0.75), "side by side at the lamp")
+	assert_eq(of("alert")[-1].s, "Driven back to the landing. The keepers return to their posts.")
+	combat.damage(combat.heroes[0], boss, 9999999.0)
+	combat.tick(DT)
+	assert_eq(combat.last_lamp().name, "the Gate Lamp", "a boss at rest lights its lamp")
+	fall.call()
+	assert_eq(of("wipe").size(), 2)
+	assert_eq(combat.heroes[0].pos, Vector3(39.25, 0, -0.75))
+	assert_eq(of("alert")[-1].s, "Driven back to the Gate Lamp. The keepers return to their posts.")
+
+
 # ---------- the bosses
 
 func test_velisse_wakes_brinelings_and_a_wipe_clears_them_away():

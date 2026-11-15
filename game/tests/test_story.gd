@@ -83,13 +83,28 @@ func test_a_pull_gets_one_line_and_the_party_take_turns():
 	assert_eq(said[0].unit_id, combat.heroes[0].id)
 	clear(0)
 	pull(1)
-	assert_eq(said.size(), 1, "the middle room of each part goes by in silence")
+	assert_eq(said.size(), 1, "every second pack the party comes to goes by in silence")
 	clear(1)
 	pull(3)
 	assert_eq(said[1].id, "mender_pull_1", "the next one in the party speaks")
 	clear(3)
+	pull(4)
+	assert_eq(said.size(), 2)
+	clear(4)
 	pull(6)
 	assert_eq(said[2].speaker, "duelist")
+
+
+func test_it_is_the_order_the_packs_are_come_to_that_counts_not_where_they_stand():
+	pull(7)
+	assert_eq(said.size(), 1, "the first pack met gets a line, wherever it is")
+	clear(7)
+	pull(0)
+	assert_eq(said.size(), 1, "and the second goes by in silence")
+	combat.packs[7].cleared = false
+	combat.packs[7].engaged = false
+	pull(7)
+	assert_eq(said.size(), 2, "a pack met again is still the first")
 
 
 func test_a_boss_and_its_lamp_each_get_a_line():

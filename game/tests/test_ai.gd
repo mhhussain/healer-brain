@@ -67,7 +67,7 @@ func test_the_party_fights_inside_the_second_room_not_on_its_threshold():
 		r.tick()
 		ticks += 1
 		for h in r.combat.heroes:
-			if h.alive and h.pos.x < second.room_left:
+			if h.alive and r.level.room_at(h.pos) != second.room:
 				outside[h.name] = outside.get(h.name, 0) + 1
 	assert_true(second.cleared)
 	for name: String in outside:
@@ -110,7 +110,7 @@ func test_the_ai_tank_waits_for_a_player_who_falls_behind():
 	def.floors = [Rect2(-60, -5, 120, 10)]
 	def.start = Vector3(-50, 0, 0)
 	def.packs = [{"name": "Far away", "boss": false, "lamp": "", "enemies": ["brute"], "center": Vector3(40, 0, 0),
-		"entry": Vector3(-50, 0, 0), "pull_from": Vector3(20, 0, 0), "stand": Vector3(30, 0, 0), "room_left": -60.0}]
+		"pull_from": Vector3(20, 0, 0), "stand": Vector3(30, 0, 0)}]
 	var r := AIHarness.new(def, PARTY, 1, 1, false, 3)
 	var tank := r.combat.heroes[0]
 	var me := r.combat.player
@@ -141,7 +141,7 @@ func test_the_party_hides_from_the_last_toll():
 	def.add_pillar(8, 6, 1.5)
 	def.start = Vector3(0, 0, 0)
 	def.packs = [{"name": "Abbot Sulmar", "boss": true, "lamp": "", "enemies": ["sulmar"], "center": Vector3(18, 0, 0),
-		"entry": Vector3(0, 0, 0), "pull_from": Vector3(2, 0, 0), "stand": Vector3(10, 0, 0), "room_left": -20.0}]
+		"pull_from": Vector3(2, 0, 0), "stand": Vector3(10, 0, 0)}]
 	var r := AIHarness.new(def, PARTY, 1, 3)
 	var boss := r.combat.enemies[0]
 	assert_true(r.run_until(func() -> bool: return r.combat.in_combat, 30.0))

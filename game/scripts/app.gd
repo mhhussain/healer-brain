@@ -67,7 +67,7 @@ func _on_node_added(node: Node) -> void:
 # anyone is speaking, and the tide bell once the clock is in its last two minutes.
 func _process(_delta: float) -> void:
 	var playing := run != null and is_instance_valid(run) and state in ["run", "paused", "summary"]
-	music.want = Music.loop_for(run) if playing else "calm_0"
+	music.want = Music.loop_for(run, music.want) if playing else "calm_0"
 	music.quiet = state != "run"
 	music.ducked = narrator.is_talking() or (playing and run.voice.is_talking())
 	music.late = playing and not run.combat.finished and run.combat.time >= Combat.TIME_LIMIT - 120.0

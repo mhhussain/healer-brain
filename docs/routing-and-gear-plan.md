@@ -1,6 +1,6 @@
 # Plan: routing, a big dungeon, and gear
 
-Status: **agreed on 15 November 2026, not built yet.** This is the record of a design session: every decision below was put to the owner and accepted. Build it in the five milestones of section 6. To start work in a new session, read [`routing-and-gear-handoff.md`](routing-and-gear-handoff.md) first.
+Status: **agreed on 15 November 2026. Milestone 9 is built; 10 to 13 are not.** This is the record of a design session: every decision below was put to the owner and accepted. Build it in the five milestones of section 6. To start work in a new session, read [`routing-and-gear-handoff.md`](routing-and-gear-handoff.md) first.
 
 [`DESIGN.md`](../DESIGN.md) describes the game as it is built today. As each milestone lands, move its decisions from here into `DESIGN.md`.
 
@@ -206,7 +206,7 @@ Until logins exist the save lives in the browser and is lost if site data is cle
 
 Each ends at a point where the owner plays and reviews. Stop there.
 
-**9. Rooms and count.** Rework the rules from one hall to rooms joined by doors. Add enemy count; a run ends on bosses plus count. Sanctuary lamps become the points a wipe returns to. The Abbey must play as it does today, and the all-AI times must not move.
+**9. Rooms and count.** (Built; its rules are in `DESIGN.md` sections 2, 4, 6 and 7.) Rework the rules from one hall to rooms joined by doors. Add enemy count; a run ends on bosses plus count. Sanctuary lamps become the points a wipe returns to. The Abbey must play as it does today, and the all-AI times must not move.
 
 **10. Routes on the Abbey.** The route as data, saved in three slots, with the text code. The map planner. The AI following a route: order, several packs in a pull, the tank spot, party spots, "go at once", recovering after a wipe, carrying on when the plan ends. The Abbey's default route. In the run: the count bar, the next pull's number, ground markers, M for the map.
 
@@ -238,7 +238,7 @@ Sources: the MDT author's guide on Wowhead (`wowhead.com/guide/how-to-use-mythic
 
 These were not decided. Settle each with the owner, or propose a value and tune it in play, in the milestone that needs it.
 
-- **Count values** per enemy and the total each dungeon needs. (Milestone 9; the Abbey needs exactly what it holds.)
+- **Count values** per enemy and the total each dungeon needs. Milestone 9 proposed values, to be tuned in play: 3 for the casters and archers, 4 for the two melee kinds, 8 for the Prior, nothing for bosses and what they call up. The Abbey holds 92 and asks for all of it. The big dungeon's total is still open. (Milestone 11)
 - **Which key** keeps M: the map or mute. (Milestone 10)
 - **The player's "current item level"** that drops are measured against, and how far above it a drop lands. One option: the average of the best item owned in each slot. (Milestone 12)
 - **The item-level ceiling** for each dungeon level. (Milestone 12)

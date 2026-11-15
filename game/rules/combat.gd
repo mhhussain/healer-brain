@@ -41,6 +41,14 @@ var heroes: Array[Combatant] = []
 var enemies: Array[Combatant] = []
 var packs: Array[Pack] = []
 var zones: Array[Zone] = []
+## The place the run is in, for questions about its rooms. Without one, as in tests of the rules
+## alone, everywhere is one room.
+var place: LevelDef
+## The count the run must reach; 0 asks for all there is. See count().
+var count_needed := 0
+## Where a beaten party starts again: {"name": String, "pos": Vector3, "pack": int, "lit": bool,
+## "lit_at": float}. "pack" is the boss pack whose fall lights it, or -1.
+var lamps: Array[Dictionary] = []
 var player: Combatant
 ## The ally under the mouse, if any: ally abilities go there.
 var hover_ally_id := 0
@@ -100,6 +108,31 @@ func add_pack(name := "", boss := false) -> Pack:
 	p.boss = boss
 	packs.append(p)
 	return p
+
+
+## A sanctuary lamp. It burns from the start unless a boss pack must fall to light it.
+func add_lamp(name: String, at: Vector3, pack_id := -1) -> void:
+	lamps.append({"name": name, "pos": at, "pack": pack_id, "lit": pack_id < 0, "lit_at": -1.0})
+
+
+## Puts the run in a place: its packs at their posts, its lamps and the count it asks for. Add
+## the heroes first, so that they have the first ids.
+func enter(def: LevelDef) -> void:
+	place = def
+	count_needed = def.count_needed
+	for d in def.packs:
+		var pack := add_pack(d.name, d.boss)
+		pack.lamp = d.lamp
+		pack.room = d.get("room", -1)
+		pack.pull_from = d.pull_from
+		pack.stand = d.stand
+		var posts := LevelDef.posts(d)
+		for i in d.enemies.size():
+			spawn_enemy(d.enemies[i], posts[i], pack.id)
+	for l in def.lamps:
+		add_lamp(l.name, l.pos, l.pack)
+	if lamps.is_empty():
+		add_lamp("", def.start)
 
 
 func spawn_enemy(def_id: String, at: Vector3, pack_id: int, summoned := false) -> Combatant:
@@ -170,6 +203,9 @@ func random_heroes(n: int) -> Array[Combatant]:
 	return a.slice(0, n)
 
 
+## The pack the tank goes for next. Everything that asks "which pack next" asks here: for now
+## it is the first in the level's own order that still stands, and a planned route will answer
+## in its place.
 func next_pack() -> Pack:
 	for p in packs:
 		if not p.cleared:
@@ -177,13 +213,45 @@ func next_pack() -> Pack:
 	return null
 
 
-## The x at which the room holding a spot begins. A doorway counts as part of the room before it.
-func room_start(x: float) -> float:
-	var left := -INF
-	for p in packs:
-		if p.room_left <= x:
-			left = p.room_left
-	return left
+## Whether a spot is in the room someone at `of` stands in, clear of its doorways by that many
+## metres. See LevelDef.same_room.
+func same_room(of: Vector3, p: Vector3, clear := 0.0) -> bool:
+	return place == null or place.same_room(of, p, clear)
+
+
+## The count earned so far: what the dead are worth. Things a boss called up are worth nothing,
+## and a pack that drives the party back stands up again and takes its count with it.
+func count() -> int:
+	var n := 0
+	for e in enemies:
+		if not e.alive and not e.summoned:
+			n += e.enemy.count
+	return n
+
+
+## The count the run must reach: what the place asks for, or all it holds if it does not say.
+func count_goal() -> int:
+	if count_needed > 0:
+		return count_needed
+	var n := 0
+	for e in enemies:
+		if not e.summoned:
+			n += e.enemy.count
+	return n
+
+
+## Whether the run is done: every boss is at rest and the count is met.
+func complete() -> bool:
+	return packs.all(func(p: Pack) -> bool: return p.cleared or not p.boss) and count() >= count_goal()
+
+
+## The lamp a beaten party starts again from: the one lit last. Empty if the run has none.
+func last_lamp() -> Dictionary:
+	var best := {}
+	for l in lamps:
+		if l.lit and (best.is_empty() or l.lit_at > best.lit_at):
+			best = l
+	return best
 
 
 func total_time() -> float:
@@ -944,8 +1012,12 @@ func _update_combat() -> void:
 		event.emit({"k": "clear", "id": p.id})
 		if p.boss:
 			alert(p.lamp if p.lamp != "" else p.name + " is at rest")
+			for l in lamps:
+				if l.pack == p.id:
+					l.lit = true
+					l.lit_at = time
 	in_combat = packs.any(func(p: Pack) -> bool: return p.engaged and not p.cleared)
-	if not endless and not packs.is_empty() and packs.all(func(p: Pack) -> bool: return p.cleared):
+	if not endless and not packs.is_empty() and complete():
 		finished = true
 		return
 	if not in_combat:
@@ -959,20 +1031,20 @@ func _update_combat() -> void:
 		_wipe()
 
 
-# Everyone is down: the pack goes back to its posts, healed, and the party starts again from
-# the way in.
+# Everyone is down: every pack in the fight goes back to its posts, healed, and the party
+# starts again from the lamp it lit last.
 func _wipe() -> void:
-	alert("Driven back. The keepers return to their posts.")
+	var lamp := last_lamp()
+	var back_to: String = lamp.get("name", "")
+	alert("Driven back%s. The keepers return to their posts." % ("" if back_to == "" else " to " + back_to))
 	zones.clear()
 	for p in pillars:
 		p.alive = true
 	event.emit({"k": "pillars_up"})
-	var entry := packs[0].entry
+	var from: Vector3 = lamp.get("pos", Vector3.ZERO)
 	for p in packs:
-		if not p.engaged or p.cleared:
-			continue
-		entry = p.entry
-		_reset_pack(p)
+		if p.engaged and not p.cleared:
+			_reset_pack(p)
 	in_combat = false
 	for i in heroes.size():
 		var h := heroes[i]
@@ -984,7 +1056,7 @@ func _wipe() -> void:
 		h.combo = 0
 		h.target_id = 0
 		h.has_goal = false
-		h.pos = entry + Vector3(-2.0 + (i % 2) * 1.5, 0, -1.5 + floorf(i / 2.0) * 1.5)
+		h.pos = from + Vector3(-0.75 + (i % 2) * 1.5, 0, -0.75 + floorf(i / 2.0) * 1.5)
 	event.emit({"k": "wipe"})
 
 

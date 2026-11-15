@@ -56,7 +56,7 @@ func _run(level: int, healer: String, dps: Array, rng_seed: int, verbose: bool) 
 	var secs := maxf(1.0, c.elapsed)
 	var stats := "  ".join(c.heroes.map(func(u: Combatant) -> String:
 		return "%s %dd/%dh/%dk/%dx" % [u.hero.id.left(4), roundi(u.stats.dmg / secs), roundi(u.stats.heal / secs), u.stats.interrupts, u.stats.deaths]))
-	var result := _clock(t) if c.finished else "STUCK %d/%d" % [cleared, c.packs.size()]
+	var result := _clock(t) if c.finished else "STUCK %d/%d packs, count %d/%d" % [cleared, c.packs.size(), c.count(), c.count_goal()]
 	print("L%d %s+%s s%d: %s %s deaths %d | %s" % [level, healer.left(5), "+".join(dps.map(func(d: String) -> String: return d.left(4))),
 		rng_seed, result, "timed" if c.timed() else "over ", c.deaths, stats])
 	if verbose:

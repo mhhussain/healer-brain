@@ -1,24 +1,52 @@
 class_name LevelDef
 extends RefCounted
 
-# A place to fight, as data: the floor, the walls, the pillars, where the party starts and where
-# the packs stand. The scene builds its meshes, collision and navigation from this; the rules
-# take the packs from it. On the floor, a Rect2's x is the world's x and its y is the world's z.
+# A place to fight, as data: rooms joined by doorways, the walls, the pillars, where the party
+# starts, where the packs stand and where the sanctuary lamps are. The scene builds its meshes,
+# collision and navigation from this; the rules take the packs, the lamps and the count from it
+# and ask it which room a spot is in. On the floor, a Rect2's x is the world's x and its y is the
+# world's z.
 
 var name := ""
-## Walkable floor, as rectangles that may overlap.
+## Walkable floor, as rectangles that may overlap. Rooms and doorways add their own.
 var floors: Array[Rect2] = []
+## {"name": String, "rect": Rect2, "zone": int}: one rectangle of floor each. "zone" is the part
+## of the place it belongs to, a place in `zones`.
+var rooms: Array[Dictionary] = []
+## {"a": room, "b": room, "rect": Rect2, "pos": Vector3}: a doorway joining two rooms, and its
+## middle. Its floor belongs to neither room.
+var doors: Array[Dictionary] = []
 ## {"rect": Rect2, "height": float}: boxes that block the way, and the view if they are tall.
 var walls: Array[Dictionary] = []
 ## {"pos": Vector3, "r": float, "height": float}: round columns that can be hidden behind.
 var pillars: Array[Dictionary] = []
-## The middle of each doorway, in order along the hall.
-var doors: Array[Vector3] = []
 var start := Vector3.ZERO
-## {"name", "boss", "lamp", "enemies": [ids], "zone", "center", "entry", "pull_from", "stand", "room_left"}
+## {"name", "boss", "lamp", "enemies": [ids], "room", "center", "pull_from", "stand"}. "lamp" is
+## the line shown when a boss falls; "room" is a place in `rooms`, or -1. They are listed in the
+## order the party takes them when nobody has planned otherwise.
 var packs: Array[Dictionary] = []
-## The parts of the place, in order; each pack's "zone" is a place in this list.
+## The parts of the place, in order.
 var zones: Array[String] = []
+## {"name": String, "pos": Vector3, "pack": int}: where a beaten party starts again. "pack" is
+## the boss pack whose fall lights the lamp, or -1 for one that burns from the start. With none,
+## the party starts again from `start`.
+var lamps: Array[Dictionary] = []
+## The count a run must reach, from what its enemies are worth. 0 asks for all the place holds.
+var count_needed := 0
+
+
+## Adds a room and its floor. Returns its place in `rooms`.
+func add_room(room_name: String, rect: Rect2, zone := 0) -> int:
+	rooms.append({"name": room_name, "rect": rect, "zone": zone})
+	floors.append(rect)
+	return rooms.size() - 1
+
+
+## Adds a doorway between two rooms, and its floor. Returns its place in `doors`.
+func add_door(a: int, b: int, rect: Rect2) -> int:
+	doors.append({"a": a, "b": b, "rect": rect, "pos": Vector3(rect.get_center().x, 0, rect.get_center().y)})
+	floors.append(rect)
+	return doors.size() - 1
 
 
 func add_wall(x: float, z: float, w: float, d: float, height: float) -> void:
@@ -87,6 +115,94 @@ func pillar_between(a: Vector3, b: Vector3, standing: Array = []) -> int:
 				best_d = d
 				best = i
 	return best
+
+
+# ---------- rooms
+
+## The room a spot is in, or -1: in a doorway, off the floor, or in a place with no rooms.
+func room_at(p: Vector3) -> int:
+	var at := Vector2(p.x, p.z)
+	for i in rooms.size():
+		if (rooms[i].rect as Rect2).grow(0.01).has_point(at):
+			return i
+	return -1
+
+
+## The doorway a spot is in, or -1.
+func door_at(p: Vector3) -> int:
+	var at := Vector2(p.x, p.z)
+	for i in doors.size():
+		if (doors[i].rect as Rect2).has_point(at):
+			return i
+	return -1
+
+
+## The part of the place a spot is in, or -1. A doorway belongs to neither side.
+func zone_at(p: Vector3) -> int:
+	var room := room_at(p)
+	return rooms[room].zone if room >= 0 else -1
+
+
+## Whether a spot is in the same room as someone standing at `of`, and at least `clear` metres
+## from that room's doorways: in the room, not hanging back on its threshold. For someone
+## standing in a doorway, both rooms it joins count, and the doorway itself. A place with no
+## rooms is all one room.
+func same_room(of: Vector3, p: Vector3, clear := 0.0) -> bool:
+	var room := room_at(of)
+	if room >= 0:
+		if room_at(p) != room:
+			return false
+		for d in doors:
+			if (d.a == room or d.b == room) and _gap(d.rect, p) < clear:
+				return false
+		return true
+	var door := door_at(of)
+	if door < 0:
+		return true
+	var there := room_at(p)
+	return door_at(p) == door if there < 0 else there == doors[door].a or there == doors[door].b
+
+
+## The doorways to go through, in order, to walk from one spot to another: the fewest there
+## can be. Empty if they are in the same room, or if there is no way.
+func doors_between(from: Vector3, to: Vector3) -> Array[int]:
+	var none: Array[int] = []
+	var first := door_at(from) if room_at(from) < 0 else -1
+	var last := door_at(to) if room_at(to) < 0 else -1
+	var begin: Array = [room_at(from)] if first < 0 else [doors[first].a, doors[first].b]
+	var end: Array = [room_at(to)] if last < 0 else [doors[last].a, doors[last].b]
+	if begin.has(-1) or end.has(-1) or (first >= 0 and first == last):
+		return none
+	# room -> the doorways gone through to reach it
+	var ways := {}
+	var queue: Array = []
+	for room: int in begin:
+		ways[room] = none
+		queue.append(room)
+	while not queue.is_empty():
+		var room: int = queue.pop_front()
+		if end.has(room):
+			var way: Array[int] = ways[room].duplicate()
+			if last >= 0:
+				way.append(last)
+			return way
+		for i in doors.size():
+			var d: Dictionary = doors[i]
+			if d.a != room and d.b != room:
+				continue
+			var next: int = d.b if d.a == room else d.a
+			if not ways.has(next):
+				var way: Array[int] = ways[room].duplicate()
+				way.append(i)
+				ways[next] = way
+				queue.append(next)
+	return none
+
+
+# How far a spot is from a rectangle of floor; 0 inside it.
+static func _gap(r: Rect2, p: Vector3) -> float:
+	var at := Vector2(p.x, p.z)
+	return at.distance_to(at.clamp(r.position, r.end))
 
 
 static func _crosses(r: Rect2, from: Vector2, to: Vector2) -> bool:

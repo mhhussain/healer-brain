@@ -1,6 +1,6 @@
 # Handoff: building routing, the big dungeon and gear
 
-Written on 15 November 2026 as the starting brief for a new session. Nothing in the plan is built yet. **Start at milestone 9.**
+Written on 15 November 2026 as the starting brief for a new session, and brought up to date the same day when milestone 9 was built. **Milestone 9 is built and waits for the owner to play it. Start at milestone 10** once they have.
 
 Read these, in this order:
 
@@ -13,14 +13,15 @@ Read these, in this order:
 
 - The game is the Godot 4.7.2 project in `game/` (GDScript, Compatibility renderer, single-threaded web export). It is published at https://mhhussain.github.io/healer-brain/.
 - `main` is the only branch that matters. A push to `main` runs `.github/workflows/deploy.yml`: import, the GUT tests, web export, publish. If a test or the export fails, nothing is published.
-- 161 tests pass at commit `13e792c`.
-- All-AI run times, which are the balance check: about 7:25 to 8:05 at level 1, 10:15 to 11:00 at level 5, 12:00 to 13:00 at level 7.
-- The dungeon is the Drowned Abbey: one straight hall, 6 trash packs of 4 and 3 bosses, 27 enemies, a 14-minute timer.
-- There is no map, no route, no count, no gear and no coin.
+- 171 tests pass with milestone 9 in.
+- All-AI run times, which are the balance check: about 7:25 to 8:05 at level 1, 10:15 to 11:00 at level 5, 12:00 to 13:00 at level 7. At level 7 a few runs in eighteen wipe once on the last boss and go over the time; that was so before milestone 9 too (four of eighteen before, two after, on the same seeds).
+- The balance runner is exactly repeatable: the same code, level, party and seed give the same line. Milestone 9 was checked with it: with the two AI rules that used to compare positions along the hall put back, every run without a wipe matched the old code line for line.
+- The dungeon is the Drowned Abbey: the landing and nine rooms in a row, 6 trash packs of 4 and 3 bosses, 27 enemies, a count of 92 that asks for every pack, a 14-minute timer.
+- There is no map, no route, no gear and no coin.
 
 ## 2. How the owner wants the work done
 
-- **Chat replies under 300 words.**
+- **Chat replies under 250 words.**
 - **Pause at each review point** (the end of each milestone, and wherever the plan says "the owner approves"). Have the headless checks done before pausing. The owner plays in the Godot editor (F5) or in the browser. How it feels is their call; tests cannot claim it.
 - **Design questions go in rounds**, each as `❓ **Qn** - **title**: … ➡️ recommendation`, worded so "yes" accepts the recommendation. Find facts yourself; ask only for decisions.
 - **Push to `main`** when a piece is done and verified, then check the publish run and the live site.
@@ -38,33 +39,36 @@ Read these, in this order:
 - **Tests and balance runs** always use `--fixed-fps 60`. Without it the all-AI tests run in real time.
 - **Shader stalls.** The first time the engine draws a new kind of thing it builds a shader, which freezes the game for a moment. `Run.warm_up` draws one of everything behind the loading card. Anything new that can appear during a run (a new enemy, a new room piece, ground markers, patrol paths) must be added to the warm-up, and effect materials must keep the same settings as the shadow under units.
 
-## 4. What the code assumes today
+## 4. What the code does today
 
-Milestone 9 exists to remove these. Line numbers are as of commit `13e792c` and will drift; search for the names.
-
-**The dungeon is one hall, and the rules know it.**
-
-- `Combat.next_pack()` returns the first pack in list order that is not cleared (`rules/combat.gd`, about line 173). This is the whole of today's "route".
-- `Combat.room_start()` works out which room a position is in from its x alone (about line 181).
-- The run finishes only when **every** pack is cleared (about line 948). `DESIGN.md` section 2 says "all three bosses dead". In a hall the two are the same; with count they are not.
-- A wipe puts the party at the `entry` of the first engaged pack, resets engaged packs to full health, removes summons and restores pillars (about lines 964 to 988).
-- `Music.loop_for` picks the music from the first uncleared pack's zone, and the HUD shows "Rooms x/y" (`ui/hud.gd`, about line 154). Check `rules/story.gd` for lines tied to pack order.
+Search for the names; line numbers drift.
 
 **The level description** (`rules/level_def.gd`; the Abbey is in `rules/levels.gd`, and a two-room sandbox follows it).
 
-- Fields: `name`, `floors` (rectangles), `walls`, `pillars`, `doors` ("in order along the hall"), `start`, `zones`, and `packs`.
-- A pack is a dictionary: `name`, `boss`, `lamp`, `enemies`, `zone`, `center`, `entry`, `pull_from`, `stand`, `room_left`.
-- There are no gates, patrols or room graph. Navigation is baked from the geometry by `scripts/level_builder.gd`. Enemies stand in a ring round the pack's centre.
+- `rooms` (`name`, `rect`, `zone`) and `doors` (`a`, `b`, `rect`, `pos`), added with `add_room` and `add_door`, which also lay their floor. A room is one rectangle. A doorway's floor belongs to neither room.
+- `packs`: `name`, `boss`, `lamp` (the line shown when a boss falls), `enemies`, `room`, `center`, `pull_from`, `stand`. They are listed in the order the party takes them with no plan.
+- `lamps` (`name`, `pos`, `pack`: the boss pack that lights it, or -1 for one that burns from the start) and `count_needed` (0 asks for everything).
+- Questions it answers: `room_at`, `door_at`, `zone_at`, `same_room(of, p, clear)` and `doors_between(from, to)` (the fewest doorways between two spots).
+- There are no gates or patrols yet. Navigation is baked from the geometry by `scripts/level_builder.gd`. Enemies stand in a ring round the pack's centre.
+
+**The rules** (`rules/combat.gd`).
+
+- `Combat.enter(def)` puts a run in a place: packs, enemies, lamps, count. `Run` and the test harness both use it. Heroes are added first so that they keep the first ids.
+- `Combat.next_pack()` is the one place that answers "which pack next". It returns the first in the level's order that still stands. **Milestone 10 hands it a route.**
+- `count()`, `count_goal()` and `complete()`: count is what the dead are worth (`EnemyDef.count`), and a run finishes when every boss pack is cleared and the count is met.
+- A wipe resets every engaged pack and puts the party round `last_lamp()`.
+- `can_attack()` and `HeroAI._tank_combat` still take "the fight" to be the first engaged pack in list order. A pull of several packs (milestone 10) must change that.
+- Nothing compares positions along the hall any more. `Music.loop_for` goes by the fight's room or the room you stand in; `Story` gives a line to every second pack by the order they are first pulled; the HUD shows count as a percentage.
 
 **The AI tank** (`rules/hero_ai.gd`).
 
-- `_tank_travel` walks to the pack's `pull_from`, and pulls when an enemy is within 27 m and in sight and `_party_ready` holds: everyone alive, above 80% health, within 22 m, healer mana above 60%. It also waits for a human who is more than 28 m behind.
-- It then walks to the pack's `stand` until its x passes `stand.x - 1`, taunts loose enemies, moves among the ranged enemies if any are far away, and otherwise plants where it is.
+- `_tank_travel` walks to the next pack's `pull_from`, and pulls when an enemy is within 27 m and in sight and `_party_ready` holds: everyone alive, above 80% health, within 22 m, healer mana above 60%. It also waits for a human who is more than 28 m behind.
+- It then walks to the pack's `stand` until it is within 1.1 m of it (`ARRIVED`), taunts loose enemies, moves among the ranged enemies if any are far away, and otherwise plants where it is. `AIState.entered` is not cleared by a wipe, so on a second try at the same pack the tank fights where the enemies reach it.
 
 **AI damage dealers and healer.**
 
 - Melee stand behind the target (`_melee_pos`).
-- Ranged and the healer sample rings of spots round an anchor (`_ranged_pos`). A spot must be in sight, out of frontals and ground zones, more than 14 m from any idle pack, and not behind the start of the tank's room (an x comparison again).
+- Ranged and the healer sample rings of spots round an anchor (`_ranged_pos`). A spot must be in sight, out of frontals and ground zones, more than 14 m from any idle pack, and in the tank's room at least 1.5 m clear of its doorways (`Combat.same_room`).
 - Out of combat everyone follows the tank.
 
 **Waking and chasing.**
@@ -78,22 +82,15 @@ Milestone 9 exists to remove these. Line numbers are as of commit `13e792c` and 
 
 **Screens.** There is no overview camera. The pause screen (`Screens.pause` in `ui/screens.gd`) is a panel over the paused scene and is the pattern for the map during a run.
 
-## 5. Milestone 9, to begin with
+**Left for later milestones.** The 14-minute limit is still the constant `Combat.TIME_LIMIT`; the big dungeon needs it per level. Lamps are points in the data with no figure in the scene; the map will want to draw them, and anything that draws them in a run must go in the warm-up.
 
-Goal: rooms joined by doors, enemy count, completion on bosses plus count, and lamps as wipe points, with the Abbey playing exactly as it does now.
+## 5. Milestone 10, to begin with
 
-A suggested order:
+Goal: the route as data, the map planner, and the AI following a route on the Abbey. The plan's section 2 is the spec, and section 6 lists what the milestone holds.
 
-1. Read the files named in section 4 and confirm the assumptions still stand.
-2. Put a short design to the owner where there is a real choice (for example how rooms and doors are written in a level's description). Skip questions the plan already answers.
-3. Change the level description to rooms and doors, and describe the Abbey in it.
-4. Replace every left-to-right comparison with a question asked of the rooms.
-5. Add count to enemies and to the level; change the end of a run to bosses plus count.
-6. Make a wipe return to the last lit lamp.
-7. Checks: all tests pass, the all-AI times at levels 1, 5 and 7 have not moved, the web export builds.
-8. Update `DESIGN.md` and the READMEs, push, check the publish run, then stop for the owner to play.
-
-"Which pack next" should already go through one place that milestone 10 can hand a route to.
+- Settle with the owner first: which of the map and mute keeps the M key.
+- Start from `Combat.next_pack()`, and from the two places that assume one pack to a fight.
+- The Abbey's default route is its packs in order, one to a pull.
 
 ## 6. Checks before every pause
 
@@ -109,5 +106,5 @@ Commands are in `game/README.md`. In short:
 ## 7. Things to bring to the owner, when their milestone comes
 
 - Milestone 10: which of the map and mute keeps the M key.
-- Milestone 11: the dungeon's name, a layout sketch, the new enemies, the four bosses, the default route.
+- Milestone 11: the dungeon's name, a layout sketch, the new enemies, the four bosses, the default route, and the count it asks for.
 - Milestones 12 and 13: the list of named items and their effects, and the numbers listed in section 8 of the plan.

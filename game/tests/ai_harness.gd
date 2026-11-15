@@ -35,16 +35,7 @@ func _init(def: LevelDef, party: Array, run_level := 1, rng_seed := 1, autoplay 
 	for i in party.size():
 		var h := combat.add_hero(Heroes.by_id(party[i]), i == player_slot)
 		h.pos = def.start + Vector3(-i * 1.6, 0, 1.2 if i % 2 else -1.2)
-	for d in def.packs:
-		var pack := combat.add_pack(d.name, d.boss)
-		pack.lamp = d.lamp
-		pack.entry = d.entry
-		pack.pull_from = d.pull_from
-		pack.stand = d.stand
-		pack.room_left = d.room_left
-		var posts := LevelDef.posts(d)
-		for i in d.enemies.size():
-			combat.spawn_enemy(d.enemies[i], posts[i], pack.id)
+	combat.enter(def)
 
 
 func tick() -> void:
@@ -80,18 +71,19 @@ func tick() -> void:
 	combat.tick(DT)
 
 
-# Where to head for: the goal if the way is clear, else the doorway that leads towards it.
+# Where to head for: the goal if the way is clear, else the middle of the doorway that leads
+# towards it.
 func _next_stop(u: Combatant) -> Vector3:
-	if level.clear_line(u.pos, u.goal, 0.0, 0.4) or level.doors.is_empty():
+	if level.clear_line(u.pos, u.goal, 0.0, 0.4):
 		return u.goal
-	var best := u.goal
-	var best_d := INF
-	for door in level.doors:
-		var d := Combat.flat(u.pos, door) + Combat.flat(door, u.goal)
-		if d < best_d and Combat.flat(u.pos, door) > 0.3 and (door.x - u.pos.x) * (u.goal.x - u.pos.x) > 0.0:
-			best_d = d
-			best = door
-	return best
+	# in a doorway already: on through its middle, unless that leads away
+	var here := level.door_at(u.pos)
+	if here >= 0 and level.room_at(u.pos) < 0:
+		var middle: Vector3 = level.doors[here].pos
+		if Combat.flat(u.pos, middle) > 0.3 and Combat.flat(middle, u.goal) < Combat.flat(u.pos, u.goal):
+			return middle
+	var way := level.doors_between(u.pos, u.goal)
+	return level.doors[way[0]].pos if not way.is_empty() else u.goal
 
 
 func run_for(seconds: float) -> void:

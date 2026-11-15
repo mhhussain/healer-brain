@@ -131,13 +131,19 @@ func test_the_music_changes_with_the_part_of_the_abbey():
 	add_child_autofree(abbey)
 	abbey.combat.ai_plays = false
 	await wait_physics_frames(2)
-	for i in 3:
-		abbey.combat.packs[i].cleared = true
-	assert_eq(Music.loop_for(abbey), "calm_1", "past the first boss it is the Infirmary")
-	abbey.combat.engage(abbey.combat.packs[5], abbey.player.c)
-	abbey.combat.packs[3].cleared = true
-	abbey.combat.packs[4].cleared = true
-	assert_eq(Music.loop_for(abbey), "boss_1")
+	var def := abbey.level.def
+	var me := abbey.player.c
+	assert_eq(Music.loop_for(abbey), "calm_0", "on the landing it is the Sea Gate")
+	me.pos = def.packs[3].center
+	assert_eq(Music.loop_for(abbey), "calm_1", "in the Undercroft it is the Infirmary")
+	me.pos = def.doors[6].pos
+	assert_eq(Music.loop_for(abbey, "calm_1"), "calm_1", "a doorway is in no part: the music stays where it was")
+	me.pos = def.packs[6].center
+	assert_eq(Music.loop_for(abbey, "calm_1"), "calm_2")
+	abbey.combat.engage(abbey.combat.packs[4], me)
+	assert_eq(Music.loop_for(abbey), "fight_1", "a fight is played where its pack stands")
+	abbey.combat.engage(abbey.combat.packs[8], me)
+	assert_eq(Music.loop_for(abbey), "boss_2", "and a boss's fight comes before any other")
 	Run.place = "sandbox"
 
 

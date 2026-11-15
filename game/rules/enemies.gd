@@ -61,7 +61,7 @@ static func _enrage(low: float, low_from_level_3: float) -> Callable:
 
 static func _brute() -> EnemyDef:
 	return EnemyDef.make({
-		"id": "brute", "name": "Drowned Porter", "hp": 2300.0, "radius": 0.7, "reach": 2.3, "priority": 1,
+		"id": "brute", "name": "Drowned Porter", "hp": 2300.0, "count": 4, "radius": 0.7, "reach": 2.3, "priority": 1,
 		"auto_dmg": 46.0, "auto_interval": 1.5, "auto_type": "phys",
 		"abilities": [_buster("Heavy Load", "crush", 10.0, 5.0, 240.0, 3)],
 	})
@@ -80,7 +80,7 @@ static func _hexer() -> EnemyDef:
 		if t:
 			c.damage(e, t, 165.0, "magic")
 	return EnemyDef.make({
-		"id": "hexer", "name": "Brine Cantor", "hp": 1700.0, "radius": 0.6, "reach": 24.0, "priority": 2,
+		"id": "hexer", "name": "Brine Cantor", "hp": 1700.0, "count": 3, "radius": 0.6, "reach": 24.0, "priority": 2,
 		"abilities": [wither, bolt],
 	})
 
@@ -91,7 +91,7 @@ static func _archer() -> EnemyDef:
 		if t:
 			_circles_under(c, e, [t], 3.5, 1.6, 210.0)
 	return EnemyDef.make({
-		"id": "archer", "name": "Net-Brother", "hp": 1700.0, "radius": 0.6, "reach": 24.0, "priority": 1,
+		"id": "archer", "name": "Net-Brother", "hp": 1700.0, "count": 3, "radius": 0.6, "reach": 24.0, "priority": 1,
 		"auto_dmg": 58.0, "auto_interval": 2.0, "auto_type": "phys",
 		"abilities": [rain],
 	})
@@ -113,7 +113,7 @@ static func _shaman() -> EnemyDef:
 			c.text(best.pos, "+%d" % roundi(amt), GREEN)
 			c.beam(e, best, GREEN)
 	return EnemyDef.make({
-		"id": "shaman", "name": "Tide Almoner", "hp": 1500.0, "radius": 0.6, "reach": 24.0, "priority": 3,
+		"id": "shaman", "name": "Tide Almoner", "hp": 1500.0, "count": 3, "radius": 0.6, "reach": 24.0, "priority": 3,
 		"auto_dmg": 34.0, "auto_interval": 2.0, "auto_type": "magic",
 		"abilities": [alms],
 	})
@@ -121,7 +121,7 @@ static func _shaman() -> EnemyDef:
 
 static func _berserker() -> EnemyDef:
 	return EnemyDef.make({
-		"id": "berserker", "name": "Penitent", "hp": 2100.0, "radius": 0.7, "reach": 2.3, "priority": 1,
+		"id": "berserker", "name": "Penitent", "hp": 2100.0, "count": 4, "radius": 0.7, "reach": 2.3, "priority": 1,
 		"auto_dmg": 38.0, "auto_interval": 1.0, "auto_type": "phys",
 		"passive": _enrage(0.3, 0.5),
 	})
@@ -129,7 +129,7 @@ static func _berserker() -> EnemyDef:
 
 static func _overseer() -> EnemyDef:
 	return EnemyDef.make({
-		"id": "overseer", "name": "The Prior", "hp": 4600.0, "elite": true, "radius": 0.95, "reach": 2.3, "priority": 1, "frontal": true,
+		"id": "overseer", "name": "The Prior", "hp": 4600.0, "count": 8, "elite": true, "radius": 0.95, "reach": 2.3, "priority": 1, "frontal": true,
 		"auto_dmg": 68.0, "auto_interval": 1.6, "auto_type": "phys",
 		"abilities": [_cone("Banner Sweep", "sweepcut", 9.0, 5.0, 2.0, 0.87, 9.0, 380.0)],
 	})

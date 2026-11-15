@@ -8,6 +8,9 @@ var name := ""
 var hp := 1000.0
 var boss := false
 var elite := false
+## What it is worth towards the count a run must reach. Bosses and the things they call up are
+## worth nothing.
+var count := 0
 var radius := 0.6
 ## How close it must be to attack, in metres.
 var reach := 2.3

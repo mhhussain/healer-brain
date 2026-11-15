@@ -6,7 +6,7 @@ Godot **4.7.2**, GDScript, Compatibility renderer. CI uses the same version (`.g
 
 ## Layout
 
-- `rules/`: the rules of the game as plain GDScript classes with no scene in them: heroes, enemies and levels as data, `Combat` for abilities, auras, threat and who is in a fight, `HeroAI` for what the AI party decides, `Story` for what the party says and when, and `SaveData` and `Bindings` for what is kept between runs. They are tested on their own.
+- `rules/`: the rules of the game as plain GDScript classes with no scene in them: heroes, enemies and levels as data (a level is rooms joined by doorways, with its packs, its sanctuary lamps and the count it asks for), `Combat` for abilities, auras, threat, count and who is in a fight, `HeroAI` for what the AI party decides, `Story` for what the party says and when, and `SaveData` and `Bindings` for what is kept between runs. They are tested on their own.
 - `scripts/`: the nodes. `App` is the game as a whole: it moves between the screens and the run and owns the save. `Run` builds the level, owns the rules, tells them where each `Unit` stands, ticks them 60 times a second and shows what happens. `LevelBuilder` makes the floor, walls, collision and navigation mesh from a level's description, and dresses them with the room pieces. `Unit` shows a hero or enemy as its figure and picks its clip (idle, run, attack, cast, hit, fall) from what the rules report; `Figures` says which file is whose. `Sound` turns what the rules report into sound effects, and `Music` fades between loops as the run moves between wandering, fights and bosses. `Walker` walks enemies and AI heroes to where the rules want them, along the navigation mesh.
 - `ui/`: the interface. `Hud` and its frames and buttons during a run, `WorldOverlay` for what is drawn over the figures, `Screens` for the title, setup, pause and summary, `KeysEditor`, and `Kit` for the colours and theme they share.
 - `assets/`: the voice recordings, and the starter art and sound: one 3D figure per hero and enemy, the room pieces the level is laid with, the sound effects and the music. [`assets/README.md`](assets/README.md) says where they came from and how to replace each with your own.
@@ -27,7 +27,7 @@ Open `game/project.godot` in Godot and press F5. Or from the repo root:
 godot --path game
 ```
 
-The game is the Drowned Abbey: you and three AI party members, nine rooms, three bosses and a 14-minute clock. It opens on the title, then the party setup, where you pick the crew, your hero, its keys and the level. Timing a level unlocks the next. Starting a run shows a card with a bar while the run is read and built; the engine's one-off work of first drawing each kind of thing is done behind that card, not in the first fight.
+The game is the Drowned Abbey: you and three AI party members, nine rooms, three bosses, a count to meet and a 14-minute clock. It opens on the title, then the party setup, where you pick the crew, your hero, its keys and the level. Timing a level unlocks the next. Starting a run shows a card with a bar while the run is read and built; the engine's one-off work of first drawing each kind of thing is done behind that card, not in the first fight.
 
 Your crew, level, unlocks, bests and key bindings are kept in `user://fourfold-save.json` (in a browser, in the browser's own storage). Only the app reads or writes it; tests and the tools below use files of their own or none.
 

@@ -150,7 +150,7 @@ func test_death_and_the_end_of_the_fight():
 
 
 func test_a_wipe_sends_the_enemy_home_and_the_hero_starts_again():
-	pack.entry = Vector3(2, 0, 1.5)
+	combat.add_lamp("the way in", Vector3(0.75, 0, 0.75))
 	hero.pos = Vector3(18.5, 0, 0)
 	combat.use_ability(hero, 0, enemy)
 	hero.hp = 40.0
@@ -160,7 +160,7 @@ func test_a_wipe_sends_the_enemy_home_and_the_hero_starts_again():
 	assert_eq(count("wipe"), 1)
 	assert_false(enemy.engaged)
 	assert_eq(enemy.hp, enemy.max_hp, "the enemy is healed")
-	assert_true(hero.alive, "and the hero starts again from the way in")
+	assert_true(hero.alive, "and the hero starts again beside the lamp")
 	assert_eq(hero.hp, hero.max_hp)
 	assert_eq(hero.res, 100.0)
 	assert_eq(hero.pos, Vector3(0, 0, 0))

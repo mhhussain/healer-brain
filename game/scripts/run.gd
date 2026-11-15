@@ -7,7 +7,7 @@ extends Node3D
 # What to run (the party, your place in it, the level, the place) is set on the class before
 # the scene is made; the app's screens do that, and so do the tests and the tools.
 
-## The run is over: every pack is cleared.
+## The run is over: every boss is at rest and the count is met.
 signal finished
 ## The player asked for the menu.
 signal pause_requested
@@ -107,16 +107,9 @@ func _ready() -> void:
 		var u := _spawn(c, PI / -2.0)
 		if c.is_player:
 			player = u
-	for d in def.packs:
-		var pack := combat.add_pack(d.name, d.boss)
-		pack.lamp = d.lamp
-		pack.entry = d.entry
-		pack.pull_from = d.pull_from
-		pack.stand = d.stand
-		pack.room_left = d.room_left
-		var posts := LevelDef.posts(d)
-		for i in d.enemies.size():
-			_spawn(combat.spawn_enemy(d.enemies[i], posts[i], pack.id), PI / 2.0)
+	combat.enter(def)
+	for e in combat.enemies:
+		_spawn(e, PI / 2.0)
 	if camera and player:
 		camera.follow(player)
 	if hud:

@@ -81,6 +81,8 @@ const LINES := {
 var _combat: Combat
 var _used := {}
 var _turn := 0
+## Pack id -> how many packs of keepers the party had come to before it.
+var _met := {}
 var _late_said := false
 var _lamp_in := -1.0
 var _fallen_at := -99.0
@@ -118,9 +120,13 @@ func _on_event(e: Dictionary) -> void:
 			var pack := _combat.packs[e.id]
 			if pack.boss:
 				_speak(pack.units[0].enemy.id)
-			# not every pull: the middle room of each part goes by in silence, unless nobody has spoken yet
-			elif e.id % 3 != 1 or _turn == 0:
-				_speak("pull")
+			else:
+				# not every pull: every second pack the party comes to goes by in silence, unless
+				# nobody has spoken yet
+				if not _met.has(e.id):
+					_met[e.id] = _met.size()
+				if _met[e.id] % 2 == 0 or _turn == 0:
+					_speak("pull")
 		"clear":
 			if _combat.packs[e.id].boss:
 				_lamp_in = 1.8

@@ -16,6 +16,9 @@ var state := "title"
 var screen: Control
 ## The narrator: the opening and the ending.
 var narrator: Voice
+## The music, which plays on through the menus, and the clicks of their buttons.
+var music: Music
+var clicks: Sound
 
 ## Frames the new run is drawn under the loading card before it starts.
 var warm_frames := 8
@@ -43,8 +46,31 @@ func _ready() -> void:
 	narrator.started.connect(func(line: Dictionary, _seconds: float) -> void:
 		if state == "opening" and screen:
 			Screens.light(screen, line.id))
+	music = Music.new()
+	music.name = "Music"
+	add_child(music)
+	clicks = Sound.new()
+	clicks.name = "Clicks"
+	add_child(clicks)
+	# every button on every screen clicks, however the screen was made
+	get_tree().node_added.connect(_on_node_added)
 	_apply_sound()
 	show_title()
+
+
+func _on_node_added(node: Node) -> void:
+	if node is BaseButton and _layer.is_ancestor_of(node):
+		(node as BaseButton).pressed.connect(clicks.play.bind("ui_click"))
+
+
+# The music follows the game: quiet on the menus, the run's own loop under a run, lower while
+# anyone is speaking, and the tide bell once the clock is in its last two minutes.
+func _process(_delta: float) -> void:
+	var playing := run != null and is_instance_valid(run) and state in ["run", "paused", "summary"]
+	music.want = Music.loop_for(run) if playing else "calm_0"
+	music.quiet = state != "run"
+	music.ducked = narrator.is_talking() or (playing and run.voice.is_talking())
+	music.late = playing and not run.combat.finished and run.combat.time >= Combat.TIME_LIMIT - 120.0
 
 
 func _show(next: Control, new_state: String) -> void:
@@ -133,6 +159,7 @@ func start_run() -> void:
 		if mine != _starting or not is_inside_tree():
 			return
 	step.text = "Laying the stones"
+	music.preload_all()
 	for i in files.size():
 		_kept.append(load(files[i]))
 		bar.value = (cast.size() + i + 1) / total

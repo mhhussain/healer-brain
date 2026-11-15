@@ -40,6 +40,8 @@ var player: Unit
 ## What the party says, and the voice that says it.
 var story: Story
 var voice: Voice
+## The sound effects of the run.
+var sound: Sound
 var sandbox := false
 ## The party frame under the mouse: that hero's id, or 0.
 var hover_frame_id := 0
@@ -94,6 +96,10 @@ func _ready() -> void:
 	add_child(voice)
 	story.said.connect(voice.say)
 	voice.started.connect(_on_line_started)
+	sound = Sound.new()
+	sound.name = "Sound"
+	add_child(sound)
+	sound.follow(self)
 
 	for i in party.size():
 		var c := combat.add_hero(Heroes.by_id(party[i]), i == player_slot)

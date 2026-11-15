@@ -7,14 +7,16 @@ Godot **4.7.2**, GDScript, Compatibility renderer. CI uses the same version (`.g
 ## Layout
 
 - `rules/`: the rules of the game as plain GDScript classes with no scene in them: heroes, enemies and levels as data, `Combat` for abilities, auras, threat and who is in a fight, `HeroAI` for what the AI party decides, `Story` for what the party says and when, and `SaveData` and `Bindings` for what is kept between runs. They are tested on their own.
-- `scripts/`: the nodes. `App` is the game as a whole: it moves between the screens and the run and owns the save. `Run` builds the level, owns the rules, tells them where each `Unit` stands, ticks them 60 times a second and shows what happens. `LevelBuilder` makes the floor, walls, collision and navigation mesh from a level's description. `Walker` walks enemies and AI heroes to where the rules want them, along the navigation mesh.
+- `scripts/`: the nodes. `App` is the game as a whole: it moves between the screens and the run and owns the save. `Run` builds the level, owns the rules, tells them where each `Unit` stands, ticks them 60 times a second and shows what happens. `LevelBuilder` makes the floor, walls, collision and navigation mesh from a level's description, and dresses them with the room pieces. `Unit` shows a hero or enemy as its figure and picks its clip (idle, run, attack, cast, hit, fall) from what the rules report; `Figures` says which file is whose. `Walker` walks enemies and AI heroes to where the rules want them, along the navigation mesh.
 - `ui/`: the interface. `Hud` and its frames and buttons during a run, `WorldOverlay` for what is drawn over the figures, `Screens` for the title, setup, pause and summary, `KeysEditor`, and `Kit` for the colours and theme they share.
+- `assets/`: the voice recordings, and the starter art: one 3D figure per hero and enemy and the room pieces the level is laid with. [`assets/README.md`](assets/README.md) says where they came from and how to replace each with your own.
 - `scenes/`: `app.tscn` (where the game starts), `run.tscn` (one run) and `unit.tscn` (every hero and enemy).
 - `tests/`: GUT tests, and `tests/tools/` for things that are not tests:
   - `sim.gd`: all-AI runs for balance (see below).
   - `capture.gd`: lets the AI play for `--write-movie`, to get frames to look at.
   - `hitches.gd`: lets the AI play in a window and prints frames that took too long.
   - `screens.gd`: walks the app through its screens for `--write-movie`.
+  - `lineup.gd`: stands the whole cast in two rows playing one clip, for `--write-movie`.
   - `voice_manifest.gd`: writes the list of voice lines from the story.
 
 ## Play

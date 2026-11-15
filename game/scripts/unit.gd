@@ -3,7 +3,8 @@ extends CharacterBody3D
 
 # A hero or an enemy on the floor. Whoever drives it (the player's keys or a brain) sets `wish`;
 # the unit turns that into movement that eases in and out, and turns to face the way it goes.
-# Its health and abilities live in the rules, as `c`; this node only shows them.
+# Its health and abilities live in the rules, as `c`; this node only shows them: as a 3D figure
+# with clips if scripts/figures.gd names one for it, and as a grey capsule if not.
 
 @export_group("Who")
 @export_enum("hero", "enemy") var team := "hero"
@@ -28,6 +29,18 @@ extends CharacterBody3D
 ## The way it faces, as a turn about the vertical; 0 looks along -Z.
 @export_range(-180, 180, 0.1, "radians_as_degrees") var facing := 0.0
 
+@export_group("Figure")
+## Seconds over which one clip blends into the next.
+@export var blend := 0.15
+## The run clip is made for this speed, in metres a second; faster units play it faster.
+@export var run_clip_speed := 5.5
+## How much faster than recorded an attack is played, so it fits between two attacks.
+@export var attack_rate := 1.5
+## How far off the edge of the screen, in pixels, a figure still plays its clips.
+@export var view_margin := 240.0
+## The least time between two flinches, in seconds, so a tank is not forever flinching.
+@export var flinch_every := 1.2
+
 @export_group("Jump")
 ## Upward speed at take-off, in metres a second. The jump is for show: it clears nothing.
 @export var jump_speed := 6.6
@@ -50,6 +63,15 @@ var _body_mat: StandardMaterial3D
 var _ring: MeshInstance3D
 var _marker: MeshInstance3D
 var _body_color := Color.WHITE
+## The 3D figure, its clips and its materials, if it has one.
+var figure: Node3D
+var _anim: AnimationPlayer
+var _figure_mats: Array[StandardMaterial3D] = []
+var _clip := ""
+# seconds left of an attack or a flinch, which standing clips must not cut short
+var _busy := 0.0
+var _seen := true
+var _flinch_wait := 0.0
 
 @onready var visual: Node3D = $Visual
 @onready var shadow: Node3D = $Shadow
@@ -100,8 +122,120 @@ func setup() -> void:
 	blob.radial_segments = 24
 	blob.rings = 1
 	shadow.mesh = blob
+	_dress(c.hero.id if c.hero else c.enemy.id)
 	if c.hero:
 		_mark()
+
+
+# Puts the 3D figure for that hero or enemy in place of the capsule, if there is one.
+func _dress(def_id: String) -> void:
+	var scene := Figures.scene_for(def_id)
+	if scene == null:
+		return
+	figure = scene.instantiate()
+	# figures face +Z; units face -Z
+	figure.rotation.y = PI
+	visual.add_child(figure)
+	body.visible = false
+	nose.visible = false
+	# its own copies of the materials, so a hit can flash this figure alone. The glow is always
+	# on (at nothing), so that flashing does not make the engine build a new shader mid-fight.
+	var copies := {}
+	for node in figure.find_children("*", "MeshInstance3D", true, false):
+		var part := node as MeshInstance3D
+		for i in part.mesh.get_surface_count():
+			var mat := part.mesh.surface_get_material(i) as StandardMaterial3D
+			if mat == null:
+				continue
+			if not copies.has(mat):
+				var copy: StandardMaterial3D = mat.duplicate()
+				copy.emission_enabled = true
+				copy.emission = Color.BLACK
+				copies[mat] = copy
+				_figure_mats.append(copy)
+			part.set_surface_override_material(i, copies[mat])
+	_anim = figure.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	if _anim:
+		# a cast is held for as long as it lasts, whatever the file says
+		var cast := _clip_named("cast")
+		if cast != "":
+			_anim.get_animation(cast).loop_mode = Animation.LOOP_LINEAR
+		_show("idle")
+
+
+# The clip of that name in the figure, or "" if it has none. A figure may borrow another's
+# clips as a library called "shared".
+func _clip_named(clip: String) -> String:
+	if _anim == null:
+		return ""
+	if _anim.has_animation(clip):
+		return clip
+	if _anim.has_animation("shared/" + clip):
+		return "shared/" + clip
+	return ""
+
+
+# Blends to a clip, unless it is the one already playing.
+func _show(clip: String, rate := 1.0) -> void:
+	if _clip == clip:
+		return
+	var found := _clip_named(clip)
+	if found == "":
+		return
+	_clip = clip
+	_anim.play(found, blend, rate)
+
+
+## Swings, shoots or throws: the attack clip, played once. Ignored on the move.
+func swing() -> void:
+	if _anim == null or not is_alive() or _busy > 0.0 or _moving():
+		return
+	var found := _clip_named("attack")
+	if found == "":
+		return
+	_clip = "attack"
+	_anim.stop()
+	_anim.play(found, blend * 0.5, attack_rate)
+	_busy = _anim.get_animation(found).length / attack_rate * 0.8
+
+
+func _moving() -> bool:
+	return Vector2(velocity.x, velocity.z).length() > 0.6
+
+
+# Whether the figure is on the screen, or near enough to it.
+func _in_view() -> bool:
+	var cam := get_viewport().get_camera_3d()
+	if cam == null:
+		return true
+	var at := cam.unproject_position(global_position + Vector3(0, height * 0.5, 0))
+	return get_viewport().get_visible_rect().grow(view_margin).has_point(at)
+
+
+# Picks the clip for what the unit is doing now.
+func _animate(delta: float) -> void:
+	# figures out of sight stand still: thirty skeletons moving unseen cost a browser dearly
+	var seen := _in_view()
+	if seen != _seen:
+		_seen = seen
+		_anim.process_mode = Node.PROCESS_MODE_INHERIT if seen else Node.PROCESS_MODE_DISABLED
+		if seen and _clip == "fall":
+			# it fell while nobody was looking: it is found lying, not falling
+			_anim.advance(10.0)
+	_busy = maxf(_busy - delta, 0.0)
+	_flinch_wait = maxf(_flinch_wait - delta, 0.0)
+	if not is_alive():
+		_busy = 0.0
+		_show("fall")
+	elif _moving():
+		_busy = 0.0
+		_show("run", maxf(speed / run_clip_speed, 1.0))
+	elif _busy > 0.0:
+		pass
+	elif c and c.cast:
+		_show("cast")
+	else:
+		_show("idle")
 
 
 # A ring under a hero's feet in its colour; yours is gold, with a marker over your head.
@@ -145,9 +279,17 @@ func jump() -> void:
 		_rise = jump_speed
 
 
-## A brief flash and swell when it is hit.
+## A brief flash and swell when it is hit, and a flinch if it is standing idle.
 func flash() -> void:
 	_flash = 1.0
+	if _anim and is_alive() and _busy <= 0.0 and _flinch_wait <= 0.0 and not _moving() and not (c and c.cast):
+		var found := _clip_named("hit")
+		if found != "":
+			_clip = "hit"
+			_anim.stop()
+			_anim.play(found, blend * 0.5)
+			_busy = minf(_anim.get_animation(found).length, 0.4)
+			_flinch_wait = flinch_every
 
 
 ## A quick roll or lunge along the floor, stopped by walls.
@@ -187,14 +329,20 @@ func _physics_process(delta: float) -> void:
 			lift = 0.0
 			_rise = 0.0
 
-	# the fallen lie down
+	# the fallen lie down: a figure by its own clip, a capsule by tipping over
 	_fall = move_toward(_fall, 0.0 if is_alive() else 1.0, delta * 5.0)
 	_flash = move_toward(_flash, 0.0, delta * 6.0)
-	visual.rotation = Vector3(0, facing, _fall * PI / 2)
-	visual.position.y = lift + _fall * radius
+	var tips := figure == null or _clip_named("fall") == ""
+	visual.rotation = Vector3(0, facing, _fall * PI / 2 if tips else 0.0)
+	visual.position.y = lift + (_fall * radius if tips else 0.0)
 	visual.scale = Vector3.ONE * (1.0 + 0.1 * _flash)
 	shadow.scale = Vector3.ONE * (1.0 - 0.4 * minf(lift, 1.0))
 	_body_mat.albedo_color = _body_color.lerp(Color.WHITE, 0.6 * _flash).darkened(0.45 * _fall)
+	for mat in _figure_mats:
+		mat.emission = Color.WHITE * (0.55 * _flash)
+		mat.albedo_color = Color.WHITE.darkened(0.45 * _fall)
+	if _anim:
+		_animate(delta)
 	if _marker:
 		_marker.visible = is_alive()
 		_marker.position.y = height + 1.05 + lift

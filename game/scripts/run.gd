@@ -244,6 +244,8 @@ func _on_event(e: Dictionary) -> void:
 			var tgt := unit_of(e.id)
 			var src := unit_of(e.src)
 			tgt.flash()
+			if src and src != tgt:
+				src.swing()
 			# a heavy hit on a hero jolts the screen, more so when it is on you
 			if camera and tgt.c.hero and e.amt >= tgt.c.max_hp * 0.12:
 				camera.shake(0.28 if tgt.is_player else 0.14)
@@ -253,6 +255,8 @@ func _on_event(e: Dictionary) -> void:
 						overlay.float_text(tgt, str(int(e.amt)), Kit.GOLD if src and src.is_player else Kit.BONE)
 				else:
 					overlay.float_text(tgt, "-%d" % e.amt if e.amt > 0.0 else "absorbed", Kit.RED)
+		"ability":
+			unit_of(e.id).swing()
 		"heal":
 			if overlay:
 				overlay.float_text(unit_of(e.id), "+%d" % e.amt, Kit.GREEN)

@@ -1,10 +1,15 @@
 class_name LevelBuilder
 extends Node3D
 
-# Builds a level from its description: grey-box floor, walls and pillars with collision, and the
+# Builds a level from its description: floor, walls and pillars with collision, and the
 # navigation mesh the AI walks on. It also answers the rules' questions about the place.
+#
+# What stands and where comes from the description alone. How it looks comes from the room
+# pieces in assets/kit: each rectangle of floor or wall is laid with as many pieces as fit,
+# stretched a little so they fill it exactly. Without the pieces it is drawn as grey boxes.
 
 const GRID := preload("res://shaders/grid.gdshader")
+const KIT := "res://assets/kit/"
 # a unit's half-width, kept clear of walls by the navigation mesh
 const AGENT_RADIUS := 0.5
 # line of sight is judged at about chest height, so low kerbs and crates do not block it
@@ -12,12 +17,27 @@ const EYE := Vector3(0, 1.3, 0)
 const KNEE := Vector3(0, 0.5, 0)
 const WALLS := 1
 
+## Draw the place with the room pieces. Off, it is the grey boxes with a metre grid.
+@export var dressed := true
+## How long a floor tile or a piece of wall is made, in metres, before it is fitted.
+@export var piece_length := 2.4
+## Walls lower than this are drawn as kerbs.
+@export var kerb_below := 1.5
+## Metres between the torches along a back wall.
+@export var torch_every := 7.0
+## The floor is painted a little darker and cooler than the walls, so that figures, rings and
+## warnings stand out against it.
+@export var floor_tint := Color(0.66, 0.74, 0.8)
+
 var def: LevelDef
 
 var _region: NavigationRegion3D
 var _pillars: Array[StaticBody3D] = []
 var _wall_mat: StandardMaterial3D
 var _pillar_mat: StandardMaterial3D
+var _kit_mat: StandardMaterial3D
+var _floor_mat: StandardMaterial3D
+var _pieces := {}  # piece name -> {"mesh": Mesh, "size": Vector3, "low": Vector3}, or null
 
 
 func build(level: LevelDef) -> void:
@@ -28,8 +48,17 @@ func build(level: LevelDef) -> void:
 	_pillar_mat.albedo_color = Color(0.44, 0.4, 0.36)
 	var floor_mat := ShaderMaterial.new()
 	floor_mat.shader = GRID
+	# every piece is painted from the kit's one colour image
+	if dressed and ResourceLoader.exists(KIT + "dungeon_texture.png"):
+		_kit_mat = StandardMaterial3D.new()
+		_kit_mat.albedo_texture = load(KIT + "dungeon_texture.png")
+		_kit_mat.roughness = 1.0
+		_floor_mat = _kit_mat.duplicate()
+		_floor_mat.albedo_color = floor_tint
 
 	for f in def.floors:
+		if _lay_floor(f, 0.0):
+			continue
 		var slab := BoxMesh.new()
 		slab.size = Vector3(f.size.x, 0.5, f.size.y)
 		var floor_part := MeshInstance3D.new()
@@ -42,26 +71,165 @@ func build(level: LevelDef) -> void:
 		var r: Rect2 = w.rect
 		var box := BoxShape3D.new()
 		box.size = Vector3(r.size.x, w.height, r.size.y)
-		var block := BoxMesh.new()
-		block.size = box.size
+		var block: BoxMesh = null
+		if not _raise_wall(r, w.height):
+			block = BoxMesh.new()
+			block.size = box.size
 		_solid(box, block, _wall_mat, Vector3(r.get_center().x, w.height / 2.0, r.get_center().y))
 
 	for p in def.pillars:
 		var round := CylinderShape3D.new()
 		round.radius = p.r
 		round.height = p.height
-		var column := CylinderMesh.new()
-		column.top_radius = p.r
-		column.bottom_radius = p.r
-		column.height = p.height
-		column.radial_segments = 20
+		var column: Mesh = null
+		var stone := _piece("pillar")
+		if stone.is_empty():
+			var drum := CylinderMesh.new()
+			drum.top_radius = p.r
+			drum.bottom_radius = p.r
+			drum.height = p.height
+			drum.radial_segments = 20
+			column = drum
 		var body := _solid(round, column, _pillar_mat, p.pos + Vector3(0, p.height / 2.0, 0))
+		if not stone.is_empty():
+			# square, and a little inside the round shape that blocks the way
+			var look := MeshInstance3D.new()
+			look.mesh = stone.mesh
+			look.material_override = _kit_mat
+			look.scale = Vector3(p.r * 1.85 / stone.size.x, p.height / stone.size.y, p.r * 1.85 / stone.size.z)
+			look.position.y = -p.height / 2.0
+			body.add_child(look)
 		body.set_meta("pillar", _pillars.size())
 		_pillars.append(body)
 
 	_region = NavigationRegion3D.new()
 	add_child(_region)
 	_bake()
+
+
+# ---------- dressing the place with the room pieces
+
+# A room piece by name: its mesh, how big it is, and its lowest corner. Empty if there is none.
+func _piece(piece: String) -> Dictionary:
+	if _kit_mat == null:
+		return {}
+	if not _pieces.has(piece):
+		_pieces[piece] = {}
+		var path := KIT + piece + ".glb"
+		if ResourceLoader.exists(path):
+			var scene: Node = (load(path) as PackedScene).instantiate()
+			var parts := scene.find_children("*", "MeshInstance3D", true, false)
+			var part := (scene if scene is MeshInstance3D else parts[0] if not parts.is_empty() else null) as MeshInstance3D
+			if part:
+				var box := part.mesh.get_aabb()
+				_pieces[piece] = {"mesh": part.mesh, "size": box.size, "low": box.position}
+			scene.free()
+	return _pieces[piece]
+
+
+# Many copies of one piece, drawn as one thing.
+func _copies(piece: Dictionary, places: Array[Transform3D], mat: Material = null) -> void:
+	var many := MultiMesh.new()
+	many.transform_format = MultiMesh.TRANSFORM_3D
+	many.mesh = piece.mesh
+	many.instance_count = places.size()
+	for i in places.size():
+		many.set_instance_transform(i, places[i])
+	var node := MultiMeshInstance3D.new()
+	node.multimesh = many
+	node.material_override = mat if mat else _kit_mat
+	add_child(node)
+
+
+# Lays tiles over a rectangle of floor, with their tops at that height.
+func _lay_floor(f: Rect2, top: float) -> bool:
+	var tile := _piece("floor_tile_large")
+	if tile.is_empty() or f.size.x <= 0.0 or f.size.y <= 0.0:
+		return false
+	var nx := maxi(1, roundi(f.size.x / piece_length))
+	var nz := maxi(1, roundi(f.size.y / piece_length))
+	var step := Vector2(f.size.x / nx, f.size.y / nz)
+	var grow := Vector3(step.x / tile.size.x, piece_length / tile.size.x, step.y / tile.size.z)
+	var places: Array[Transform3D] = []
+	for ix in nx:
+		for iz in nz:
+			var at := Vector3(f.position.x + (ix + 0.5) * step.x, top - (tile.low.y + tile.size.y) * grow.y, f.position.y + (iz + 0.5) * step.y)
+			# every other tile is turned half round, so the pattern repeats less
+			var turned := (ix * 7 + iz * 13) % 3 == 0
+			places.append(Transform3D(Basis.from_scale(grow).rotated(Vector3.UP, PI if turned else 0.0), at))
+	_copies(tile, places, _floor_mat)
+	return true
+
+
+# Draws a wall's box with pieces. A thin wall is one row of pieces, or of kerb if it is low; a
+# small square one is a crate; a thick one is a ring of wall with a tiled top.
+func _raise_wall(r: Rect2, tall: float) -> bool:
+	var thin := minf(r.size.x, r.size.y)
+	if maxf(r.size.x, r.size.y) <= 1.6:
+		var crate := _piece("box_large")
+		if crate.is_empty():
+			return false
+		var grow := Vector3(r.size.x / crate.size.x, tall / crate.size.y, r.size.y / crate.size.z)
+		_copies(crate, [Transform3D(Basis.from_scale(grow), Vector3(r.get_center().x, 0, r.get_center().y))])
+		return true
+	var piece := _piece("barrier" if tall < kerb_below else "wall")
+	if piece.is_empty():
+		return false
+	if thin <= 1.0:
+		_row(piece, r, tall)
+		if tall >= kerb_below and r.size.x > r.size.y:
+			_hang(r, tall)
+		return true
+	var t := minf(0.6, thin / 2.0)
+	_row(piece, Rect2(r.position.x, r.position.y, r.size.x, t), tall)
+	_row(piece, Rect2(r.position.x, r.end.y - t, r.size.x, t), tall)
+	_row(piece, Rect2(r.position.x, r.position.y + t, t, r.size.y - 2 * t), tall)
+	_row(piece, Rect2(r.end.x - t, r.position.y + t, t, r.size.y - 2 * t), tall)
+	_lay_floor(r.grow(-t * 0.5), tall - 0.06)
+	return true
+
+
+# One row of pieces filling a thin rectangle, along whichever way it is longer.
+func _row(piece: Dictionary, r: Rect2, tall: float) -> void:
+	var along_x := r.size.x >= r.size.y
+	var length := r.size.x if along_x else r.size.y
+	var thick := r.size.y if along_x else r.size.x
+	if length <= 0.0 or thick <= 0.0:
+		return
+	var n := maxi(1, roundi(length / piece_length))
+	var grow := Vector3(length / n / piece.size.x, tall / piece.size.y, thick / piece.size.z)
+	var places: Array[Transform3D] = []
+	for i in n:
+		var along := (i + 0.5) * length / n
+		var at := Vector3(r.position.x + along, 0, r.get_center().y) if along_x else Vector3(r.get_center().x, 0, r.position.y + along)
+		places.append(Transform3D(Basis.from_scale(grow).rotated(Vector3.UP, 0.0 if along_x else PI / 2), at))
+	_copies(piece, places)
+
+
+# Torches and banners along the near face of a back wall. They are for show: nothing stands
+# on the floor, so nothing is in the way.
+func _hang(r: Rect2, tall: float) -> void:
+	var torch := _piece("torch_mounted")
+	var banners: Array[Dictionary] = []
+	for b in ["banner_patternA_blue", "banner_shield_white", "banner_patternB_green"]:
+		if not _piece(b).is_empty():
+			banners.append(_piece(b))
+	var n := int(r.size.x / torch_every)
+	if n < 1:
+		return
+	var gap := r.size.x / n
+	var torches: Array[Transform3D] = []
+	var size := Basis.from_scale(Vector3.ONE * 1.3)
+	for i in n:
+		var x := r.position.x + (i + 0.5) * gap
+		torches.append(Transform3D(size, Vector3(x, tall * 0.5, r.end.y)))
+		if not banners.is_empty() and i + 1 < n:
+			# a banner hangs half way to the next torch
+			var banner := banners[i % banners.size()]
+			var drop: float = tall * 0.92 - (banner.low.y + banner.size.y) * 0.7
+			_copies(banner, [Transform3D(Basis.from_scale(Vector3.ONE * 0.7), Vector3(x + gap / 2, drop, r.end.y - banner.low.z * 0.7 + 0.02))])
+	if not torch.is_empty():
+		_copies(torch, torches)
 
 
 func _solid(shape: Shape3D, mesh: Mesh, mat: Material, at: Vector3) -> StaticBody3D:
@@ -71,10 +239,11 @@ func _solid(shape: Shape3D, mesh: Mesh, mat: Material, at: Vector3) -> StaticBod
 	var hull := CollisionShape3D.new()
 	hull.shape = shape
 	body.add_child(hull)
-	var look := MeshInstance3D.new()
-	look.mesh = mesh
-	look.material_override = mat
-	body.add_child(look)
+	if mesh:
+		var look := MeshInstance3D.new()
+		look.mesh = mesh
+		look.material_override = mat
+		body.add_child(look)
 	body.position = at
 	add_child(body)
 	return body

@@ -11,10 +11,10 @@
 
 [sub_resource type="Environment" id="env"]
 background_mode = 1
-background_color = Color(0.09, 0.11, 0.14, 1)
+background_color = Color(0.027, 0.094, 0.129, 1)
 ambient_light_source = 2
-ambient_light_color = Color(0.62, 0.68, 0.78, 1)
-ambient_light_energy = 0.5
+ambient_light_color = Color(0.271, 0.827, 0.761, 1)
+ambient_light_energy = 0.35
 
 [sub_resource type="TorusMesh" id="ring_mesh"]
 inner_radius = 0.78
@@ -40,7 +40,9 @@ script = ExtResource("7")
 environment = SubResource("env")
 
 [node name="Sun" type="DirectionalLight3D" parent="."]
-transform = Transform3D(-0.195, 0.827, -0.527, 0, 0.5375, 0.843, 0.981, 0.164, -0.105, 0, 12, 0)
+transform = Transform3D(0.866, -0.383, 0.3214, 0, 0.6428, 0.766, -0.5, -0.6634, 0.5567, 0, 12, 0)
+light_color = Color(1, 0.886, 0.69, 1)
+light_energy = 1.1
 
 [node name="Camera" type="Camera3D" parent="."]
 transform = Transform3D(0.7071, 0.5, -0.5, 0, 0.7071, 0.7071, 0.7071, -0.5, 0.5, -13, 21.21, 15)

@@ -1,6 +1,6 @@
 # Fourfold in Godot
 
-The game: an isometric dungeon runner, published at https://mhhussain.github.io/healer-brain/. Its rules are in [`DESIGN.md`](../DESIGN.md). It began as a rebuild of a TypeScript game; the brief for that is [`docs/godot-rebuild-handoff.md`](../docs/godot-rebuild-handoff.md).
+The game: an isometric dungeon runner, published at https://mhhussain.github.io/healer-brain/. Its rules are in [`DESIGN.md`](../DESIGN.md). It began as a rebuild of a TypeScript game; the brief for that is [`docs/godot-rebuild-handoff.md`](../docs/godot-rebuild-handoff.md). What is planned next (route planning, a larger dungeon, gear) is in [`docs/routing-and-gear-plan.md`](../docs/routing-and-gear-plan.md).
 
 Godot **4.7.2**, GDScript, Compatibility renderer. CI uses the same version (`.github/workflows/deploy.yml`).
 

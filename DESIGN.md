@@ -2,6 +2,8 @@
 
 Status: **approved and built.** The game is the Godot project in [`game/`](game/README.md), published from `main`. Numbers below are its tuned values.
 
+**Next:** route planning, a second and larger dungeon, and gear were agreed on 15 November 2026 and are not built yet. Section 12 sums them up; the full record is [`docs/routing-and-gear-plan.md`](docs/routing-and-gear-plan.md).
+
 Fourfold was first built in TypeScript as a side-on belt-scroller (kept at the tag `typescript-game`), and this document was written for that game. It was then rebuilt in Godot with an isometric view, which is the game now. The rules here hold for it, and section 3 (controls) describes it. Some passages, section 11 above all, still describe how the first version looked and sounded; where the game differs from them:
 
 - The dungeon, heroes, enemies, AI, clock, unlocks and bests are all in and run to the same times as before (all-AI: about 7:25 to 8:05 at level 1, 10:15 to 11:00 at level 5, 12:00 to 13:00 at level 7).
@@ -21,10 +23,10 @@ Fourfold is an original, solo, browser-based dungeon runner in the style of time
 | Control | You play one hero per run. AI plays the other three. |
 | Party | 1 tank, 1 healer, 2 DPS. You choose every slot, duplicates allowed. |
 | View | Real-time isometric: a 3D floor seen from a fixed camera looking down from one corner, which follows your hero. (The first version was a belt-scroller seen from the side.) |
-| Run | One linear dungeon: 6 trash packs, 3 bosses, 14-minute timer. |
+| Run | One linear dungeon: 6 trash packs, 3 bosses, 14-minute timer. Planned: routes you plan on a map, an enemy count to meet, and a second, larger dungeon with a choice of ways through (section 12). |
 | Levels | Enemies gain 8% health and damage per level (compounding), plus new abilities at levels 3, 6 and 9. No cap. |
 | Unlocks | You may start any level up to one above your highest timed clear. Shared across heroes. |
-| Progression | No gear or talents. Highest timed level and best time are recorded per hero. |
+| Progression | No gear yet. Highest timed level and best time are recorded per hero. Planned: gear, teams and a shop, with levels and records kept per dungeon (section 12). No talents; gear abilities do that job. |
 | Visuals | 3D figures and room pieces as files in `game/assets`, one colour and one hat per character. A starter set of stand-ins for now. |
 | Sound | Voice, effects and music as files in `game/assets`. See section 11 for the music. |
 | Story | The Last Vespers: a light story told through one opening card, speech bubbles and an ending. See section 11. |
@@ -308,6 +310,8 @@ At **level 9**, every trash enemy deals 25% more damage below 25% health.
 
 Gear, talents, run modifiers, route choices, more dungeons, mobile and touch, rebinding the movement keys, saving mid-run.
 
+Of these, route choices, a second dungeon and gear are now planned (section 12). Talents are dropped for good: gear abilities do that job.
+
 ## 11. Theme: The Drowned Abbey
 
 The theme is a reskin. Ids, numbers and mechanics are unchanged; only names, drawing, sound and words differ.
@@ -383,3 +387,18 @@ When a boss is laid to rest its lamp lights and warm gold light floods back thro
 | Archon Sulmar: Annihilation, Dirge, Ashfall, Searing Brand | Abbot Sulmar: The Last Toll, Dirge, Saltfall, Brine Brand |
 | Interrupt, dispel, death | Silence, cleanse, fall |
 | Packs 1 to 6 | The Cloister Walk, The Wet Stair, The Undercroft, The Dispensary, The Choir Stalls, The Bell Stair |
+
+## 12. Next: routing, a big dungeon and gear
+
+Agreed on 15 November 2026; not built yet. This is a summary. [`docs/routing-and-gear-plan.md`](docs/routing-and-gear-plan.md) is the full record and [`docs/routing-and-gear-handoff.md`](docs/routing-and-gear-handoff.md) is the brief for building it. As each milestone lands, its rules move into the sections above.
+
+- **Routing.** Before a run you open a map of the dungeon and plan a route: an ordered list of pulls. A pull names one or more packs taken together, where the tank holds them, and where the healer and damage dealers stand. All of it is optional; with no plan the AI follows a safe default route. The map can be opened during a run, between fights, to change the pulls not yet made.
+- **Count.** Each enemy is worth points. A run is complete when every boss is dead and the dungeon's count is met. A dungeon holds about 130% of the count it needs, so the route decides what is left alive.
+- **The map** follows the tools Mythic+ players know (Mythic Dungeon Tools, Keystone.guru): the map on the left, a list of coloured, numbered pulls on the right, a count bar above the list.
+- **A big dungeon.** About 22 trash packs and 4 bosses on a 25-minute timer: an entrance, three wings taken in any order, each ending in a boss, and a last boss that opens when the other three are dead. Patrols. Wipes return the party to the last sanctuary lamp lit. The Abbey stays as the short first dungeon.
+- **Levels** are kept per dungeon and have no cap. Beating the timer by 20% opens two levels up, by 40% three.
+- **Gear.** Three slots: weapon (damage and healing), armour (health), trinket (a unique ability). Item level is the only stat. Rarities: common, uncommon, rare, epic (adds an ability), set (a bonus for wearing all three pieces), legendary (one per party). Items drop from a chest at the end of a run; higher dungeon levels allow higher item levels and better rarities.
+- **Inventory, teams and shop.** Gear belongs to the player, in one inventory. A team is four heroes, the one you play and what each wears; you may keep any number, and a default team always wears your best. Unwanted items sell for coin, which buys a gamble on a random item.
+- **Start screen.** Three choices side by side: dungeon and level, team, route. Start always works with the defaults.
+
+Milestones: 9 rooms and count, 10 routes on the Abbey, 11 the big dungeon, 12 levels and basic gear, 13 rare gear and the shop.

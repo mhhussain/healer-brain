@@ -11,14 +11,21 @@ const RUN := "res://scenes/run.tscn"
 
 var save: SaveData
 var run: Run
-## "title", "opening", "setup", "run", "paused" or "summary".
+## "title", "opening", "setup", "loading", "run", "paused" or "summary".
 var state := "title"
 var screen: Control
 ## The narrator: the opening and the ending.
 var narrator: Voice
 
+## Frames the new run is drawn under the loading card before it starts.
+var warm_frames := 8
+
 var _layer: CanvasLayer
 var _told_opening := false
+# counts the runs asked for, so a start that was overtaken by another gives up
+var _starting := 0
+# room pieces read ahead of the run, held so they are not read again
+var _kept: Array[Resource] = []
 
 
 func _ready() -> void:
@@ -87,13 +94,17 @@ func show_setup() -> void:
 
 
 func _end_run() -> void:
+	# a run still being made ready is called off
+	_starting += 1
 	get_tree().paused = false
 	if run and is_instance_valid(run):
 		run.queue_free()
 	run = null
 
 
-## Starts a run with the crew and level in the save.
+## Starts a run with the crew and level in the save. Making one ready takes a moment (longer
+## in a browser), so a card with a bar is shown meanwhile; wait on this call to know when the
+## run has begun.
 func start_run() -> void:
 	_end_run()
 	narrator.hush()
@@ -101,13 +112,60 @@ func start_run() -> void:
 	Run.party.assign(save.party)
 	Run.player_slot = save.slot
 	Run.chosen_level = save.level
+	var level := Levels.by_name(Run.place)
+	_show(Screens.loading(level.name), "loading")
+	_starting += 1
+	var mine := _starting
+	var bar := screen.find_child("Bar", true, false) as ProgressBar
+	var step := screen.find_child("Step", true, false) as Label
+	# the card has to be drawn before the work that would freeze it
+	await _frames(2)
+
+	# read the figures and the room pieces one a frame, so the bar can move
+	var cast := Figures.cast_of(Run.party, level)
+	var files := LevelBuilder.piece_files()
+	var total := float(cast.size() + files.size() + 2)
+	step.text = "Waking the drowned"
+	for i in cast.size():
+		Figures.scene_for(cast[i])
+		bar.value = (i + 1) / total
+		await _frames(1)
+		if mine != _starting or not is_inside_tree():
+			return
+	step.text = "Laying the stones"
+	for i in files.size():
+		_kept.append(load(files[i]))
+		bar.value = (cast.size() + i + 1) / total
+		await _frames(1)
+		if mine != _starting or not is_inside_tree():
+			return
+
+	# build the run under the card and hold it still for a few frames, with one of everything
+	# that can appear in it in front of the camera: the first time a kind of thing is drawn the
+	# engine builds its shader, and that stall belongs here, not in the first fight
+	step.text = "Lighting the lamps"
 	run = load(RUN).instantiate()
 	run.process_mode = Node.PROCESS_MODE_PAUSABLE
 	add_child(run)
 	move_child(run, 0)
 	run.finished.connect(_on_finished)
 	run.pause_requested.connect(pause)
+	get_tree().paused = true
+	bar.value = (total - 1.0) / total
+	var warmers := run.warm_up(cast)
+	await _frames(warm_frames)
+	for node in warmers:
+		if is_instance_valid(node):
+			node.queue_free()
+	if mine != _starting or not is_inside_tree():
+		return
+	get_tree().paused = false
 	_show(null, "run")
+
+
+func _frames(count: int) -> void:
+	for i in count:
+		await get_tree().process_frame
 
 
 func pause() -> void:

@@ -47,6 +47,7 @@ var hover_frame_id := 0
 var _told := false
 
 var _units := {}  # combatant id -> Unit
+var _warm_mats: Array[StandardMaterial3D] = []
 
 # loaded when first needed: the scene's own script refers back to this one
 const UNIT := "res://scenes/unit.tscn"
@@ -148,6 +149,32 @@ func _spawn(c: Combatant, facing: float) -> Unit:
 	u.add_child(driver)
 	u.place(c.pos)
 	return u
+
+
+## Stands one of every figure and room piece that can appear in this run in front of the
+## camera, moving, and returns them to be freed a few frames later. The first time a kind of
+## thing is drawn the engine builds its shader, which stalls the game for a moment: the app
+## does this behind its loading card so that the stall is not in the first fight.
+func warm_up(cast: Array[String]) -> Array[Node]:
+	var made: Array[Node] = []
+	var at := player.global_position if player else Vector3.ZERO
+	for id in cast:
+		var figure := Figures.make(id)
+		if figure == null:
+			continue
+		# kept until the run ends: a material freed in the same breath as the figure wearing it
+		# makes the engine complain
+		_warm_mats.append_array(Figures.own_materials(figure))
+		# its clip plays although the run is held still
+		figure.process_mode = Node.PROCESS_MODE_ALWAYS
+		add_child(figure)
+		figure.global_position = at
+		var clips := figure.find_child("AnimationPlayer", true, false) as AnimationPlayer
+		if clips and clips.has_animation("idle"):
+			clips.play("idle")
+		made.append(figure)
+	made.append_array(level.warm_up(at))
+	return made
 
 
 func unit_of(id: int) -> Unit:

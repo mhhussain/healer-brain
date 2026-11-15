@@ -140,3 +140,24 @@ func test_without_the_pieces_it_is_grey_boxes():
 	plain.build(Levels.sandbox())
 	assert_eq(plain.find_children("*", "MultiMeshInstance3D", true, false).size(), 0)
 	assert_gt(plain.find_children("*", "MeshInstance3D", true, false).size(), 10)
+
+
+# ---------- getting a run ready
+
+func test_the_cast_of_a_run_is_the_party_its_enemies_and_the_ward():
+	var cast := Figures.cast_of(["warden", "mender", "duelist", "duelist"], Levels.abbey())
+	assert_eq(cast.count("duelist"), 1, "each kind once")
+	for id: String in ["warden", "brute", "overseer", "sulmar", "hatchling"]:
+		assert_has(cast, id)
+	assert_does_not_have(Figures.cast_of(["warden"], Levels.sandbox()), "hatchling", "nobody wakes a ward in the sandbox")
+
+
+func test_warming_up_stands_one_of_everything_before_the_camera():
+	var cast := Figures.cast_of(Run.party, main.level.def)
+	var made := main.warm_up(cast)
+	assert_gt(made.size(), cast.size() + LevelBuilder.PIECES.size(), "every figure, and every piece singly and in a batch")
+	for node in made:
+		assert_true(node.is_inside_tree())
+		node.queue_free()
+	await wait_frames(2)
+	assert_eq(main.find_children("*", "AnimationPlayer", true, false).size(), main.all_units().size(), "and they are gone again")

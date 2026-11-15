@@ -17,6 +17,10 @@ const EYE := Vector3(0, 1.3, 0)
 const KNEE := Vector3(0, 0.5, 0)
 const WALLS := 1
 
+# every room piece the builder may ask for
+const PIECES := ["floor_tile_large", "wall", "barrier", "pillar", "box_large", "torch_mounted",
+	"banner_patternA_blue", "banner_shield_white", "banner_patternB_green"]
+
 ## Draw the place with the room pieces. Off, it is the grey boxes with a metre grid.
 @export var dressed := true
 ## How long a floor tile or a piece of wall is made, in metres, before it is fitted.
@@ -108,6 +112,34 @@ func build(level: LevelDef) -> void:
 
 
 # ---------- dressing the place with the room pieces
+
+## The files the room pieces are in, for whoever wants them read before the level is built.
+static func piece_files() -> Array[String]:
+	var files: Array[String] = [KIT + "dungeon_texture.png"]
+	for piece: String in PIECES:
+		files.append(KIT + piece + ".glb")
+	return files.filter(func(path: String) -> bool: return ResourceLoader.exists(path))
+
+
+## One of each room piece, drawn singly at that spot, to be freed a few frames later. See
+## Run.warm_up: a piece drawn alone and the same piece drawn in hundreds are two shaders.
+func warm_up(at: Vector3) -> Array[Node]:
+	var made: Array[Node] = []
+	for name: String in PIECES:
+		var piece := _piece(name)
+		if piece.is_empty():
+			continue
+		var one := MeshInstance3D.new()
+		one.mesh = piece.mesh
+		one.material_override = _kit_mat
+		one.scale = Vector3.ONE * 0.01
+		add_child(one)
+		one.global_position = at
+		made.append(one)
+		_copies(piece, [Transform3D(Basis.from_scale(Vector3.ONE * 0.01), at)])
+		made.append(get_child(get_child_count() - 1))
+	return made
+
 
 # A room piece by name: its mesh, how big it is, and its lowest corner. Empty if there is none.
 func _piece(piece: String) -> Dictionary:
@@ -211,7 +243,7 @@ func _row(piece: Dictionary, r: Rect2, tall: float) -> void:
 func _hang(r: Rect2, tall: float) -> void:
 	var torch := _piece("torch_mounted")
 	var banners: Array[Dictionary] = []
-	for b in ["banner_patternA_blue", "banner_shield_white", "banner_patternB_green"]:
+	for b: String in PIECES.filter(func(piece: String) -> bool: return piece.begins_with("banner")):
 		if not _piece(b).is_empty():
 			banners.append(_piece(b))
 	var n := int(r.size.x / torch_every)

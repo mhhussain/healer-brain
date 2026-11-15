@@ -47,6 +47,25 @@ static func opening(on_done: Callable) -> Control:
 	return root
 
 
+## The card shown while a run is made ready. Its bar is "Bar" and the line under it "Step".
+static func loading(place: String) -> Control:
+	var root := Kit.screen(1.0)
+	root.name = "Loading"
+	var col := Kit.vbox(14)
+	col.add_child(Kit.label("Going down to " + place, 22, Kit.GOLD))
+	var bar := ProgressBar.new()
+	bar.name = "Bar"
+	bar.custom_minimum_size = Vector2(420, 14)
+	bar.max_value = 1.0
+	bar.show_percentage = false
+	col.add_child(bar)
+	var step := Kit.label("", 13, Kit.GREY)
+	step.name = "Step"
+	col.add_child(step)
+	Kit.panel_of(root).add_child(col)
+	return root
+
+
 ## Lights the line with that id on the opening card.
 static func light(card: Control, id: String) -> void:
 	var line := card.find_child(id, true, false) as Label

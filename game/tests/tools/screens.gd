@@ -30,7 +30,7 @@ func _walk(app: App, hero: String) -> void:
 	app.show_setup()
 	await _frames(60)
 	_say("setup")
-	app.start_run()
+	await app.start_run()
 	# let the party pull and fight for a while, with the AI playing your hero so something happens
 	app.run.combat.autoplay = true
 	await _frames(330)

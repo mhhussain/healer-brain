@@ -129,31 +129,15 @@ func setup() -> void:
 
 # Puts the 3D figure for that hero or enemy in place of the capsule, if there is one.
 func _dress(def_id: String) -> void:
-	var scene := Figures.scene_for(def_id)
-	if scene == null:
+	figure = Figures.make(def_id)
+	if figure == null:
 		return
-	figure = scene.instantiate()
 	# figures face +Z; units face -Z
 	figure.rotation.y = PI
 	visual.add_child(figure)
 	body.visible = false
 	nose.visible = false
-	# its own copies of the materials, so a hit can flash this figure alone. The glow is always
-	# on (at nothing), so that flashing does not make the engine build a new shader mid-fight.
-	var copies := {}
-	for node in figure.find_children("*", "MeshInstance3D", true, false):
-		var part := node as MeshInstance3D
-		for i in part.mesh.get_surface_count():
-			var mat := part.mesh.surface_get_material(i) as StandardMaterial3D
-			if mat == null:
-				continue
-			if not copies.has(mat):
-				var copy: StandardMaterial3D = mat.duplicate()
-				copy.emission_enabled = true
-				copy.emission = Color.BLACK
-				copies[mat] = copy
-				_figure_mats.append(copy)
-			part.set_surface_override_material(i, copies[mat])
+	_figure_mats = Figures.own_materials(figure)
 	_anim = figure.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	if _anim:
 		# a cast is held for as long as it lasts, whatever the file says
@@ -218,7 +202,7 @@ func _animate(delta: float) -> void:
 	var seen := _in_view()
 	if seen != _seen:
 		_seen = seen
-		_anim.process_mode = Node.PROCESS_MODE_INHERIT if seen else Node.PROCESS_MODE_DISABLED
+		_anim.active = seen
 		if seen and _clip == "fall":
 			# it fell while nobody was looking: it is found lying, not falling
 			_anim.advance(10.0)

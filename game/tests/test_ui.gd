@@ -259,7 +259,14 @@ func test_the_app_goes_from_title_to_run_to_summary_and_keeps_the_save():
 	app.save.party.assign(["warden", "mender", "duelist", "pyromancer"])
 	app.save.slot = 3
 	app.start_run()
+	assert_eq(app.state, "loading", "a card with a bar while the run is made ready")
+	assert_not_null(app.screen.find_child("Bar", true, false))
+	await wait_until(func() -> bool: return app.state == "run", 10.0)
 	assert_eq(app.state, "run")
+	assert_false(get_tree().paused)
+	await wait_frames(2)
+	assert_eq(app.run.find_children("*", "AnimationPlayer", true, false).size(), app.run.all_units().size(),
+		"what was stood before the camera to warm up is gone")
 	assert_eq(app.run.player.c.hero.id, "pyromancer")
 	assert_eq(Run.keys, app.save, "the run reads its keys from the save")
 	await wait_physics_frames(3)
@@ -287,6 +294,7 @@ func test_the_app_goes_from_title_to_run_to_summary_and_keeps_the_save():
 	assert_eq(SaveStore.load_save().unlocked, 2, "and it is in the file")
 
 	(app.screen.find_child("Next", true, false) as Button).pressed.emit()
+	await wait_until(func() -> bool: return app.state == "run", 10.0)
 	assert_eq(app.state, "run")
 	assert_eq(app.run.combat.level, 2)
 	assert_false(get_tree().paused)
@@ -303,7 +311,7 @@ func test_a_run_the_ai_played_is_not_recorded():
 	var app: App = load("res://scenes/app.tscn").instantiate()
 	add_child_autofree(app)
 	Run.autoplay = true
-	app.start_run()
+	await app.start_run()
 	await wait_physics_frames(3)
 	for e in app.run.combat.enemies.duplicate():
 		app.run.combat.damage(app.run.player.c, e, 9999999.0)

@@ -8,6 +8,9 @@ extends RefCounted
 # casts it wherever the pointer is. A healer's ally abilities can also be bound to a click on a
 # party frame, plain or with Shift, Ctrl or Alt. A key or button does one thing: binding it to
 # an ability takes it away from the ability that had it.
+#
+# Gear has three keys of its own, one for each slot (weapon, armour, trinket), the same for
+# every hero: a gear key is taken from every hero's abilities, and an ability key from the gear.
 
 ## Keys the game keeps for itself, and what for.
 const RESERVED := {
@@ -52,10 +55,20 @@ static func default_clicks(hero_id: String) -> Dictionary:
 	return {}
 
 
+## Z, X and C: the weapon's key, the armour's and the trinket's.
+const GEAR_KEYS: Array[int] = [KEY_Z, KEY_X, KEY_C]
+
+
 static func reset(save: SaveData, hero_id: String) -> void:
 	save.keys[hero_id] = default_keys(hero_id)
 	save.mouse[hero_id] = {}
 	save.clicks[hero_id] = default_clicks(hero_id)
+
+
+## Puts the gear keys back, taking them from any ability that had been given one.
+static func reset_gear(save: SaveData) -> void:
+	for slot in 3:
+		set_gear_key(save, slot, GEAR_KEYS[slot])
 
 
 # ---------- changing them
@@ -70,7 +83,29 @@ static func set_key(save: SaveData, hero_id: String, ab_id: String, slot: int, c
 		for i in 2:
 			if mine[other][i] == code:
 				mine[other][i] = 0
+	for i in 3:
+		if save.gear_keys[i] == code:
+			save.gear_keys[i] = 0
 	mine[ab_id][slot] = code
+	return ""
+
+
+## Gives a gear slot (0 the weapon, 1 the armour, 2 the trinket) its key, or none with 0. The
+## key is taken from the other gear slots and from every hero's abilities. Returns "" if it was
+## done, or why not.
+static func set_gear_key(save: SaveData, slot: int, code: int) -> String:
+	if RESERVED.has(code):
+		return "%s is kept for %s" % [key_name(code), RESERVED[code]]
+	if code != 0:
+		for hero_id: String in save.keys:
+			for ab_id: String in save.keys[hero_id]:
+				for i in 2:
+					if save.keys[hero_id][ab_id][i] == code:
+						save.keys[hero_id][ab_id][i] = 0
+		for i in 3:
+			if save.gear_keys[i] == code:
+				save.gear_keys[i] = 0
+	save.gear_keys[slot] = code
 	return ""
 
 
@@ -115,6 +150,11 @@ static func ability_for_key(save: SaveData, hero_id: String, code: int) -> int:
 		if code != 0 and mine[ab_id].has(code):
 			return _index_of(hero_id, ab_id)
 	return -1
+
+
+## Which gear slot a key uses: 0 the weapon, 1 the armour, 2 the trinket, or -1.
+static func gear_for_key(save: SaveData, code: int) -> int:
+	return save.gear_keys.find(code) if code != 0 else -1
 
 
 static func ability_for_mouse(save: SaveData, hero_id: String, button: String) -> int:

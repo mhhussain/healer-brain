@@ -539,6 +539,41 @@ static func _healer_common(c: Combat, h: Combatant, dispel_id: String, ward_id: 
 	return allies
 
 
+# A trinket that is pressed: used when it would count. The Great Key when badly hurt; the Bell
+# Rope, the Lens and the Pitch Pot on a boss or a big pull; the Seal on a cast nobody else has
+# been given; the Tide Glass when running low.
+static func _trinket(c: Combat, h: Combatant) -> void:
+	if h.trinket_cd > 0.0 or not Items.pressed(h.trinket):
+		return
+	var t := c.unit(h.target_id)
+	var foe: Combatant = t if t and t.alive and t.team == "enemy" and t.engaged else null
+	var fighting := c.engaged_enemies()
+	var big := fighting.size() >= 4 or fighting.any(func(e: Combatant) -> bool: return e.enemy.boss and e.hp > e.max_hp * 0.2)
+	match h.trinket.kind:
+		"great_key":
+			if _pct(h) < 0.45:
+				c.use_trinket(h)
+		"bell_rope":
+			if big and c.can_attack():
+				c.use_trinket(h)
+		"lens":
+			var wanted := c.alive_heroes().any(func(a: Combatant) -> bool: return _pct(a) < 0.6) if h.hero.role == "healer" else big and foe != null and c.can_attack()
+			if wanted:
+				c.use_trinket(h)
+		"pitch_pot":
+			if foe and c.can_attack() and (foe.enemy.boss or fighting.filter(func(e: Combatant) -> bool: return Combat.dist(e, foe) <= 5.0).size() >= 3):
+				c.use_trinket(h, foe)
+		"tide_glass":
+			if h.res < h.res_max * 0.25:
+				c.use_trinket(h)
+		"seal":
+			for e in fighting:
+				var cast := e.cast
+				if cast and cast.interruptible and cast.assignee == 0 and cast.t >= maxf(0.5, h.ai.reaction) and cast.total - cast.t > 0.2:
+					if c.use_trinket(h, e) == "":
+						return
+
+
 static func _act(c: Combat, h: Combatant) -> void:
 	match h.hero.id:
 		"warden": _warden(c, h)
@@ -743,4 +778,5 @@ static func think(c: Combat, h: Combatant) -> void:
 	if ai.moving:
 		h.goal = goal
 	if c.in_combat:
+		_trinket(c, h)
 		_act(c, h)

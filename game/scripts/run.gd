@@ -24,6 +24,9 @@ static var autoplay := false
 static var rng_seed := 0
 ## Where the key and mouse bindings are read from: the player's save, or the usual keys.
 static var keys: SaveData = SaveData.new()
+## What each of the four wears: {"weapon": item, "armour": item, "trinket": item} for each
+## (see rules/items.gd), or empty for nothing. It cannot be changed once the run has begun.
+static var gear: Array = []
 ## The plan for the run, or null for the place's own safe one. It is copied: the run's plan
 ## can be changed from the map without touching this.
 static var route: Route
@@ -110,6 +113,8 @@ func _ready() -> void:
 	for i in party.size():
 		var c := combat.add_hero(Heroes.by_id(party[i]), i == player_slot)
 		c.pos = def.start + Vector3(-i * 1.6, 0, 1.2 if i % 2 else -1.2)
+		if i < gear.size():
+			combat.wear(c, gear[i])
 		var u := _spawn(c, PI / -2.0)
 		if c.is_player:
 			player = u
@@ -123,6 +128,7 @@ func _ready() -> void:
 	if hud:
 		hud.alert("%s, level %d" % [def.name, chosen_level])
 		hud.ability_clicked.connect(func(idx: int) -> void: combat.press(idx))
+		hud.gear_clicked.connect(func(slot: int) -> void: combat.press_gear(slot))
 		hud.frame_clicked.connect(_on_frame_clicked)
 
 

@@ -1,14 +1,15 @@
 class_name Screens
 extends RefCounted
 
-# The screens outside a run and over it: the title, the party setup, the pause menu and the
-# summary. Each is built here and handed the things to call when its buttons are pressed.
+# The screens outside a run and over it: the title, the start screen, the settings, the pause
+# menu and the summary. Each is built here and handed the things to call when its buttons are
+# pressed. The screens for gear are in ui/gear_screens.gd.
 
 const ROLES := ["Tank", "Healer", "Damage", "Damage"]
 const CONTROLS := "W A S D move (Q and E also go left and right).  Space jumps.  The mouse wheel zooms.\nTab or a left click targets an enemy; Esc clears it, and Esc again opens this menu.  P pauses.  M opens the map, between fights.\nAn ally ability goes to the ally under the mouse: a party frame or the figure. With nobody under it, to you."
 
 
-static func title(on_begin: Callable) -> Control:
+static func title(on_begin: Callable, on_gear := Callable()) -> Control:
 	var root := Kit.screen(1.0)
 	root.name = "Title"
 	var col := Kit.vbox(14)
@@ -23,6 +24,11 @@ static func title(on_begin: Callable) -> Control:
 	begin.name = "Begin"
 	begin.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	col.add_child(begin)
+	if on_gear.is_valid():
+		var gear := Kit.button("Gear", on_gear, 14)
+		gear.name = "Gear"
+		gear.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		col.add_child(gear)
 	Kit.panel_of(root).add_child(col)
 	return root
 
@@ -112,99 +118,46 @@ static func markers_row(save: SaveData, on_change: Callable) -> Control:
 	return box
 
 
-## The party, your hero and its keys, the level and the route. `on_change` is called whenever
-## the save has changed, `on_start` when the run should begin and `on_route` when the map
-## should be opened to plan the route.
-static func setup(save: SaveData, on_change: Callable, on_start: Callable, on_route := Callable()) -> Control:
+## The start screen: three choices side by side, each with an editor of its own behind it.
+## The dungeon and its level; the team that goes in; the route it takes. A run can always be
+## started with what is there. `on_change` is called whenever the save has changed and
+## `on_start` when the run should begin; `go` holds what opens the other screens: "route",
+## "team", "gear" and "settings", any of which may be missing.
+static func setup(save: SaveData, on_change: Callable, on_start: Callable, go := {}) -> Control:
 	var root := Kit.screen(1.0)
 	root.name = "Setup"
-	var cols := Kit.hbox(28)
-	Kit.panel_of(root).add_child(cols)
+	var all := Kit.vbox(18)
+	Kit.panel_of(root).add_child(all)
+	var cols := Kit.hbox(36)
+	all.add_child(cols)
 	# rebuilt from the save after every change, so every part agrees with it
 	var rebuild := func() -> void:
 		on_change.call()
-		var fresh := setup(save, on_change, on_start, on_route)
-		var parent := root.get_parent()
-		if parent:
-			var place := root.get_index()
-			parent.remove_child(root)
-			root.queue_free()
-			parent.add_child(fresh)
-			parent.move_child(fresh, place)
-
-	# the crew: who fills each place, and which of them is you
-	var crew := Kit.vbox(8)
-	crew.name = "Crew"
-	crew.add_child(Kit.label("Your crew", 20, Kit.GOLD))
-	var choices := [Heroes.TANKS, Heroes.HEALERS, Heroes.DPS, Heroes.DPS]
-	for slot in 4:
-		var row := Kit.hbox(8)
-		var role := Kit.label(ROLES[slot], 12, Kit.GREY)
-		role.custom_minimum_size.x = 56
-		row.add_child(role)
-		var pick := OptionButton.new()
-		pick.name = "Pick%d" % slot
-		pick.custom_minimum_size.x = 170
-		for id: String in choices[slot]:
-			pick.add_item(Heroes.by_id(id).name)
-		pick.select(choices[slot].find(save.party[slot]))
-		pick.item_selected.connect(func(i: int) -> void:
-			save.party[slot] = choices[slot][i]
-			rebuild.call())
-		row.add_child(pick)
-		var you := Kit.button("You" if save.slot == slot else "Play", func() -> void:
-			save.slot = slot
-			rebuild.call(), 12)
-		you.name = "You%d" % slot
-		you.custom_minimum_size.x = 56
-		if save.slot == slot:
-			you.add_theme_color_override("font_color", Kit.GOLD)
-		row.add_child(you)
-		crew.add_child(row)
-	crew.add_child(Kit.para("The AI plays the other three. Any hero may be in the crew twice.", 12, Kit.GREY, 300.0))
-	crew.add_child(Kit.label("How to play", 16, Kit.GOLD))
-	crew.add_child(Kit.para(CONTROLS.replace("this menu", "the menu"), 12, Kit.GREY, 300.0))
-	crew.add_child(sound_row(save, on_change))
-	crew.add_child(markers_row(save, on_change))
-	cols.add_child(crew)
-
-	# your hero: how to play it, what it does, and its keys
-	var def := Heroes.by_id(save.party[save.slot])
-	var hero := Kit.vbox(6)
-	hero.name = "Hero"
-	hero.add_child(Kit.label("%s, %s" % [def.name, def.title], 20, def.color))
-	hero.add_child(Kit.label(def.sub, 12, Kit.GREY))
-	hero.add_child(Kit.para(def.how_to, 13, Kit.BONE, 560.0))
-	for ab in def.abilities:
-		hero.add_child(Kit.para("%s: %s" % [ab.name, ab.desc], 12, Kit.GREY, 560.0))
-	var editor := KeysEditor.new()
-	editor.name = "Keys"
-	editor.show_hero(save, def.id)
-	editor.changed.connect(on_change)
-	hero.add_child(editor)
-	cols.add_child(hero)
+		GearScreens.swap(root, setup(save, on_change, on_start, go))
+	var place := Levels.by_name(save.place)
+	var team := Teams.in_use(save)
+	var played := Heroes.by_id(team.party[team.slot])
 
 	# the dungeon, and the level: any you have unlocked there
 	var levels := Kit.vbox(8)
 	levels.name = "Levels"
-	var place := Levels.by_name(save.place)
-	levels.add_child(Kit.label("Dungeon", 20, Kit.GOLD))
+	levels.add_child(Kit.label("Dungeon and level", 20, Kit.GOLD))
+	var which := Kit.hbox(8)
 	for id in Levels.DUNGEONS:
 		var there := Levels.by_name(id)
-		var go := Kit.button(there.name, func() -> void:
+		var pick := Kit.button(there.name, func() -> void:
 			save.place = id
 			rebuild.call(), 14)
-		go.name = "Dungeon_" + id
-		go.custom_minimum_size.x = 210
+		pick.name = "Dungeon_" + id
 		if id == save.place:
-			go.add_theme_color_override("font_color", Kit.GOLD)
-		levels.add_child(go)
+			pick.add_theme_color_override("font_color", Kit.GOLD)
+		which.add_child(pick)
+	levels.add_child(which)
 	var bosses := place.packs.filter(func(p: Dictionary) -> bool: return p.boss).size()
 	levels.add_child(Kit.para("%d packs and %d bosses, to be done in %s. %s" % [place.packs.size() - bosses, bosses, Kit.clock(place.time_limit),
-		"It holds more than its count asks for: some packs can be left." if place.count_needed > 0 else "Every pack must fall."], 12, Kit.GREY, 230.0))
-	levels.add_child(Kit.label("Level", 20, Kit.GOLD))
+		"It holds more than its count asks for: some packs can be left." if place.count_needed > 0 else "Every pack must fall."], 12, Kit.GREY, 360.0))
 	var grid := GridContainer.new()
-	grid.columns = 4
+	grid.columns = 7
 	grid.add_theme_constant_override("h_separation", 6)
 	grid.add_theme_constant_override("v_separation", 6)
 	save.level = clampi(save.level, 1, save.unlocked)
@@ -218,26 +171,155 @@ static func setup(save: SaveData, on_change: Callable, on_start: Callable, on_ro
 			b.add_theme_color_override("font_color", Kit.GOLD)
 		grid.add_child(b)
 	levels.add_child(grid)
-	levels.add_child(Kit.para("Enemies have 8%% more health and hit 8%% harder each level, and learn new tricks at 3, 6 and 9. Finish inside %s to unlock the next. Each dungeon keeps its own levels." % Kit.clock(place.time_limit), 12, Kit.GREY, 230.0))
-	var best: Dictionary = save.bests.get(def.id, {})
-	levels.add_child(Kit.para("Your best as %s: %s" % [def.name.split(" ")[0],
-		"level %d in %s" % [best.level, Kit.clock(best.time)] if not best.is_empty() else "none yet"], 12, Kit.BONE, 230.0))
+	levels.add_child(Kit.para("Enemies have 8%% more health and hit 8%% harder each level, and learn new tricks at 3, 6 and 9. Finish inside %s to unlock the next, inside %s for two and inside %s for three. Each dungeon keeps its own levels." % [
+		Kit.clock(place.time_limit), Kit.clock(place.time_limit * 0.8), Kit.clock(place.time_limit * 0.6)], 12, Kit.GREY, 360.0))
+	levels.add_child(Kit.para("A chest at level %d holds gear up to item level %d%s." % [save.level, Items.ceiling(save.level),
+		"" if save.level >= Items.RARE_FROM else ", and nothing rarer than uncommon but trinkets"], 12, Kit.GREY, 360.0))
+	var record := save.record_at(save.level)
+	var best := Kit.para("Best at level %d: %s" % [save.level, "%s, by %s (you as %s)" % [Kit.clock(record.time),
+		Kit.listed(record.party.map(func(id: String) -> String: return Heroes.by_id(id).name)),
+		Heroes.by_id(record.party[record.slot]).name] if not record.is_empty() else "none yet"], 12, Kit.BONE, 360.0)
+	best.name = "Record"
+	levels.add_child(best)
+	var top: int = save.progress_in(save.place).timed
+	var mine: Dictionary = save.bests.get(played.id, {})
+	levels.add_child(Kit.para("Highest level timed here: %s. Your best as %s: %s." % [str(top) if top > 0 else "none yet", played.name,
+		"level %d in %s" % [mine.level, Kit.clock(mine.time)] if not mine.is_empty() else "none yet"], 12, Kit.GREY, 360.0))
+	cols.add_child(levels)
+
+	# the team: who goes in, which of them is you, and what they wear
+	var crew := Kit.vbox(8)
+	crew.name = "Crew"
+	crew.add_child(Kit.label("Team", 20, Kit.GOLD))
+	var teams := OptionButton.new()
+	teams.name = "TeamPick"
+	teams.custom_minimum_size.x = 220
+	for at in save.teams.size() + 1:
+		teams.add_item(Teams.at(save, at).name)
+	teams.select(save.team)
+	teams.item_selected.connect(func(at: int) -> void:
+		save.team = at
+		rebuild.call())
+	crew.add_child(teams)
+	var worn := Teams.worn(save, team)
+	for i in 4:
+		var def := Heroes.by_id(team.party[i])
+		var who := Kit.hbox(8)
+		var role := Kit.label(ROLES[i], 12, Kit.GREY)
+		role.custom_minimum_size.x = 56
+		who.add_child(role)
+		var named := Kit.label(def.name + ("  (you)" if i == team.slot else ""), 14, def.color)
+		named.name = "Hero%d" % i
+		who.add_child(named)
+		crew.add_child(who)
+		var wears := Kit.hbox(10)
+		var pad := Control.new()
+		pad.custom_minimum_size.x = 56
+		wears.add_child(pad)
+		var any := false
+		for slot in Items.SLOTS:
+			var on: Dictionary = worn[i][slot]
+			if on.is_empty():
+				continue
+			any = true
+			var item := GearScreens.item_name(on, 12)
+			item.text = on.name if slot == "trinket" else "%s %d" % [Items.SLOT_NAMES[slot], on.ilvl]
+			wears.add_child(item)
+		if not any:
+			wears.add_child(Kit.label("No gear", 12, Color(Kit.GREY, 0.6)))
+		crew.add_child(wears)
+	crew.add_child(Kit.para("%s. You play %s; the AI plays the other three." % [GearScreens.gear_level_words(save), played.name], 12, Kit.GREY, 330.0))
+	if go.has("team"):
+		var edit := Kit.button("Change the team", go.team, 14)
+		edit.name = "Team"
+		edit.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		crew.add_child(edit)
+	cols.add_child(crew)
+
 	# the route: the one used last, or the safe way if none was ever planned
+	var way := Kit.vbox(8)
+	way.name = "Route"
 	var plan := save.route_for(place)
-	levels.add_child(Kit.label("Route", 20, Kit.GOLD))
+	way.add_child(Kit.label("Route", 20, Kit.GOLD))
 	var pulls := plan.pulls.filter(func(p: Dictionary) -> bool: return not p.packs.is_empty()).size()
-	var named := Kit.para("%s: %d pulls" % [plan.name if plan.name != "" else "Unnamed", pulls], 12, Kit.BONE, 230.0)
-	named.name = "RouteName"
-	levels.add_child(named)
-	levels.add_child(Kit.para("Which packs the tank pulls together, in what order, and where everyone stands. Leave it and the party goes the safe way.", 12, Kit.GREY, 230.0))
-	if on_route.is_valid():
-		var route := Kit.button("Plan the route", func() -> void: on_route.call(), 14)
+	var route_name := Kit.para("%s: %d pulls" % [plan.name if plan.name != "" else "Unnamed", pulls], 14, Kit.BONE, 300.0)
+	route_name.name = "RouteName"
+	way.add_child(route_name)
+	way.add_child(Kit.para("Which packs the tank pulls together, in what order, and where everyone stands. Leave it and the party goes the safe way.", 12, Kit.GREY, 300.0))
+	if go.has("route"):
+		var route := Kit.button("Plan the route", go.route, 14)
 		route.name = "Plan"
-		levels.add_child(route)
+		route.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		way.add_child(route)
+	cols.add_child(way)
+
+	var foot := Kit.hbox(10)
+	if go.has("gear"):
+		var gear := Kit.button("Gear", go.gear, 14)
+		gear.name = "Gear"
+		foot.add_child(gear)
+	if go.has("settings"):
+		var opts := Kit.button("Settings and keys", go.settings, 14)
+		opts.name = "Settings"
+		foot.add_child(opts)
+	var gap := Control.new()
+	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	foot.add_child(gap)
 	var start := Kit.button("Enter " + ("the Abbey" if place.id == "abbey" else place.name), func() -> void: on_start.call(), 18)
 	start.name = "Start"
-	levels.add_child(start)
-	cols.add_child(levels)
+	foot.add_child(start)
+	all.add_child(foot)
+	return root
+
+
+## How to play, the sound, the keys of the hero you play and of the gear, and keeping the
+## save as a file. `on_save_file` and `on_load_file` do that; `note` says how the last went.
+## Loading asks first, since it replaces everything: `asking` is whether it is asking now.
+static func settings(save: SaveData, hero_id: String, on_change: Callable, on_back: Callable, on_save_file := Callable(), on_load_file := Callable(), note := "", asking := false) -> Control:
+	var root := Kit.screen(1.0)
+	root.name = "Settings"
+	var cols := Kit.hbox(36)
+	Kit.panel_of(root).add_child(cols)
+	var col := Kit.vbox(10)
+	cols.add_child(col)
+	col.add_child(Kit.label("Settings", 24, Kit.GOLD))
+	col.add_child(Kit.label("How to play", 16, Kit.GOLD))
+	col.add_child(Kit.para(CONTROLS.replace("this menu", "the menu"), 12, Kit.GREY, 520.0))
+	col.add_child(sound_row(save, on_change))
+	col.add_child(markers_row(save, on_change))
+	if on_save_file.is_valid():
+		col.add_child(Kit.label("Your save", 16, Kit.GOLD))
+		col.add_child(Kit.para("Everything you have earned lives in this browser, or on this machine. Keep a copy as a file, and load it back here or anywhere else.", 12, Kit.GREY, 520.0))
+		var files := Kit.hbox(10)
+		var out := Kit.button("Save to a file", on_save_file, 13)
+		out.name = "SaveFile"
+		files.add_child(out)
+		var back_in := Kit.button("It replaces everything here. Load it?" if asking else "Load from a file", func() -> void:
+			if asking:
+				on_load_file.call()
+			else:
+				GearScreens.swap(root, settings(save, hero_id, on_change, on_back, on_save_file, on_load_file, "", true)), 13)
+		back_in.name = "LoadFile"
+		if asking:
+			back_in.add_theme_color_override("font_color", Kit.RED)
+		files.add_child(back_in)
+		col.add_child(files)
+		var said := Kit.para(note, 12, Kit.BONE, 520.0)
+		said.name = "FileNote"
+		col.add_child(said)
+	var back := Kit.button("Back", on_back, 16)
+	back.name = "Back"
+	back.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	col.add_child(back)
+
+	var keys := Kit.vbox(10)
+	keys.add_child(Kit.label("Keys for %s" % Heroes.by_id(hero_id).name, 16, Kit.GOLD))
+	var editor := KeysEditor.new()
+	editor.name = "Keys"
+	editor.show_hero(save, hero_id)
+	editor.changed.connect(on_change)
+	keys.add_child(editor)
+	cols.add_child(keys)
 	return root
 
 
@@ -267,7 +349,10 @@ static func pause(save: SaveData, hero_id: String, on_change: Callable, on_resum
 
 
 ## The end of a run: the result, what each hero did, and where to go next.
-static func summary(c: Combat, unlocked_now: bool, can_go_up: bool, on_again: Callable, on_next: Callable, on_setup: Callable) -> Control:
+## `opened` is how many levels the run unlocked, and `unlocked` the highest that may be started
+## now. With a chest to open, `on_chest` is given and is the one way on: where to go next is
+## asked there.
+static func summary(c: Combat, opened: int, unlocked: int, on_again: Callable, on_next: Callable, on_setup: Callable, on_chest := Callable()) -> Control:
 	var root := Kit.screen(0.55)
 	root.name = "Summary"
 	var col := Kit.vbox(10)
@@ -275,9 +360,12 @@ static func summary(c: Combat, unlocked_now: bool, can_go_up: bool, on_again: Ca
 	var head := Kit.label("%s: %s at level %d" % ["Timed" if timed else "Completed, over the time", Kit.clock(c.total_time()), c.level], 26, Kit.GOLD if timed else Kit.BONE)
 	head.name = "Result"
 	col.add_child(head)
-	var note := "Level %d unlocked." % (c.level + 1) if unlocked_now else "" if timed else "The next level unlocks when you finish inside %s." % Kit.clock(c.time_limit)
+	var note := "Level %d unlocked." % unlocked if opened == 1 else "A fast clear: levels up to %d unlocked." % unlocked if opened > 1 \
+		else "" if timed else "The next level unlocks when you finish inside %s." % Kit.clock(c.time_limit)
 	if note != "":
-		col.add_child(Kit.label(note, 14, Kit.GOLD if unlocked_now else Kit.GREY))
+		var news := Kit.label(note, 14, Kit.GOLD if opened > 0 else Kit.GREY)
+		news.name = "Unlocked"
+		col.add_child(news)
 	col.add_child(Kit.label(Hud.progress(c), 12, Kit.GREY))
 	var ending := Kit.para(Story.ending(timed, c.place.id if c.place else "abbey").text, 15, Kit.BONE, 620.0)
 	ending.name = "Ending"
@@ -298,16 +386,21 @@ static func summary(c: Combat, unlocked_now: bool, can_go_up: bool, on_again: Ca
 			grid.add_child(l)
 	col.add_child(grid)
 	var row := Kit.hbox(10)
-	var again := Kit.button("Run it again", on_again, 16)
-	again.name = "Again"
-	row.add_child(again)
-	if can_go_up:
-		var next := Kit.button("On to level %d" % (c.level + 1), on_next, 16)
-		next.name = "Next"
-		row.add_child(next)
-	var back := Kit.button("Change the crew", on_setup, 13)
-	back.name = "Setup"
-	row.add_child(back)
+	if on_chest.is_valid():
+		var chest := Kit.button("Open the chest", on_chest, 18)
+		chest.name = "Chest"
+		row.add_child(chest)
+	else:
+		var again := Kit.button("Run it again", on_again, 16)
+		again.name = "Again"
+		row.add_child(again)
+		if unlocked > c.level:
+			var next := Kit.button("On to level %d" % (c.level + 1), on_next, 16)
+			next.name = "Next"
+			row.add_child(next)
+		var back := Kit.button("Back to the start", on_setup, 13)
+		back.name = "Setup"
+		row.add_child(back)
 	col.add_child(row)
 	Kit.panel_of(root).add_child(col)
 	return root

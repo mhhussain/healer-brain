@@ -1,8 +1,9 @@
 class_name App
 extends Node
 
-# The game as a whole: the title, the party setup, the run, the pause menu and the summary, and
-# the save that outlasts them. It is the only thing that reads or writes the save file.
+# The game as a whole: the title, the start screen and the editors behind it, the run, the pause
+# menu, the summary and the chest, and the save that outlasts them. It is the only thing that
+# reads or writes the save file.
 #
 # M opens the map during a run, between fights, and closes it again. Two keys are for looking
 # under the bonnet: F9 lets the AI play your hero too, and F8 swaps the dungeon for the sandbox
@@ -12,10 +13,16 @@ const RUN := "res://scenes/run.tscn"
 
 var save: SaveData
 var run: Run
-## "title", "opening", "setup", "route" (planning before a run), "loading", "run", "paused",
-## "map" (the planner over a run) or "summary".
+## "title", "opening", "setup", "route" (planning before a run), "team", "gear", "settings",
+## "loading", "run", "paused", "map" (the planner over a run), "summary" or "chest".
 var state := "title"
-var screen: Control
+## The screen that is up, if any. A screen that changes the save builds itself again in the
+## same place, so this is whichever is there now.
+var screen: Control:
+	get: return _layer.get_child(_layer.get_child_count() - 1) as Control if _layer and _layer.get_child_count() > 0 else null
+## What the chest of the run just finished holds: a list of {"item", "state"}, as
+## GearScreens.chest shows it. Whatever is not taken is gone when the next thing begins.
+var chest: Array = []
 ## The narrator: the opening and the ending.
 var narrator: Voice
 ## The music, which plays on through the menus, and the clicks of their buttons.
@@ -26,7 +33,10 @@ var clicks: Sound
 var warm_frames := 8
 
 var _layer: CanvasLayer
+var _dice := RandomNumberGenerator.new()
 var _told_opening := false
+# how many levels the run just finished unlocked, for the summary
+var _opened := 0
 # counts the runs asked for, so a start that was overtaken by another gives up
 var _starting := 0
 # room pieces read ahead of the run, held so they are not read again
@@ -68,7 +78,7 @@ func _on_node_added(node: Node) -> void:
 # The music follows the game: quiet on the menus, the run's own loop under a run, lower while
 # anyone is speaking, and the tide bell once the clock is in its last two minutes.
 func _process(_delta: float) -> void:
-	var playing := run != null and is_instance_valid(run) and state in ["run", "paused", "map", "summary"]
+	var playing := run != null and is_instance_valid(run) and state in ["run", "paused", "map", "summary", "chest", "gear"]
 	music.want = Music.loop_for(run, music.want) if playing else "calm_0"
 	music.quiet = state != "run"
 	music.ducked = narrator.is_talking() or (playing and run.voice.is_talking())
@@ -76,12 +86,9 @@ func _process(_delta: float) -> void:
 
 
 func _show(next: Control, new_state: String) -> void:
-	if screen and is_instance_valid(screen):
-		screen.queue_free()
-	# the setup screen replaces itself after each change: find whichever is there now
 	for old in _layer.get_children():
+		_layer.remove_child(old)
 		old.queue_free()
-	screen = next
 	state = new_state
 	if next:
 		_layer.add_child(next)
@@ -101,7 +108,7 @@ func _apply_sound() -> void:
 
 func show_title() -> void:
 	_end_run()
-	_show(Screens.title(show_opening), "title")
+	_show(Screens.title(show_opening, show_gear.bind(show_title)), "title")
 
 
 ## The story so far, read aloud, the first time you go on from the title.
@@ -115,17 +122,62 @@ func show_opening() -> void:
 		narrator.say(line)
 
 
+## The start screen: the dungeon and level, the team and the route, side by side.
 func show_setup() -> void:
 	_end_run()
+	chest = []
 	narrator.hush()
-	_show(Screens.setup(save, _store, start_run, show_route), "setup")
+	_show(Screens.setup(save, _store, start_run, {"route": show_route, "team": show_team, "gear": show_gear.bind(show_setup), "settings": show_settings}), "setup")
+
+
+## The teams: who goes in and what they wear.
+func show_team() -> void:
+	_show(GearScreens.team(save, _store, show_setup), "team")
+
+
+## Everything owned. `back` is where its Back button leads: the screen it was opened from.
+func show_gear(back: Callable) -> void:
+	_show(GearScreens.inventory(save, _store, back), "gear")
+
+
+## How to play, the sound, the keys, and keeping the save as a file.
+func show_settings(note := "") -> void:
+	var team := Teams.in_use(save)
+	_show(Screens.settings(save, team.party[team.slot], _store, show_setup, save_to_file, load_from_file, note), "settings")
+
+
+## Keeps a copy of the save as a file of text.
+func save_to_file() -> void:
+	_store()
+	show_settings(SaveStore.save_file(save))
+
+
+## Loads such a copy, in place of everything here. In a browser a file is asked for first.
+func load_from_file() -> void:
+	if OS.has_feature("web"):
+		SaveStore.ask_for_file(func(text: String) -> void: _take_save(SaveData.from_text(text)))
+		show_settings("Choose the file you saved.")
+	else:
+		_take_save(SaveStore.load_file(), "There is no save at %s." % SaveStore.file_path())
+
+
+func _take_save(loaded: SaveData, if_not := "That file is not a Fourfold save.") -> void:
+	if loaded == null:
+		if state == "settings":
+			show_settings(if_not)
+		return
+	save = loaded
+	Run.keys = save
+	_store()
+	if state == "settings":
+		show_settings("Loaded. Everything is as it was in the file.")
 
 
 ## The planner, before a run: the route for the place the next run is in.
 func show_route() -> void:
 	_end_run()
 	var map := RouteMap.new()
-	map.open(Levels.by_name(_place()), save, save.party)
+	map.open(Levels.by_name(_place()), save, Teams.in_use(save).party)
 	map.changed.connect(_store)
 	map.closed.connect(close_map)
 	_show(map, "route")
@@ -173,10 +225,14 @@ func _end_run() -> void:
 ## run has begun.
 func start_run() -> void:
 	_end_run()
+	chest = []
 	narrator.hush()
 	_store()
-	Run.party.assign(save.party)
-	Run.player_slot = save.slot
+	# the team goes in as it is now: what it wears cannot be changed until the run is left
+	var team := Teams.in_use(save)
+	Run.party.assign(team.party)
+	Run.player_slot = team.slot
+	Run.gear = Teams.worn(save, team).duplicate(true)
 	var level := Levels.by_name(_place())
 	Run.chosen_level = save.level
 	Run.route = save.route_for(level)
@@ -259,14 +315,30 @@ func resume() -> void:
 
 func _on_finished() -> void:
 	var c := run.combat
-	# a run the AI played for you is not yours to record
-	var unlocked_now := false
+	# a run the AI played for you is not yours to record, and earns no chest
+	_opened = 0
+	chest = []
 	if not Run.autoplay and Run.place == save.place:
-		unlocked_now = save.record(c.level, run.player.c.hero.id, c.total_time(), c.timed())
+		_opened = save.record(c.level, run.player.c.hero.id, c.total_time(), c.timed(), "", c.time_limit, {"party": Run.party, "slot": Run.player_slot})
+		_dice.randomize()
+		for item in Items.chest(_dice, save.place, c.level, c.timed(), save.items):
+			chest.append({"item": item, "state": ""})
 		_store()
 	get_tree().paused = true
-	_show(Screens.summary(c, unlocked_now, save.unlocked > c.level, start_run, _next_level, show_setup), "summary")
+	_show(Screens.summary(c, _opened, save.unlocked, start_run, _next_level, show_setup,
+		show_chest if not chest.is_empty() else Callable()), "summary")
 	narrator.say(Story.ending(c.timed(), Run.place))
+
+
+## What the run gave: each thing is taken or left, and then it is on to the next run.
+func show_chest() -> void:
+	if chest.is_empty() or run == null:
+		return
+	var level := run.combat.level
+	var go := {"again": start_run, "setup": show_setup, "gear": show_gear.bind(show_chest)}
+	if save.unlocked > level:
+		go["next"] = _next_level
+	_show(GearScreens.chest(chest, save, _store, go, level), "chest")
 
 
 func _next_level() -> void:
@@ -300,8 +372,14 @@ func _unhandled_input(event: InputEvent) -> void:
 				resume()
 		"summary":
 			if enter:
-				start_run()
-	if state in ["run", "paused", "map", "summary"]:
+				if chest.is_empty():
+					start_run()
+				else:
+					show_chest()
+		"team", "gear", "settings":
+			if code == KEY_ESCAPE and not editing:
+				(screen.find_child("Back", true, false) as Button).pressed.emit()
+	if state in ["run", "paused", "map", "summary", "chest"]:
 		if code == KEY_F9:
 			Run.autoplay = not Run.autoplay
 			start_run()

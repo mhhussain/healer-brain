@@ -11,10 +11,11 @@ var dur := 0.0
 var src_id := 0
 var debuff := false
 var dispellable := false
-## Multipliers: damage taken, physical damage taken, damage done, attack speed.
+## Multipliers: damage taken, physical damage taken, damage done, healing done, attack speed.
 var taken := 1.0
 var taken_phys := 1.0
 var done := 1.0
+var heals := 1.0
 var haste := 1.0
 ## Damage it will still soak up.
 var absorb := 0.0

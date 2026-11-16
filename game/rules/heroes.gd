@@ -183,7 +183,7 @@ static func _bloom_vine(c: Combat, u: Combatant, t: Combatant) -> void:
 
 
 static func _bloom_bark(c: Combat, u: Combatant, t: Combatant) -> void:
-	c.add_aura(t, {"id": "bark", "name": "Shell Ward", "dur": 12.0, "src_id": u.id, "absorb": 350.0})
+	c.add_aura(t, {"id": "bark", "name": "Shell Ward", "dur": 12.0, "src_id": u.id, "absorb": c.mended(u, 350.0)})
 	if c.has_aura(u, "tide"):
 		u.cds["bark"] = 0.0
 
@@ -360,7 +360,7 @@ static func _pyro_burst(c: Combat, u: Combatant, t: Combatant) -> void:
 
 
 static func _pyro_ember(c: Combat, u: Combatant, _t: Combatant) -> void:
-	c.add_aura(u, {"id": "ember", "name": "Wax Seal", "dur": 8.0, "src_id": u.id, "absorb": 400.0})
+	c.add_aura(u, {"id": "ember", "name": "Wax Seal", "dur": 8.0, "src_id": u.id, "absorb": c.mended(u, 400.0)})
 
 
 static func _pyro_kindled(c: Combat, u: Combatant, _t: Combatant) -> void:

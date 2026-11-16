@@ -1,6 +1,6 @@
 # Proposal: levels and basic gear
 
-Status: **a proposal for the owner to approve, written on 16 November 2026. Nothing here is built.** It is the first step of milestone 12 in [`routing-and-gear-plan.md`](routing-and-gear-plan.md), which says the owner approves the named items and the open numbers before any of it is made. What was already agreed there is not asked again; this fills in what was left open.
+Status: **approved by the owner as proposed, on 16 November 2026, and built.** The rules as built are in [`DESIGN.md`](../DESIGN.md) section 7c; this is kept as the record of what was asked. It was the first step of milestone 12 in [`routing-and-gear-plan.md`](routing-and-gear-plan.md), which says the owner approves the named items and the open numbers before any of it is made. What was already agreed there was not asked again; this filled in what was left open. Two things were built a little differently and are for the owner to judge in play: the default team's heroes and the one you play can be chosen (only its gear is fixed), and outside a browser the save is written to the Documents folder.
 
 Milestone 12 is levels and basic gear: fast clears and records, the end chest, weapons, armour and trinkets up to rare, item level and its ceiling, the inventory, teams, the new start screen, the gear keys, and saving the save to a file. Epic abilities, sets, legendaries, coin and the shop are milestone 13 and are not proposed here.
 

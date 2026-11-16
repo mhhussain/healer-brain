@@ -2,14 +2,14 @@
 
 Status: **approved and built.** The game is the Godot project in [`game/`](game/README.md), published from `main`. Numbers below are its tuned values.
 
-**Next:** route planning, a second and larger dungeon, and gear were agreed on 15 November 2026. The first two steps are built: the dungeon is rooms joined by doorways, enemies are worth count, a beaten party starts again from a sanctuary lamp, and you can plan a route on a map which the AI then follows. The rest is not built yet. Section 12 sums it up; the full record is [`docs/routing-and-gear-plan.md`](docs/routing-and-gear-plan.md).
+**Next:** route planning, a second and larger dungeon, and gear were agreed on 15 November 2026. All but the last step is built: the dungeon is rooms joined by doorways, enemies are worth count, a beaten party starts again from a sanctuary lamp, you can plan a route on a map which the AI then follows, there is a second dungeon, and a finished run gives a chest of gear that teams wear. Rare gear with abilities of its own, coin and a shop are not built yet. Section 12 sums it up; the full record is [`docs/routing-and-gear-plan.md`](docs/routing-and-gear-plan.md).
 
 Fourfold was first built in TypeScript as a side-on belt-scroller (kept at the tag `typescript-game`), and this document was written for that game. It was then rebuilt in Godot with an isometric view, which is the game now. The rules here hold for it, and section 3 (controls) describes it. Some passages, section 11 above all, still describe how the first version looked and sounded; where the game differs from them:
 
 - The dungeon, heroes, enemies, AI, clock, unlocks and bests are all in and run to the same times as before (all-AI: about 7:25 to 8:05 at level 1, 10:15 to 11:00 at level 5, 12:00 to 13:00 at level 7).
 - Effects over time always get their last tick. In the TypeScript game rounding dropped it for some, so Mending Kelp healed 360 and Tallow Burn dealt 200; here they give the 420 and 240 their descriptions promise.
-- The interface is rebuilt to section 8, in plain grey-box styling: the title, the party setup (with the key editor and the level), the run's frames and action bar, the pause menu and the summary. Party setup and level select share one screen.
-- The story is spoken as well as shown: the opening card is read by a narrator, the party's lines are said aloud in their own voices with a speech bubble, and the summary ends on one of the two endings. The voices are made with Kokoro (text to speech); there is a volume slider and an "Off" box on the setup screen and in the pause menu.
+- The interface is rebuilt to section 8, in plain grey-box styling: the title, the start screen (dungeon and level, team, route) with the editors behind it, the run's frames and action bar, the pause menu, the summary and the chest.
+- The story is spoken as well as shown: the opening card is read by a narrator, the party's lines are said aloud in their own voices with a speech bubble, and the summary ends on one of the two endings. The voices are made with Kokoro (text to speech); there is a volume slider and an "Off" box in the settings and in the pause menu.
 - The art is a starter set of stand-ins, to be replaced figure by figure: chunky low-poly humanoids with arms and legs (the storybook bell-shaped figures of section 11 would not take a skeleton), the drowned as sea-green skeletons, and the Abbey laid from a free dungeon kit under teal fill light and a warm key light. [`game/assets/README.md`](game/assets/README.md) lists what stands in for whom and how to swap each.
 - Sound effects and music are files now, not synthesised as the game runs: the music of section 11 (the drone, the bells, the drum, the choir, the tide bell) is rendered to loops by a script, three moods for each part of the abbey, and the game fades between them. The effects are a mix of free recordings and bells from the same script. An enemy's chant is one swelling voice, pitched by who sings, that stops when the cast lands or is cut off.
 - Not rebuilt yet: weather, the zones' own looks, the rising tide and the sea growing louder in the last two minutes.
@@ -25,8 +25,8 @@ Fourfold is an original, solo, browser-based dungeon runner in the style of time
 | View | Real-time isometric: a 3D floor seen from a fixed camera looking down from one corner, which follows your hero. (The first version was a belt-scroller seen from the side.) |
 | Run | Two dungeons, each with an enemy count to meet and a timer, run by a route you may plan on a map. The Drowned Abbey is short and linear: 6 trash packs, 3 bosses, 14 minutes. Tollhaven is large, with a choice of ways through: 22 trash packs, 4 bosses, 25 minutes (section 7b). |
 | Levels | Enemies gain 8% health and damage per level (compounding), plus new abilities at levels 3, 6 and 9. No cap. |
-| Unlocks | You may start any level up to one above your highest timed clear in that dungeon. Each dungeon keeps its own levels; they are shared across heroes. |
-| Progression | No gear yet. Highest timed level and best time are recorded per hero, for each dungeon. Planned: gear, teams and a shop (section 12). No talents; gear abilities do that job. |
+| Unlocks | Timing a level opens the next in that dungeon; a fast clear opens two or three (section 2). Each dungeon keeps its own levels; they are shared across heroes. |
+| Progression | Gear: a weapon, armour and a trinket for each hero, from the chest at the end of a run, worn by teams (section 7c). For each dungeon, the highest level timed, the best time at each level with the four who set it, and each hero's best. Planned: rare gear with abilities, coin and a shop (section 12). No talents; gear abilities do that job. |
 | Visuals | 3D figures and room pieces as files in `game/assets`, one colour and one hat per character. A starter set of stand-ins for now. |
 | Sound | Voice, effects and music as files in `game/assets`. See section 11 for the music. |
 | Story | The Last Vespers: a light story told through one opening card, speech bubbles and an ending. See section 11. |
@@ -34,16 +34,22 @@ Fourfold is an original, solo, browser-based dungeon runner in the style of time
 
 ## 2. Run flow
 
-1. **Title** → **Party setup**: pick your hero, then the heroes for the three AI slots.
-2. **Dungeon and level**: either dungeon, at any level unlocked in it. **Plan the route** if you wish; without a plan the party goes the safe way.
-3. **Run**: the timer starts on the first pull and stops when every boss is dead and the count is met.
-4. **Summary**: time, result, and per-hero damage, healing, interrupts, dispels and deaths.
+1. **Title** → **The start screen**: three choices side by side, each with an editor behind it, and a run can always be started with what is there.
+   - **Dungeon and level**: either dungeon, at any level unlocked in it.
+   - **Team**: the four who go in, which of them you play and what each wears. The default team needs no attention (section 7c).
+   - **Route**: plan one if you wish; without a plan the party goes the safe way.
+2. **Run**: the timer starts on the first pull and stops when every boss is dead and the count is met.
+3. **Summary**: time, result, and per-hero damage, healing, interrupts, dispels and deaths.
+4. **The chest**: two items, three if the run was timed. Each is taken or left, and then it is on to the next run.
 
 Result rules:
 
 - **Timed**: every boss dead and the count met inside the dungeon's time limit (14:00 in the Abbey, 25:00 in Tollhaven). Unlocks that dungeon's next level.
-- **Completed**: the same, over the limit. Recorded, unlocks nothing.
-- There is no way to fail outright; you can abandon from the pause menu.
+- **A fast clear** opens more: finishing a fifth inside the time (11:12 in the Abbey, 20:00 in Tollhaven) opens two levels up, and two fifths inside (8:24 and 15:00) opens three.
+- **Completed**: the same, over the limit. Unlocks nothing, but still gives its chest.
+- There is no way to fail outright; you can abandon from the pause menu. Failing costs nothing.
+- **Records** are kept for each dungeon: the highest level timed, and for each level the best time with the four heroes who set it and which of them was played. The start screen shows the record at the level chosen.
+- A run the AI played for you (F9) is not recorded and gives no chest.
 
 ### Routes
 
@@ -78,8 +84,9 @@ Result rules:
 
 ### Keys and mouse buttons
 
-- Every ability has two key slots and one mouse-button slot (middle, side back, side forward). The editor is on the party setup screen and in the pause menu, and bindings are saved per hero.
+- Every ability has two key slots and one mouse-button slot (middle, side back, side forward). The editor is in the settings and in the pause menu, and bindings are saved per hero.
 - A key or button does one thing: binding it to an ability takes it away from the ability that had it.
+- Gear has three keys of its own, one for each slot: **Z** for the weapon, **X** for the armour, **C** for the trinket. They are the same for every hero and are changed in the same editor. Only a slot holding something that is pressed does anything; so far that is some trinkets.
 - Movement, Space, Tab, Esc, P and M are kept for the game and cannot be bound.
 - An ally ability cast from a key or mouse button lands on the ally under the pointer, as usual.
 
@@ -87,7 +94,7 @@ Result rules:
 
 - Clicking a party frame casts the spell bound to that click. It applies to party frames only; clicking a hero on the map does nothing.
 - Defaults: left click is Mend / Mending Vine, right click is Quick Mend / Bark Ward, Shift + left click is the dispel, Shift + right click is the damage reduction.
-- Any ally spell can be rebound to left, right, middle or side click, plain or with Shift, Ctrl or Alt. On a party frame, a click-cast for a button comes before a mouse-button binding for it. Your own frame, above the party row, takes click-casts too. The editor is on the party setup screen and in the pause menu, and bindings are saved per healer.
+- Any ally spell can be rebound to left, right, middle or side click, plain or with Shift, Ctrl or Alt. On a party frame, a click-cast for a button comes before a mouse-button binding for it. Your own frame, above the party row, takes click-casts too. The editor is in the settings and in the pause menu, and bindings are saved per healer.
 - Keys 1–6 keep working alongside it.
 
 ## 4. Combat rules
@@ -374,6 +381,70 @@ Count: 1 for a Deckhand, 4 for a Tide Crier, 5 for a Shipwright's Mate and a Dre
 - An aura may **hold** a unit fast. An enemy may be a thing that only stands there (a net), may **guard its front**, and may pick the hero **furthest off**.
 - The cast wear the Abbey's figures, washed with a colour of their own, until they have figures made for them.
 
+## 7c. Gear and teams
+
+Built in milestone 12, to [`docs/gear-proposal.md`](docs/gear-proposal.md), which the owner approved as proposed. Rare gear with abilities, sets, legendaries, coin and the shop are milestone 13.
+
+### Items
+
+- A hero has three slots. A **weapon** raises damage and healing, **armour** raises health, and a **trinket** has no number of its own but does one thing.
+- A weapon or armour has one number, its **item level**. Each item level is worth 1%: a weapon of item level 12 gives +12% damage and healing, and armour of item level 12 gives +12% health. Shields a hero gives grow with their weapon as heals do.
+- **Rarity** adds a share of that: common (white) nothing, uncommon (green) 5% more, rare (blue) 10% more. A rare weapon of item level 20 gives +22%.
+- Any hero can wear any item. An item says what it does in words, with its numbers in.
+- Weapons and armour are generated and named from the dungeon they came out of ("Sexton's Hook", "Tarred Coat"). The name is for show.
+- Dungeon level 1 with nothing worn is the game as it was: the all-AI runs with no gear did not change by a second when gear went in.
+
+### The chest
+
+- A finished run gives two items, three if it was timed. Each is a weapon (40%), armour (40%) or one of that dungeon's five trinkets (20%).
+- **Item level**: one to three above your **gear level**, which is the average of the best weapon and the best armour you own, and never above the dungeon level's **ceiling** of 2 + 3 × the level (5 at level 1, 17 at level 5, 32 at level 10). At the ceiling a chest gives more of the same, for the rest of the party, and you must go up a level to climb further.
+- **Rarity** of a weapon or armour: at levels 1 and 2, 70% common and 30% uncommon; from level 3, 50% common, 35% uncommon and 15% rare. Trinkets are always rare.
+- Each item is taken or left. What is left when the chest is closed is gone, as is anything thrown out of the inventory, until the shop exists to buy it.
+- The inventory holds 60 items.
+
+### The ten trinkets
+
+A trinket is either pressed, with the trinket key (C), or works by itself. Its number grows with its item level. The ticks of a lasting effect, and what a trinket does itself, are not "hits".
+
+| Trinket | From | What it does at item level 1 | Each item level adds |
+|---|---|---|---|
+| Krogg's Great Key | The Abbey | Pressed, 90 s: you take 30% less damage for 8 s. | 0.5%, to 50% |
+| Velisse's Thimble | The Abbey | When you fall below 35% health you are healed for 20% of it. Once a minute. | 0.5% |
+| Sulmar's Bell Rope | The Abbey | Pressed, 120 s: the whole party hits and heals 10% harder for 10 s. Two do not add up. | 0.3% |
+| Brineling Shell | The Abbey | In a fight, every 20 s, a shield that soaks 150. | 10 |
+| Cantor's Tuning Fork | The Abbey | After you silence a cast, you hit and heal 15% harder for 8 s. | 0.5% |
+| Hask's Gutting Knife | Tollhaven | Every sixth hit or heal of yours lands again for 60. | 6 |
+| Corrow's Seal | Tollhaven | Pressed, 45 s: silences your target's cast, at up to 30 m. It gives a healer a silence. With nothing to silence it is not spent. | 0.5 s off the cooldown, to 25 s |
+| Garrow's Pitch Pot | Tollhaven | Pressed, 60 s: your target and every enemy in the fight within 5 m of it burn for 40 a second for 8 s. | 4 |
+| The Keeper's Lens | Tollhaven | Pressed, 90 s: your next three hits or heals are 50% stronger. | 1% |
+| Tide Glass | Tollhaven | Pressed, 120 s: gives back 30% of what your hero spends (mana, grit, focus and the rest). | 1%, to 60% |
+
+A pressed trinket does not wait for other abilities. AI teammates use theirs by themselves: the Great Key below 45% health; the Bell Rope, the Lens and the Pitch Pot on a boss or a pull of four or more (a healer uses the Lens when someone is below 60%); the Seal on a cast nobody else has been given; the Tide Glass below a quarter of their resource.
+
+### Teams
+
+- Gear belongs to you, not to a hero, and sits in one inventory. A **team** is four heroes, which of them you play, and what each wears. Any number of teams (twelve, for now) may use the same item; within one team an item is worn by one hero, so giving it to another takes it off the first.
+- **The default team** is always there. Its heroes and the one you play are chosen as before; what it wears is not chosen at all: it is always the best of what you own, the best of each slot to the hero you play, then the tank, the healer and the other damage dealer. A new player never has to open the team editor.
+- **A team of your own** is made by copying one. It wears what you give it and nothing changes unless you change it; "Wear the best" dresses it as the default team would be.
+- What a team wears is fixed when the run begins and cannot be changed until the run is left.
+- An item thrown out comes off every team that wore it, which then runs with the slot empty. Throwing out asks first and names those teams.
+
+### What gear does to difficulty
+
+Enemies grow by a share each level (8%, compounding) and gear by a fixed step (3 item levels a dungeon level), so gear carries a party a few levels further and then the levels win again.
+
+Measured with one all-AI party (Warden, Mender, Duelist, Ranger) on the safe way, everyone in plain gear at the level's ceiling. These are single runs, not averages.
+
+| Run | With nothing worn | With gear at the ceiling |
+|---|---|---|
+| The Abbey, level 10 (item level 32) | 40:07, 28 deaths | 11:37, no deaths |
+| The Abbey, level 15 (item level 47) | not tried | not finished: beaten by the last boss until the run was given up |
+| Tollhaven, level 7 (item level 23) | 27:12, over its 25:00 | 22:44, one death |
+
+- So full gear moves the level at which the AI starts to lose from about 9 or 10 to somewhere below 15.
+- Trinkets on top of that: the Abbey at level 5 with item level 17 and four trinkets took 8:06 and 8:20 (10:15 to 11:00 with nothing worn). Tollhaven at level 7 with the Great Key, the Thimble, the Bell Rope and the Pitch Pot took 19:44 with no deaths, three minutes less than with weapons and armour alone.
+- **Garrow's Pitch Pot looks too strong as it grows.** In that last run the Ranger carrying it dealt 160 damage a second against 121 without. Its number grows by a tenth of itself each item level, as the Gutting Knife's and the Shell's do, while a weapon grows by a hundredth. The numbers are as approved; whether to slow them is for the owner to say after playing.
+
 ## 8. Interface
 
 - **Bottom of the screen**, from the bottom up: the action bar; the party frames in one row; then your own frame on the left and the target frame on the right, with your cast bar between them.
@@ -384,8 +455,9 @@ Count: 1 for a Deckhand, 4 for a Tide Crier, 5 for a Shipwright's Mate and a Dre
 - **Nameplates** over every enemy: health, cast bar (yellow = interruptible, grey = not, **KICK** = your turn), and a border that turns red when the enemy is attacking a non-tank.
 - **Debuff chips** under each nameplate: one per debuff the party has put on the enemy, in its caster's colour, draining as it runs out and showing the seconds left (tenths in the last three). Yours come first, edged in gold.
 - **Action bar**: six buttons with their keys and mouse button, cooldown sweep, cost and out-of-range or no-line-of-sight dimming. Hover for a tooltip.
+- **Gear buttons**: beside the action bar, a small button for each slot that holds something to press, with its key, its name and its cooldown. A slot whose item works by itself, or does nothing but raise a number, has no button.
 - **Run bar**: timer against the dungeon's limit, then the count as a bar and a percentage of what the dungeon asks for, lamps lit, deaths, and the number of the pull being fought or coming next.
-- **The plan on the ground**: the next pull's number floats over each of its packs that still sleeps, a ring in the tank's colour marks where the plan has the tank hold, and a gold ring marks your own spot. A box on the setup screen and in the pause menu turns these off.
+- **The plan on the ground**: the next pull's number floats over each of its packs that still sleeps, a ring in the tank's colour marks where the plan has the tank hold, and a gold ring marks your own spot. A box in the settings and in the pause menu turns these off.
 - **The map** (before a run from "Plan the route", during one with M): the dungeon from straight above, drawn from the level's own description, all of it visible. It is laid out like Mythic Dungeon Tools and Keystone.guru. The map is on the left; on the right the list of pulls with the count above it.
   - Each pull has a colour and a number. On the map one outline in that colour is drawn round all the packs of the pull, so packs taken together read as one shape, and a line joins the pulls in order; packs in no pull are grey. In the list a row shows the pull's enemies as lettered discs with how many, what it is worth and the count reached by the end of it. The pull that reaches 100% is marked in green.
   - Click a pack to put it in the pull being edited, again to take it out. Shift-click, or "Add a pull", starts a new pull. Click a row to edit that pull, drag it to change the order, right-click it to insert a pull above, join it to the one above, or delete it.
@@ -398,7 +470,10 @@ Count: 1 for a Deckhand, 4 for a Tide Crier, 5 for a Shipwright's Mate and a Dre
 - **Telegraphs**: ground circles and cones drawn on the floor before they hit.
 - **Camera**: follows your hero, runs 1 m ahead of the way you are walking, and leans up to 7 m towards the fight, so both stay on screen. AI teammates fight within 21 m of their target for the same reason. A heavy hit on a hero jolts the screen, more so when it is on you; this is off when the system asks for reduced motion.
 - **Alerts**: a short text call for major boss casts.
-- **Party setup** shows each hero's abilities and a short "how to play".
+- **The start screen** has three panels: the dungeon and level (with what its chest can hold and the record at that level), the team (who is in it, who you play and what each wears) and the route. Under them are "Gear", "Settings and keys" and the button that starts the run.
+- **The team editor** lists the teams, lets you choose the heroes and the one you play, and for a team of your own what each of them wears. It shows the abilities of the hero you play and a short "how to play".
+- **Gear** lists everything owned, best first in each slot, with what it does and who wears it. An item is thrown out only after being asked, and the question names the teams that wear it. It is reached from the start screen, the title and the chest.
+- **Settings** has how to play, the sound, the ground markers, the keys of the hero you play and of the gear, and "Save to a file" and "Load from a file".
 
 ## 9. Technical
 
@@ -413,14 +488,15 @@ Count: 1 for a Deckhand, 4 for a Tide Crier, 5 for a Shipwright's Mate and a Dre
 - **What a route is worth in Tollhaven**: leaving out five packs that stand in corners (the Net Menders, the Salt Pans, the Brine Vats, the Chandlery and the Tally Clerks; 237 of the 231 asked for) saved one party 1:30 at level 1, 2:50 at level 4 and 3:20 at level 7, which brought level 7 inside the time at 23:51. A second party saved 2:40 at level 4 and then wiped twice at level 7. These are single runs, not averages.
 - **The bosses against the AI**, each fought alone: all four fall with nobody dying up to level 7. Mother Hask is the one the AI loses to first: some parties wipe on her at level 8 and all at level 10, while the other three still fall at level 10. Whether that is the right order is for play to say.
 - **Under the bonnet**: F9 lets the AI play your hero too, F8 swaps the dungeon for a sandbox hall, F3 shows speed and frames a second. Adding `?debug` to the URL exposes the hero's state as `window.fourfold` for browser tests.
-- **Save data**: the browser's storage only: crew, the dungeon chosen, and for each dungeon the level chosen, the level unlocked and per-hero bests; key bindings, volume, and three routes for each dungeon. It is plain data with a version number (now 3). A save from before Tollhaven is read as the Abbey's.
+- **Save data**: the browser's storage only: crew, the dungeon chosen, and for each dungeon the level chosen, the level unlocked, the records and per-hero bests; the items owned and the teams; key bindings, volume, and three routes for each dungeon. It is plain data with a version number (now 4). A save from before Tollhaven is read as the Abbey's, and one from before gear as one with none.
+- **The save as a file**: clearing a browser's site data loses the save, so the settings can keep a copy as a text file (`fourfold-save.txt`: downloaded in a browser, written to the Documents folder otherwise) and load one back, after asking, since it replaces everything.
 - **Deploy**: a GitHub Action tests, exports and publishes to GitHub Pages on every push to `main`.
 
 ## 10. Out of scope for the first version
 
 Gear, talents, run modifiers, route choices, more dungeons, mobile and touch, rebinding the movement keys, saving mid-run.
 
-Of these, routes are now built, and a second dungeon and gear are planned (section 12). Talents are dropped for good: gear abilities do that job.
+Of these, routes, a second dungeon and the first of the gear are now built (sections 7b and 7c). Talents are dropped for good: gear abilities do that job.
 
 ## 11. Theme: The Drowned Abbey
 
@@ -501,15 +577,15 @@ When a boss is laid to rest its lamp lights and warm gold light floods back thro
 
 ## 12. Next: routing, a big dungeon and gear
 
-Agreed on 15 November 2026. Milestones 9 (rooms, count, lamps), 10 (routes, the map, the AI following a route) and 11 (Tollhaven, with levels kept for each dungeon) are built and their rules are in the sections above; the rest is not built yet. This is a summary. [`docs/routing-and-gear-plan.md`](docs/routing-and-gear-plan.md) is the full record and [`docs/routing-and-gear-handoff.md`](docs/routing-and-gear-handoff.md) is the brief for building it. As each milestone lands, its rules move into the sections above.
+Agreed on 15 November 2026. Milestones 9 (rooms, count, lamps), 10 (routes, the map, the AI following a route), 11 (Tollhaven, with levels kept for each dungeon) and 12 (fast clears, records, the chest, gear up to rare, teams, the start screen) are built and their rules are in the sections above; milestone 13 is not built yet. This is a summary. [`docs/routing-and-gear-plan.md`](docs/routing-and-gear-plan.md) is the full record and [`docs/routing-and-gear-handoff.md`](docs/routing-and-gear-handoff.md) is the brief for building it. As each milestone lands, its rules move into the sections above.
 
 - **Routing.** Before a run you open a map of the dungeon and plan a route: an ordered list of pulls. A pull names one or more packs taken together, where the tank holds them, and where the healer and damage dealers stand. All of it is optional; with no plan the AI follows a safe default route. The map can be opened during a run, between fights, to change the pulls not yet made.
 - **Count.** Each enemy is worth points. A run is complete when every boss is dead and the dungeon's count is met. A dungeon holds about 130% of the count it needs, so the route decides what is left alive.
 - **The map** follows the tools Mythic+ players know (Mythic Dungeon Tools, Keystone.guru): the map on the left, a list of coloured, numbered pulls on the right, a count bar above the list.
 - **A big dungeon.** Built: Tollhaven, section 7b. 22 trash packs and 4 bosses on a 25-minute timer: an entrance, three wings taken in any order, each ending in a boss, and a last boss that opens when the other three are dead. Patrols. Wipes return the party to the last sanctuary lamp lit. The Abbey stays as the short first dungeon.
-- **Levels** are kept per dungeon (built with Tollhaven, at the owner's word) and have no cap. Still to come: beating the timer by 20% opens two levels up, by 40% three.
-- **Gear.** Three slots: weapon (damage and healing), armour (health), trinket (a unique ability). Item level is the only stat. Rarities: common, uncommon, rare, epic (adds an ability), set (a bonus for wearing all three pieces), legendary (one per party). Items drop from a chest at the end of a run; higher dungeon levels allow higher item levels and better rarities.
-- **Inventory, teams and shop.** Gear belongs to the player, in one inventory. A team is four heroes, the one you play and what each wears; you may keep any number, and a default team always wears your best. Unwanted items sell for coin, which buys a gamble on a random item.
-- **Start screen.** Three choices side by side: dungeon and level, team, route. Start always works with the defaults.
+- **Levels** are kept per dungeon and have no cap. Beating the timer by 20% opens two levels up, by 40% three. Built.
+- **Gear.** Three slots: weapon (damage and healing), armour (health), trinket (a unique ability). Item level is the only stat. Rarities: common, uncommon, rare, epic (adds an ability), set (a bonus for wearing all three pieces), legendary (one per party). Items drop from a chest at the end of a run; higher dungeon levels allow higher item levels and better rarities. Built up to rare, with ten trinkets (section 7c); epics, sets and legendaries are milestone 13.
+- **Inventory, teams and shop.** Gear belongs to the player, in one inventory. A team is four heroes, the one you play and what each wears; you may keep any number, and a default team always wears your best. Built. Still to come: unwanted items sell for coin, which buys a gamble on a random item.
+- **Start screen.** Three choices side by side: dungeon and level, team, route. Start always works with the defaults. Built.
 
 Milestones: 9 rooms and count, 10 routes on the Abbey, 11 the big dungeon, 12 levels and basic gear, 13 rare gear and the shop.

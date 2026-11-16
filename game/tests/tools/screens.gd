@@ -4,7 +4,9 @@ extends SceneTree
 # record frames of each to look at. It uses a save file of its own. From the repo root:
 #   godot --path game -s tests/tools/screens.gd --write-movie build/shots/f.png --fixed-fps 60 --quit-after 700 -- mender tollhaven
 # The last words are the hero you play and the dungeon (the Abbey if left out). It prints the
-# frame at which each screen is up.
+# frame at which each screen is up. With "gear" as a third word it walks the screens for gear
+# instead: the start screen, the teams, the inventory, the settings, a run with a trinket worn,
+# and the chest (about 420 frames).
 
 func _initialize() -> void:
 	SaveStore.path = "user://tool-screens-save.json"
@@ -13,7 +15,61 @@ func _initialize() -> void:
 	var hero: String = args[0] if args.size() > 0 else "mender"
 	var app: App = load("res://scenes/app.tscn").instantiate()
 	root.add_child(app)
-	_walk(app, hero, args[1] if args.size() > 1 and Levels.DUNGEONS.has(args[1]) else "abbey")
+	var dungeon: String = args[1] if args.size() > 1 and Levels.DUNGEONS.has(args[1]) else "abbey"
+	if args.has("gear"):
+		_walk_gear(app, hero, dungeon)
+	else:
+		_walk(app, hero, dungeon)
+
+
+func _walk_gear(app: App, hero: String, dungeon: String) -> void:
+	await _frames(20)
+	var save := app.save
+	save.place = dungeon
+	save.unlocked = 6
+	save.level = 4
+	Run.choose(hero)
+	save.party.assign(Run.party)
+	save.slot = Run.player_slot
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5
+	for i in 14:
+		save.take(Items.roll(rng, "abbey" if i % 2 else "tollhaven", 4, 6.0 + i % 5))
+	save.take(Items.trinket("great_key", 14))
+	save.take(Items.trinket("seal", 7))
+	save.record(4, hero, 600.0, true, "", Levels.by_name(dungeon).time_limit, {"party": save.party, "slot": save.slot})
+	save.level = 4
+	app.show_setup()
+	await _frames(30)
+	_say("start screen")
+	app.show_team()
+	await _frames(30)
+	_say("the default team")
+	save.team = Teams.copy(save, Teams.in_use(save))
+	app.show_team()
+	await _frames(30)
+	_say("a team of your own")
+	save.team = 0
+	app.show_gear(app.show_setup)
+	await _frames(30)
+	_say("gear")
+	app.show_settings()
+	await _frames(30)
+	_say("settings")
+	await app.start_run()
+	app.run.combat.autoplay = true
+	await _frames(200)
+	_say("run with a trinket")
+	for e in app.run.combat.enemies.duplicate():
+		app.run.combat.damage(app.run.player.c, e, 9999999.0)
+	await _frames(30)
+	_say("summary")
+	app.show_chest()
+	await _frames(30)
+	_say("chest")
+	await _frames(10)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(SaveStore.path))
+	quit()
 
 
 func _walk(app: App, hero: String, dungeon: String) -> void:

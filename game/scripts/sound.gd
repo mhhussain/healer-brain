@@ -176,6 +176,10 @@ func _on_event(e: Dictionary) -> void:
 				play("heal", 0.0, pow(2.0, minf(12.0, roundf(e.amt / 420.0 * 7.0)) / 12.0))
 		"dispel":
 			play("dispel")
+		"gear":
+			# a trinket is pressed: the same chime, higher, until it has a sound of its own
+			var u := c.unit(e.id)
+			play("dispel", 0.0 if u and u.is_player else others_db, 1.35)
 		"interrupt":
 			play("interrupt")
 			_hush(e.id)

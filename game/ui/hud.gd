@@ -1,16 +1,20 @@
 class_name Hud
 extends Control
 
-# The interface during a run. From the bottom up: the action bar; the party in one row; then
+# The interface during a run. From the bottom up: the action bar, with the gear buttons beside
+# it for anything worn that is pressed; the party in one row; then
 # your frame on the left and your target's on the right, with your cast bar between them.
 # Across the top is the run: the clock, the count, the lamps lit, the deaths and the next pull.
 
 signal ability_clicked(idx: int)
+signal gear_clicked(slot: int)
 signal frame_clicked(hero_id: int, event: InputEventMouseButton)
 
 @export var run: Run
 
 var _tip_for := -1
+var _tip_gear := -1
+var _gear: HBoxContainer
 var _alerts: Array[Dictionary] = []
 
 const ALERT_LIFE := 3.5
@@ -64,6 +68,24 @@ func _ready() -> void:
 		actions.add_child(b)
 	_bottom.add_child(actions)
 
+	# beside the bar, not in it: the bar stays in the middle whatever is worn
+	_gear = Kit.hbox(6)
+	_gear.name = "Gear"
+	_gear.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for slot in 3:
+		var g := GearButton.new()
+		g.slot = slot
+		g.run = run
+		g.visible = false
+		g.used.connect(func(at: int) -> void: gear_clicked.emit(at))
+		g.hovered.connect(func(at: int, on: bool) -> void:
+			if on:
+				_tip_gear = at
+			elif _tip_gear == at:
+				_tip_gear = -1)
+		_gear.add_child(g)
+	add_child(_gear)
+
 	_tip = PanelContainer.new()
 	_tip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_tip.visible = false
@@ -95,6 +117,10 @@ func action_button(idx: int) -> AbilityButton:
 	return _bottom.get_node("Actions").get_child(idx)
 
 
+func gear_button(slot: int) -> GearButton:
+	return _gear.get_child(slot)
+
+
 func _on_hover(idx: int, on: bool) -> void:
 	if on:
 		_tip_for = idx
@@ -112,11 +138,19 @@ func _process(delta: float) -> void:
 		a.t += delta
 	_alerts = _alerts.filter(func(a: Dictionary) -> bool: return a.t < ALERT_LIFE)
 	var p := run.combat.player if run and run.combat else null
-	_tip.visible = p != null and _tip_for >= 0 and _tip_for < p.hero.abilities.size()
+	var actions := _bottom.get_node("Actions") as Control
+	var last := actions.get_child(actions.get_child_count() - 1) as Control
+	_gear.position = last.global_position - global_position + Vector2(last.size.x + 16, last.size.y - _gear.size.y)
+	var worn: Dictionary = run.combat.gear_state(p, _tip_gear) if p and _tip_gear >= 0 else {}
+	_tip.visible = p != null and ((_tip_for >= 0 and _tip_for < p.hero.abilities.size()) or not worn.is_empty())
 	if _tip.visible:
-		var ab := p.hero.abilities[_tip_for]
-		_tip_title.text = ab.name
-		_tip_body.text = AbilityButton.details(p.hero, ab)
+		if not worn.is_empty():
+			_tip_title.text = worn.item.name
+			_tip_body.text = Items.describe(worn.item) + "\n" + Items.kind_words(worn.item)
+		else:
+			var ab := p.hero.abilities[_tip_for]
+			_tip_title.text = ab.name
+			_tip_body.text = AbilityButton.details(p.hero, ab)
 		_tip.reset_size()
 		_tip.position = Vector2(size.x / 2 - _tip.size.x / 2, _bottom.position.y - _tip.size.y - 26)
 	queue_redraw()

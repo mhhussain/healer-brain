@@ -35,7 +35,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("pause"):
 		_ask_for_menu()
 	elif event is InputEventKey and event.pressed and not event.echo:
-		_use(Bindings.ability_for_key(Run.keys, unit.c.hero.id, event.physical_keycode))
+		var gear := Bindings.gear_for_key(Run.keys, event.physical_keycode)
+		if gear >= 0:
+			run.combat.press_gear(gear)
+		else:
+			_use(Bindings.ability_for_key(Run.keys, unit.c.hero.id, event.physical_keycode))
 	elif event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			_click = true

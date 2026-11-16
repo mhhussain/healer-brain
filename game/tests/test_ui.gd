@@ -214,28 +214,7 @@ func test_the_editor_gives_healers_a_click_column_for_ally_abilities():
 
 # ---------- the screens
 
-func test_the_setup_screen_changes_the_crew_and_the_level():
-	var save := SaveData.new()
-	save.unlocked = 3
-	var changes := [0]
-	var started := [false]
-	var holder := Control.new()
-	add_child_autofree(holder)
-	holder.add_child(Screens.setup(save, func() -> void: changes[0] += 1, func() -> void: started[0] = true))
-	var now := func() -> Control: return holder.get_child(holder.get_child_count() - 1)
-	(now.call().find_child("Pick1", true, false) as OptionButton).item_selected.emit(1)
-	assert_eq(save.party[1], "bloomweaver")
-	(now.call().find_child("You1", true, false) as Button).pressed.emit()
-	assert_eq(save.slot, 1)
-	assert_not_null(now.call().find_child("dew_click", true, false), "the keys shown are the Kelpwife's now")
-	(now.call().find_child("Pick3", true, false) as OptionButton).item_selected.emit(0)
-	assert_eq(save.party, ["warden", "bloomweaver", "duelist", "duelist"], "the same hero twice is allowed")
-	assert_null(now.call().find_child("Level4", true, false), "only unlocked levels are offered")
-	(now.call().find_child("Level3", true, false) as Button).pressed.emit()
-	assert_eq(save.level, 3)
-	assert_gt(changes[0], 3)
-	(now.call().find_child("Start", true, false) as Button).pressed.emit()
-	assert_true(started[0])
+# The start screen, the team editor and the other screens for gear are tested in test_gear.gd.
 
 
 # ---------- the app
@@ -289,10 +268,12 @@ func test_the_app_goes_from_title_to_run_to_summary_and_keeps_the_save():
 	assert_string_contains((app.screen.find_child("Result", true, false) as Label).text, "Timed")
 	assert_eq((app.screen.find_child("Ending", true, false) as Label).text, Story.ENDING_IN_TIME)
 	assert_true(app.narrator.is_talking(), "and the narrator reads it")
-	assert_eq(app.save.unlocked, 2)
+	assert_eq(app.save.unlocked, 4, "a clear this fast opens three levels")
 	assert_true(app.save.bests.has("pyromancer"))
-	assert_eq(SaveStore.load_save().unlocked, 2, "and it is in the file")
+	assert_eq(SaveStore.load_save().unlocked, 4, "and it is in the file")
 
+	(app.screen.find_child("Chest", true, false) as Button).pressed.emit()
+	assert_eq(app.state, "chest", "what the run gave comes before what is next")
 	(app.screen.find_child("Next", true, false) as Button).pressed.emit()
 	await wait_until(func() -> bool: return app.state == "run", 10.0)
 	assert_eq(app.state, "run")
@@ -304,7 +285,7 @@ func test_the_app_goes_from_title_to_run_to_summary_and_keeps_the_save():
 	assert_eq(app.state, "setup")
 	await wait_frames(2)
 	assert_null(app.run, "abandoning ends the run")
-	assert_eq(app.save.unlocked, 2, "and records nothing")
+	assert_eq(app.save.unlocked, 4, "and records nothing")
 
 
 func test_a_run_the_ai_played_is_not_recorded():
@@ -319,6 +300,8 @@ func test_a_run_the_ai_played_is_not_recorded():
 	assert_eq(app.state, "summary")
 	assert_eq(app.save.unlocked, 1)
 	assert_true(app.save.bests.is_empty())
+	assert_true(app.chest.is_empty(), "and earns no chest")
+	assert_not_null(app.screen.find_child("Again", true, false))
 
 
 func test_sound_is_set_from_the_save_and_the_menu_turns_it_off():
@@ -327,7 +310,7 @@ func test_sound_is_set_from_the_save_and_the_menu_turns_it_off():
 	var master := AudioServer.get_bus_index("Master")
 	assert_false(AudioServer.is_bus_mute(master))
 	assert_almost_eq(db_to_linear(AudioServer.get_bus_volume_db(master)), 0.8, 0.01)
-	app.show_setup()
+	app.show_settings()
 	(app.screen.find_child("Volume", true, false) as HSlider).value = 0.4
 	assert_almost_eq(db_to_linear(AudioServer.get_bus_volume_db(master)), 0.4, 0.01)
 	app._unhandled_input(key(KEY_M))

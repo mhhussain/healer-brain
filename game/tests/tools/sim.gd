@@ -9,12 +9,17 @@ extends SceneTree
 # place's own; "pulls=0+1,2,3+4" writes one on the spot from packs by number, with the packs it
 # leaves out following one at a time; "skip=3,5" is the safe way without those packs, for a
 # place that holds more than it asks for. "party=2" runs only the third of the six parties.
+# "gear=17" gives all four a plain weapon and armour of that item level, and "trinkets=a,b,c,d"
+# a trinket each by kind (see rules/items.gd; "-" for none), at that item level.
 
 const GIVE_UP := 60 * 60.0
 const DPS := [["duelist", "ranger"], ["duelist", "pyromancer"], ["ranger", "pyromancer"]]
 
 # the one party to run, by its place among the six, or -1 for all
 var _only := -1
+# the item level everyone's weapon and armour has, or 0 for none, and a trinket kind for each
+var _gear := 0
+var _trinkets: Array[String] = []
 
 
 func _initialize() -> void:
@@ -28,6 +33,12 @@ func _initialize() -> void:
 			args.erase(word)
 		elif word.begins_with("party="):
 			_only = int(word.substr(6))
+			args.erase(word)
+		elif word.begins_with("gear="):
+			_gear = int(word.substr(5))
+			args.erase(word)
+		elif word.begins_with("trinkets="):
+			_trinkets.assign(word.substr(9).split(","))
 			args.erase(word)
 	var levels: Array = (args[0] if args.size() > 0 else "1").split(",")
 	var seeds := int(args[1]) if args.size() > 1 else 1
@@ -61,6 +72,14 @@ func _run(level: int, healer: String, dps: Array, rng_seed: int, verbose: bool) 
 	Run.chosen_level = level
 	Run.autoplay = true
 	Run.rng_seed = rng_seed
+	Run.gear = []
+	for i in 4:
+		var on := {}
+		if _gear > 0:
+			on = {"weapon": Items.plain("weapon", _gear), "armour": Items.plain("armour", _gear)}
+		if i < _trinkets.size() and Items.TRINKETS.has(_trinkets[i]):
+			on["trinket"] = Items.trinket(_trinkets[i], maxi(_gear, 1))
+		Run.gear.append(on)
 	var main: Run = load("res://scenes/run.tscn").instantiate()
 	main.endless = false
 	root.add_child(main)

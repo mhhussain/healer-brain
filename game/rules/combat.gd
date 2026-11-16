@@ -122,6 +122,19 @@ func add_hero(def: HeroDef, is_player := false) -> Combatant:
 	return u
 
 
+## Dresses a hero before the run begins: {"weapon": item, "armour": item, "trinket": item},
+## any of them empty or missing (see rules/items.gd). A weapon raises damage and healing,
+## armour raises health, and a trinket does what it does.
+func wear(u: Combatant, gear: Dictionary) -> void:
+	u.gear = gear
+	u.power = 1.0 + Items.bonus(gear.get("weapon", {}))
+	u.max_hp = roundf(u.hero.hp * (1.0 + Items.bonus(gear.get("armour", {}))))
+	u.hp = u.max_hp
+	u.trinket = gear.get("trinket", {})
+	u.trinket_cd = 0.0
+	u.trinket_n = 0
+
+
 func add_pack(name := "", boss := false) -> Pack:
 	var p := Pack.new()
 	p.id = packs.size()
@@ -506,6 +519,8 @@ func damage(src: Combatant, tgt: Combatant, amount: float, type := "phys", o := 
 				a *= au.done
 			if src.team == "enemy":
 				a *= scale * _enemy_bonus(src)
+			else:
+				a *= src.power * _lens(src, o)
 		elif o.get("scaled", false):
 			a *= scale
 		for au in tgt.auras:
@@ -547,6 +562,8 @@ func damage(src: Combatant, tgt: Combatant, amount: float, type := "phys", o := 
 		gain(tgt, 1.0)
 	if tgt.hp <= 0.0:
 		_kill(tgt)
+	elif src and src.hero and tgt.team == "enemy" and a > 0.0:
+		_knife(src, tgt, false, o)
 	return a
 
 
@@ -564,11 +581,13 @@ func _enemy_bonus(e: Combatant) -> float:
 	return m
 
 
-## Returns the health restored.
-func heal(src: Combatant, tgt: Combatant, amount: float) -> float:
+## Returns the health restored. Options: "raw" heals for exactly that much, whatever the healer
+## wears; "tick" marks the tick of a lasting effect.
+func heal(src: Combatant, tgt: Combatant, amount: float, o := {}) -> float:
 	if not tgt.alive:
 		return 0.0
-	var eff := roundf(minf(tgt.max_hp - tgt.hp, amount))
+	var given := amount if o.get("raw", false) else mended(src, amount) * _lens(src, o)
+	var eff := roundf(minf(tgt.max_hp - tgt.hp, given))
 	tgt.hp += eff
 	if eff > 0.0:
 		src.stats.heal += eff
@@ -576,7 +595,16 @@ func heal(src: Combatant, tgt: Combatant, amount: float) -> float:
 		var es := engaged_enemies()
 		for e in es:
 			add_threat(e, src.id, eff * 0.5 / es.size())
+		_knife(src, tgt, true, o)
 	return eff
+
+
+## What a heal or a shield of that size comes to from this hero now: more with a better weapon.
+func mended(u: Combatant, amount: float) -> float:
+	var a := amount * u.power
+	for au in u.auras:
+		a *= au.heals
+	return a
 
 
 func _kill(u: Combatant) -> void:
@@ -663,6 +691,9 @@ func interrupt(u: Combatant, e: Combatant) -> void:
 	text(e.pos, "Silenced", Color("f0b54a"))
 	if dist(u, e) > 4.0:
 		beam(u, e, u.hero.color)
+	if u.trinket.get("kind") == "tuning_fork":
+		var more := 1.0 + Items.amount("tuning_fork", u.trinket.ilvl)
+		add_aura(u, {"id": "tuning_fork", "name": u.trinket.name, "dur": 8.0, "src_id": u.id, "done": more, "heals": more})
 
 
 func dispel(u: Combatant, t: Combatant) -> void:
@@ -835,6 +866,125 @@ func ability_state(u: Combatant, idx: int) -> Dictionary:
 		if t and t.alive:
 			usable = _check_target(u, ab, t) == ""
 	return {"cd": maxf(cd, 0.0), "cd_max": cd_max, "usable": usable}
+
+
+# ---------- gear
+
+const TRINKET_REACH := 30.0
+const TRINKET_COLOR := Color("5aa2f0")
+
+## Uses the hero's trinket now, on that enemy if it is one that needs a target. Returns "" if
+## it went off, "cd" if it is not ready, or the reason to show the player.
+func use_trinket(u: Combatant, target: Combatant = null) -> String:
+	if not Items.pressed(u.trinket):
+		return "Nothing to use"
+	if not u.alive:
+		return "You are dead"
+	if held(u):
+		return "You are held fast"
+	if u.trinket_cd > 0.0:
+		return "cd"
+	var kind: String = u.trinket.kind
+	var n := Items.amount(kind, u.trinket.ilvl)
+	var t := target if target and target.alive and target.team == "enemy" else null
+	if kind in ["seal", "pitch_pot"]:
+		if t == null:
+			return "No target"
+		if dist(u, t) > TRINKET_REACH + t.radius * 0.5:
+			return "Out of range"
+		if not sees(u, t):
+			return "No line of sight"
+	match kind:
+		"great_key":
+			add_aura(u, {"id": "great_key", "name": u.trinket.name, "dur": 8.0, "src_id": u.id, "taken": 1.0 - n})
+		"bell_rope":
+			for h in alive_heroes():
+				add_aura(h, {"id": "bell_rope", "name": u.trinket.name, "dur": 10.0, "src_id": u.id, "done": 1.0 + n, "heals": 1.0 + n})
+		"seal":
+			if t.cast == null or not t.cast.interruptible:
+				return "Nothing to silence"
+			interrupt(u, t)
+		"pitch_pot":
+			for e in enemies:
+				if e.alive and (e == t or (e.engaged and dist(e, t) <= 5.0)):
+					add_aura(e, {"id": "pitch%d" % u.id, "name": "Burning Pitch", "dur": 8.0, "src_id": u.id, "debuff": true, "tick_every": 1.0, "tick_dmg": n})
+			engage_from(u, t)
+			ring(t.pos, 5.0, Color("f08a3c"))
+		"lens":
+			u.trinket_n = 3
+		"tide_glass":
+			gain(u, u.res_max * n)
+	u.trinket_cd = Items.cooldown(u.trinket)
+	event.emit({"k": "gear", "id": u.id, "s": kind})
+	text(u.pos, u.trinket.name, TRINKET_COLOR)
+	return ""
+
+
+## What a gear button shows for a slot (0 the weapon, 1 the armour, 2 the trinket): {"item",
+## "cd", "cd_max", "usable"}, or empty if the hero wears nothing there that is pressed.
+func gear_state(u: Combatant, slot: int) -> Dictionary:
+	if slot != 2 or not Items.pressed(u.trinket):
+		return {}
+	return {"item": u.trinket, "cd": maxf(u.trinket_cd, 0.0), "cd_max": Items.cooldown(u.trinket), "usable": u.alive and not held(u)}
+
+
+## The player pressed a gear key. A trinket does not wait for other abilities, so it goes off
+## now or not at all.
+func press_gear(slot: int) -> void:
+	var p := player
+	if p == null or gear_state(p, slot).is_empty():
+		return
+	var t := unit(p.target_id)
+	if t == null or not t.alive or t.team != "enemy":
+		t = unit(tank().target_id)
+	var r := use_trinket(p, t)
+	if r == "cd":
+		_fail(p.trinket.name + " is not ready")
+	elif r != "":
+		_fail(r)
+
+
+# What a trinket does by itself, and its cooldown running down.
+func _trinket_tick(u: Combatant, dt: float) -> void:
+	if u.trinket.is_empty():
+		return
+	if u.trinket_cd > 0.0:
+		u.trinket_cd -= dt
+		return
+	match u.trinket.kind:
+		"thimble":
+			if u.hp < u.max_hp * 0.35:
+				u.trinket_cd = Items.cooldown(u.trinket)
+				heal(u, u, u.max_hp * Items.amount("thimble", u.trinket.ilvl), {"raw": true, "gear": true})
+				text(u.pos, u.trinket.name, TRINKET_COLOR)
+		"shell":
+			if in_combat:
+				u.trinket_cd = Items.cooldown(u.trinket)
+				add_aura(u, {"id": "shell", "name": u.trinket.name, "dur": 20.0, "src_id": u.id, "absorb": Items.amount("shell", u.trinket.ilvl)})
+
+
+# The Keeper's Lens: the next three hits or heals are stronger. The ticks of a lasting effect,
+# and what a trinket does itself, are not hits.
+func _lens(u: Combatant, o: Dictionary) -> float:
+	if u.trinket_n <= 0 or u.trinket.get("kind") != "lens" or o.get("tick", false) or o.get("gear", false):
+		return 1.0
+	u.trinket_n -= 1
+	return 1.0 + Items.amount("lens", u.trinket.ilvl)
+
+
+# Hask's Gutting Knife: every sixth hit or heal lands again.
+func _knife(u: Combatant, t: Combatant, healing: bool, o: Dictionary) -> void:
+	if u.trinket.get("kind") != "gutting_knife" or o.get("tick", false) or o.get("gear", false):
+		return
+	u.trinket_n += 1
+	if u.trinket_n < 6:
+		return
+	u.trinket_n = 0
+	var n := Items.amount("gutting_knife", u.trinket.ilvl)
+	if healing:
+		heal(u, t, n, {"raw": true, "gear": true})
+	else:
+		damage(u, t, n, "phys", {"raw": true, "gear": true, "no_beam": true})
 
 
 # ---------- the player
@@ -1088,15 +1238,16 @@ func _update_unit(u: Combatant, dt: float) -> void:
 			continue
 		a.tick_timer += a.tick_every
 		if a.tick_dmg > 0.0:
-			damage(src, u, a.tick_dmg, "magic", {"no_beam": true, "scaled": true})
+			damage(src, u, a.tick_dmg, "magic", {"no_beam": true, "scaled": true, "tick": true})
 		if a.tick_heal > 0.0 and src:
-			heal(src, u, a.tick_heal)
+			heal(src, u, a.tick_heal, {"tick": true})
 		if not u.alive:
 			return
 	u.auras = u.auras.filter(func(a: Aura) -> bool: return a.t > 0.0)
 
 	if u.hero == null:
 		return
+	_trinket_tick(u, dt)
 	var def := u.hero
 	var c := u.cast
 	var fast := held(u)

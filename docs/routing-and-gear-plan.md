@@ -212,7 +212,7 @@ Each ends at a point where the owner plays and reviews. Stop there.
 
 **11. The big dungeon.** (Built: Tollhaven. The owner approved [`tollhaven-proposal.md`](tollhaven-proposal.md) as proposed, and asked for levels to be kept for each dungeon from the start, so that part of milestone 12 came in with it. Its rules are in `DESIGN.md` sections 4, 6, 7b and 8.) The owner approves the name, layout sketch, enemies and bosses first. Then: three wings, about 22 packs, four bosses, patrols, new enemies, pathing around packs, the map's warnings, its default route, the 25-minute timer.
 
-**12. Levels and basic gear.** Levels per dungeon (done in milestone 11: each dungeon's unlocked level, chosen level and bests are kept apart), fast clears and records. The end chest. Generated weapons and armour, and trinkets. Item level and its ceiling. The inventory, teams, the default team, the new start screen, the three gear keys. Save export and import.
+**12. Levels and basic gear.** (Built. The owner approved [`gear-proposal.md`](gear-proposal.md) as proposed. Its rules are in `DESIGN.md` sections 2, 3, 7c and 8.) Levels per dungeon (done in milestone 11: each dungeon's unlocked level, chosen level and bests are kept apart), fast clears and records. The end chest. Generated weapons and armour, and trinkets. Item level and its ceiling. The inventory, teams, the default team, the new start screen, the three gear keys. Save export and import.
 
 **13. Rare gear and the shop.** Epic abilities, sets, legendaries, the unique flag. Coin, selling and the gamble.
 
@@ -240,8 +240,8 @@ These were not decided. Settle each with the owner, or propose a value and tune 
 
 - **Count values** per enemy and the total each dungeon needs. Milestone 9 proposed values, to be tuned in play: 3 for the casters and archers, 4 for the two melee kinds, 8 for the Prior, nothing for bosses and what they call up. The Abbey holds 92 and asks for all of it. Tollhaven holds 300 and asks for 231, with 1 for a Deckhand, 4 for a Tide Crier and 5 for a Shipwright's Mate or a Dredger: proposed values, to be tuned in play.
 - **Which key** keeps M: settled. M opens the map; turning sound off is a box in the game's menu and on the setup screen.
-- **The player's "current item level"** that drops are measured against, and how far above it a drop lands. One option: the average of the best item owned in each slot. (Milestone 12)
-- **The item-level ceiling** for each dungeon level. (Milestone 12)
-- **How much** a point of item level adds to damage, healing and health. (Milestone 12)
+- **The player's "current item level"** that drops are measured against, and how far above it a drop lands: settled. It is the average of the best weapon and the best armour owned, and a drop lands 1 to 3 above it.
+- **The item-level ceiling** for each dungeon level: settled, 2 + 3 × the level.
+- **How much** a point of item level adds to damage, healing and health: settled, 1%, with 5% more of that on an uncommon item and 10% more on a rare one.
 - **Coin**: what a run pays, what items sell for, what the gamble costs and its odds. (Milestone 13)
 - **Whether "one legendary per party" also limits how many can be owned.** As agreed it limits only what is worn. (Milestone 13)

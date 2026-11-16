@@ -42,6 +42,15 @@ var last_interrupt := -99.0
 var rage_gate := -9.0
 ## Heroes: what its AI remembers. Used when the AI is playing it.
 var ai: AIState
+## Heroes: what they wear ({"weapon": item, "armour": item, "trinket": item}, see
+## rules/items.gd) and what it comes to: `power` multiplies their damage and healing.
+var gear := {}
+var power := 1.0
+## The trinket worn, or empty; the seconds until it may be used or work again; and what it is
+## counting (hits towards the Gutting Knife, hits left of the Lens).
+var trinket := {}
+var trinket_cd := 0.0
+var trinket_n := 0
 
 # enemies only
 var pack_id := -1

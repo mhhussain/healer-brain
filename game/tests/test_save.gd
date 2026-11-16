@@ -5,10 +5,10 @@ extends GutTest
 func test_a_timed_run_unlocks_the_next_level_and_sets_a_best():
 	var s := SaveData.new()
 	assert_eq(s.unlocked, 1)
-	assert_true(s.record(1, "ranger", 480.0, true))
+	assert_eq(s.record(1, "ranger", 480.0, true), 1)
 	assert_eq(s.unlocked, 2)
 	assert_eq(s.bests["ranger"], {"level": 1, "time": 480.0})
-	assert_false(s.record(1, "ranger", 470.0, true), "the same level again unlocks nothing new")
+	assert_eq(s.record(1, "ranger", 470.0, true), 0, "the same level again unlocks nothing new")
 	assert_eq(s.bests["ranger"].time, 470.0, "but a faster time is a new best")
 	s.record(1, "ranger", 500.0, true)
 	assert_eq(s.bests["ranger"].time, 470.0)
@@ -21,7 +21,7 @@ func test_a_timed_run_unlocks_the_next_level_and_sets_a_best():
 
 func test_a_run_over_the_time_changes_nothing():
 	var s := SaveData.new()
-	assert_false(s.record(1, "ranger", 900.0, false))
+	assert_eq(s.record(1, "ranger", 900.0, false), 0)
 	assert_eq(s.unlocked, 1)
 	assert_true(s.bests.is_empty())
 

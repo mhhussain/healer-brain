@@ -2,7 +2,8 @@ class_name KeysEditor
 extends VBoxContainer
 
 # The editor for one hero's bindings: two keys and a mouse button for each ability, and for a
-# healer's ally abilities the click on a party frame that casts them.
+# healer's ally abilities the click on a party frame that casts them. Under them, the three gear
+# keys, which are the same for every hero.
 
 ## A binding changed, so the save should be written.
 signal changed
@@ -75,6 +76,19 @@ func _build(note := "") -> void:
 				grid.add_child(click)
 			else:
 				grid.add_child(Control.new())
+	for slot in 3:
+		var word: String = Items.SLOT_NAMES[Items.SLOTS[slot]]
+		var gear_label := Kit.label("%s (gear)" % word, 13)
+		gear_label.tooltip_text = "Uses what you wear as your %s, if it is something that is pressed." % word.to_lower()
+		gear_label.mouse_filter = Control.MOUSE_FILTER_STOP
+		grid.add_child(gear_label)
+		var code: int = save.gear_keys[slot]
+		var b := Kit.button("…" if _waiting.get("gear", -1) == slot else Bindings.key_name(code) if code != 0 else "—", _wait_gear.bind(slot), 13)
+		b.name = "gear_%d" % slot
+		b.custom_minimum_size.x = 64
+		grid.add_child(b)
+		for filler in grid.columns - 2:
+			grid.add_child(Control.new())
 	add_child(grid)
 	_note = Kit.label(note if note != "" else PROMPT if not _waiting.is_empty() else "A key or button does one thing: binding it here takes it from where it was.", 12,
 		Kit.RED if note != "" else Kit.GOLD if not _waiting.is_empty() else Kit.GREY)
@@ -82,6 +96,7 @@ func _build(note := "") -> void:
 	add_child(_note)
 	var reset := Kit.button("Back to the usual keys", func() -> void:
 		Bindings.reset(save, hero_id)
+		Bindings.reset_gear(save)
 		_done(), 12)
 	reset.name = "Reset"
 	reset.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
@@ -90,6 +105,11 @@ func _build(note := "") -> void:
 
 func _wait(ab_id: String, slot: int) -> void:
 	_waiting = {"ab": ab_id, "slot": slot}
+	_build()
+
+
+func _wait_gear(slot: int) -> void:
+	_waiting = {"gear": slot}
 	_build()
 
 
@@ -117,16 +137,20 @@ func _input(event: InputEvent) -> void:
 func capture(code: int) -> void:
 	if _waiting.is_empty():
 		return
-	var ab_id: String = _waiting.ab
-	var slot: int = _waiting.slot
+	var gear: int = _waiting.get("gear", -1)
+	var ab_id: String = _waiting.get("ab", "")
+	var slot: int = _waiting.get("slot", 0)
 	if code == KEY_ESCAPE:
 		_waiting = {}
 		_build()
 	elif code == KEY_BACKSPACE or code == KEY_DELETE:
-		Bindings.clear_key(save, hero_id, ab_id, slot)
+		if gear >= 0:
+			Bindings.set_gear_key(save, gear, 0)
+		else:
+			Bindings.clear_key(save, hero_id, ab_id, slot)
 		_done()
 	else:
-		var why := Bindings.set_key(save, hero_id, ab_id, slot, code)
+		var why := Bindings.set_gear_key(save, gear, code) if gear >= 0 else Bindings.set_key(save, hero_id, ab_id, slot, code)
 		if why != "":
 			_build(why + ". Try another.")
 		else:

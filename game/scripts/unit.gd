@@ -63,6 +63,8 @@ var _body_mat: StandardMaterial3D
 var _ring: MeshInstance3D
 var _marker: MeshInstance3D
 var _body_color := Color.WHITE
+# the wash over its figure, which tells it from another kind wearing the same one
+var _tint := Color.WHITE
 ## The 3D figure, its clips and its materials, if it has one.
 var figure: Node3D
 var _anim: AnimationPlayer
@@ -99,8 +101,9 @@ func setup() -> void:
 		radius = def.radius
 		height = 0.9 + def.radius * 1.8
 		speed = 6.5
-		# bosses dark, casters violet, the rest red
-		_body_color = Color("7a2f3a") if def.boss else Color("7d5aa8") if def.reach >= 5.0 else Color("a34d4d")
+		_tint = def.tint
+		# bosses dark, casters violet, the rest red; a thing that only stands there is grey
+		_body_color = Color("8a8f8c") if def.still else Color("7a2f3a") if def.boss else Color("7d5aa8") if def.reach >= 5.0 else Color("a34d4d")
 	var capsule := CapsuleMesh.new()
 	capsule.radius = radius
 	capsule.height = height
@@ -284,7 +287,8 @@ func dash(dir: Vector3, metres: float, seconds := 0.22) -> void:
 
 func _physics_process(delta: float) -> void:
 	var want := Vector3.ZERO
-	if is_alive():
+	# held fast, as in a net, it goes nowhere whatever is steering it
+	if is_alive() and not (c and run and run.combat.held(c)):
 		want = Vector3(wish.x, 0, wish.z).limit_length(1.0) * speed
 	var steering := not want.is_zero_approx()
 	if _dash_t > 0.0 and is_alive():
@@ -292,7 +296,9 @@ func _physics_process(delta: float) -> void:
 		velocity = _dash if _dash_t > 0.0 else want
 	else:
 		velocity = Vector3(velocity.x, 0, velocity.z).move_toward(want, (acceleration if steering else braking) * delta)
-	move_and_slide()
+	# a keeper asleep at its post has nowhere to slide to, and a big dungeon has a hundred of them
+	if not (c and c.team == "enemy" and not c.engaged and velocity.is_zero_approx()):
+		move_and_slide()
 
 	if steering:
 		_turn_to(want, delta)
@@ -324,7 +330,7 @@ func _physics_process(delta: float) -> void:
 	_body_mat.albedo_color = _body_color.lerp(Color.WHITE, 0.6 * _flash).darkened(0.45 * _fall)
 	for mat in _figure_mats:
 		mat.emission = Color.WHITE * (0.55 * _flash)
-		mat.albedo_color = Color.WHITE.darkened(0.45 * _fall)
+		mat.albedo_color = _tint.darkened(0.45 * _fall)
 	if _anim:
 		_animate(delta)
 	if _marker:

@@ -131,9 +131,9 @@ func _draw() -> void:
 
 	# the run, across the top
 	var t := c.total_time()
-	var over := t > Combat.TIME_LIMIT
-	Kit.bar(self, Rect2(mid - 170, 16, 340, 8), t / Combat.TIME_LIMIT, Kit.RED if over else Kit.GOLD)
-	Kit.text(self, Vector2(mid, 44), "Level %d    %s / %s" % [c.level, Kit.clock(t), Kit.clock(Combat.TIME_LIMIT)], 16, Kit.RED if over else Kit.BONE, 400.0)
+	var over := t > c.time_limit
+	Kit.bar(self, Rect2(mid - 170, 16, 340, 8), t / c.time_limit, Kit.RED if over else Kit.GOLD)
+	Kit.text(self, Vector2(mid, 44), "Level %d    %s / %s" % [c.level, Kit.clock(t), Kit.clock(c.time_limit)], 16, Kit.RED if over else Kit.BONE, 400.0)
 	Kit.bar(self, Rect2(mid - 170, 54, 340, 5), float(c.count()) / maxf(c.count_goal(), 1.0), Kit.GREEN)
 	Kit.text(self, Vector2(mid, 78), progress(c) + pull_words(c), 12, Kit.GREY, 600.0)
 

@@ -16,7 +16,7 @@ signal pause_requested
 static var party: Array[String] = ["warden", "mender", "duelist", "ranger"]
 static var player_slot := 3
 static var chosen_level := 1
-## Where the run is: "abbey" or "sandbox".
+## Where the run is: a dungeon's id, or "sandbox".
 static var place := "abbey"
 ## The AI plays your hero too: for the balance runner and for watching.
 static var autoplay := false
@@ -168,6 +168,15 @@ func warm_up(cast: Array[String]) -> Array[Node]:
 	for id in cast:
 		var figure := Figures.make(id)
 		if figure == null:
+			# one with no figure, such as a net, is drawn as the plain capsule: that is a kind
+			# of thing too, and nothing else in a run is drawn with it
+			var plain: Node = load(UNIT).instantiate()
+			for part in plain.find_children("*", "MeshInstance3D", true, false):
+				var copy: MeshInstance3D = part.duplicate()
+				add_child(copy)
+				copy.global_position = at
+				made.append(copy)
+			plain.free()
 			continue
 		# kept until the run ends: a material freed in the same breath as the figure wearing it
 		# makes the engine complain
@@ -345,7 +354,14 @@ func _on_event(e: Dictionary) -> void:
 		"ring":
 			_ring(e.at, e.r, e.color)
 		"boom":
-			_ring(e.at, e.r, Color("ef5d4a"))
+			# a lane is no ring: its patch on the floor says where it struck
+			if e.get("kind", "circle") != "lane":
+				_ring(e.at, e.r, Color("ef5d4a"))
+		"yank":
+			# dragged: the figure is put where the rules have put it
+			unit_of(e.id).place(combat.unit(e.id).pos)
+		"gate":
+			level.open_gate(e.id)
 		"dash":
 			unit_of(e.id).dash(e.dir, e.dist)
 		"spawn":

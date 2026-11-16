@@ -17,8 +17,16 @@ const OPENING: Array[String] = [
 const ENDING_IN_TIME := "You climb the sea stair with dry boots. Below you, for the first time in a hundred years, the abbey sleeps."
 const ENDING_LATE := "The tide caught you on the stair and you came home soaked to the collar. But the lamps hold, and the abbey sleeps."
 
+## The narrator's endings for the other dungeons, by the dungeon's id: in time, and late.
+const ENDINGS := {
+	"tollhaven": [
+		"The harbour light turns over dry stone. Behind you Tollhaven sleeps, and the sea comes home to an empty town.",
+		"The tide took the lower streets before you were out of them. But the light is burning, and Tollhaven sleeps.",
+	],
+}
+
 ## When a line is said: a pack is pulled, a boss is met, a lamp is lit, someone falls, the tide turns.
-const MOMENTS: Array[String] = ["pull", "krogg", "velisse", "sulmar", "lamp", "fallen", "late"]
+const MOMENTS: Array[String] = ["pull", "krogg", "velisse", "sulmar", "hask", "corrow", "garrow", "keeper", "lamp", "fallen", "late"]
 
 ## One short line each, said in a speech bubble. Nobody says the same thing twice in a run.
 const LINES := {
@@ -27,6 +35,10 @@ const LINES := {
 		"krogg": ["Brother Krogg. We have come to relieve you."],
 		"velisse": ["She is still nursing them. Oh, Sister."],
 		"sulmar": ["Father Abbot. You can stop ringing now."],
+		"hask": ["Mother Hask. Put the nets down, dear."],
+		"corrow": ["Nobody owes you anything now, Exciseman."],
+		"garrow": ["Old Garrow. The ship is finished. Let it go."],
+		"keeper": ["Keeper. We have brought you a light of our own."],
 		"lamp": ["One more light against the dark.", "There. Rest now."],
 		"fallen": ["No, no, no. Up you get!"],
 		"late": ["The tide is turning. I can hear it."],
@@ -36,6 +48,10 @@ const LINES := {
 		"krogg": ["A gatekeeper. I know the type."],
 		"velisse": ["Mind the little ones. They nip."],
 		"sulmar": ["When that bell swings, find a pillar."],
+		"hask": ["Mind the nets. Cut each other loose."],
+		"corrow": ["A taxman. Of course it would be a taxman."],
+		"garrow": ["Watch the slip. That hull will not stop for you."],
+		"keeper": ["Keep ahead of his lamp, or behind stone."],
 		"lamp": ["Now that is a proper harbour light."],
 		"fallen": ["Hold the line. We will fetch them after."],
 		"late": ["Water is coming in. Pick up your feet."],
@@ -45,6 +61,10 @@ const LINES := {
 		"krogg": ["Poor lamb. Rusted to his post."],
 		"velisse": ["A ward full of crabs. She would be mortified."],
 		"sulmar": ["He never could leave that rope alone."],
+		"hask": ["I knew her mother. Same temper."],
+		"corrow": ["He counted my kelp once. Twice, in fact."],
+		"garrow": ["Still building. Bless him, he never did finish one."],
+		"keeper": ["All these years he kept it lit for nobody."],
 		"lamp": ["There. That will keep the damp off."],
 		"fallen": ["Up, dear. The kelp has you."],
 		"late": ["She is coming home, the sea. Quick now."],
@@ -54,6 +74,10 @@ const LINES := {
 		"krogg": ["Big keys. Must be a big lock."],
 		"velisse": ["I have robbed worse hospitals."],
 		"sulmar": ["That bell would fetch a fortune. I am only saying."],
+		"hask": ["I have slipped better nets than hers."],
+		"corrow": ["Ah. We have met. He will not remember, I hope."],
+		"garrow": ["Nothing here worth lifting. It is all boat."],
+		"keeper": ["That lens alone would buy a street."],
 		"lamp": ["...Fine. It is a bit lovely."],
 		"fallen": ["I am not carrying anyone."],
 		"late": ["I cannot swim in these boots."],
@@ -63,6 +87,10 @@ const LINES := {
 		"krogg": ["Big."],
 		"velisse": ["Too many legs."],
 		"sulmar": ["Loud."],
+		"hask": ["Nets."],
+		"corrow": ["Paperwork."],
+		"garrow": ["Duck."],
+		"keeper": ["Bright."],
 		"lamp": ["Good."],
 		"fallen": ["Get up."],
 		"late": ["Tide."],
@@ -72,6 +100,10 @@ const LINES := {
 		"krogg": ["Excuse us! We have an appointment?"],
 		"velisse": ["I am sure she is a very good nurse."],
 		"sulmar": ["My great-great-grandfather made his candles."],
+		"hask": ["Oh, I do not like being tied up."],
+		"corrow": ["My family always paid on time! Mostly!"],
+		"garrow": ["Pitch. Pitch burns. Oh, this is going to go badly."],
+		"keeper": ["That is the biggest candle I have ever seen."],
 		"lamp": ["Oh! It caught first time."],
 		"fallen": ["Was that my fault? That felt like my fault."],
 		"late": ["Wet wicks. This is my nightmare."],
@@ -96,6 +128,9 @@ static func all_lines() -> Array[Dictionary]:
 		out.append({"id": "opening_%d" % (i + 1), "speaker": NARRATOR, "text": OPENING[i]})
 	out.append({"id": "ending_in_time", "speaker": NARRATOR, "text": ENDING_IN_TIME})
 	out.append({"id": "ending_late", "speaker": NARRATOR, "text": ENDING_LATE})
+	for place: String in ENDINGS:
+		out.append({"id": "ending_in_time_" + place, "speaker": NARRATOR, "text": ENDINGS[place][0]})
+		out.append({"id": "ending_late_" + place, "speaker": NARRATOR, "text": ENDINGS[place][1]})
 	for hero in Heroes.ALL:
 		for moment in MOMENTS:
 			var texts: Array = LINES[hero][moment]
@@ -104,9 +139,12 @@ static func all_lines() -> Array[Dictionary]:
 	return out
 
 
-## The narrator's line for how the run ended.
-static func ending(timed: bool) -> Dictionary:
-	return {"id": "ending_in_time" if timed else "ending_late", "speaker": NARRATOR, "text": ENDING_IN_TIME if timed else ENDING_LATE}
+## The narrator's line for how a run ended, in that dungeon.
+static func ending(timed: bool, place := "abbey") -> Dictionary:
+	var id := "ending_in_time" if timed else "ending_late"
+	if ENDINGS.has(place):
+		return {"id": id + "_" + place, "speaker": NARRATOR, "text": ENDINGS[place][0 if timed else 1]}
+	return {"id": id, "speaker": NARRATOR, "text": ENDING_IN_TIME if timed else ENDING_LATE}
 
 
 func _init(combat: Combat) -> void:
@@ -143,7 +181,7 @@ func frame(dt: float) -> void:
 		_lamp_in -= dt
 		if _lamp_in <= 0.0:
 			_speak("lamp")
-	if not _late_said and _combat.started and _combat.total_time() > Combat.TIME_LIMIT - 120.0:
+	if not _late_said and _combat.started and _combat.total_time() > _combat.time_limit - 120.0:
 		_late_said = true
 		_speak("late")
 

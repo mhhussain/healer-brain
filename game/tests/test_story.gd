@@ -52,7 +52,7 @@ func test_every_line_has_an_id_of_its_own():
 		assert_false(ids.has(line.id), line.id + " is used twice")
 		ids[line.id] = true
 		assert_true(line.speaker == Story.NARRATOR or Heroes.by_id(line.speaker) != null, line.id)
-	assert_eq(lines.size(), 61)
+	assert_eq(lines.size(), 87)
 	assert_eq(lines[0], {"id": "opening_1", "speaker": "narrator", "text": Story.OPENING[0]})
 	assert_true(ids.has("warden_pull_4"))
 	assert_true(ids.has("ranger_late_1"))
@@ -151,7 +151,7 @@ func test_a_fall_is_remarked_on_but_not_every_time():
 func test_the_tide_is_mentioned_once_with_two_minutes_left():
 	pull(0)
 	said.clear()
-	combat.elapsed = Combat.TIME_LIMIT - 121.0
+	combat.elapsed = combat.time_limit - 121.0
 	wait(0.5)
 	assert_eq(said.size(), 0)
 	wait(1.0)

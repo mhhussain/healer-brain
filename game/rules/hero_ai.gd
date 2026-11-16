@@ -47,9 +47,14 @@ static func _nearest(list: Array, h: Combatant) -> Combatant:
 
 # ---------- hazards
 
-static func _safe_at(c: Combat, p: Vector3) -> bool:
+# A zone that is no danger to this hero: a place to shelter, or one the hero carries.
+static func _harmless(z: Zone, h: Combatant) -> bool:
+	return z.safe or (h != null and z.follow_id == h.id)
+
+
+static func _safe_at(c: Combat, p: Vector3, h: Combatant = null) -> bool:
 	for z in c.zones:
-		if z.holds(p, 0.6):
+		if not _harmless(z, h) and z.holds(p, 0.6):
 			return false
 	return true
 
@@ -62,19 +67,92 @@ static func _near_idle(c: Combat, p: Vector3) -> bool:
 	return false
 
 
-static func _in_danger(c: Combat, h: Combatant) -> bool:
-	for z in c.zones:
-		if z.t >= h.ai.reaction and z.holds(h.pos, 0.4):
+# So near a pack that is not in the fight that standing there would wake it.
+static func _would_wake(c: Combat, p: Vector3) -> bool:
+	for e in c.enemies:
+		if e.alive and not e.engaged and Combat.flat(e.pos, p) < Combat.AGGRO + 1.5:
 			return true
 	return false
 
 
-static func _find_escape(c: Combat, h: Combatant):
+static func _in_danger(c: Combat, h: Combatant) -> bool:
+	for z in c.zones:
+		if not _harmless(z, h) and z.t >= h.ai.reaction and z.holds(h.pos, 0.4):
+			return true
+	return false
+
+
+# The nearest spot out of danger. Given somewhere to keep near, it is the spot nearest that
+# among the first that are near enough to step to: a tank chased off a burning patch again
+# and again then goes round where it was holding, not ever further from it.
+static func _find_escape(c: Combat, h: Combatant, near = null):
+	var best = null
+	var found_at := 0.0
 	for r: float in [1.5, 2.5, 3.5, 5.0, 6.5, 8.0, 10.0, 13.0]:
+		if best != null and r > found_at + 2.0:
+			break
 		for k in 16:
 			var a := k / 16.0 * TAU + h.id
 			var p := h.pos + Vector3(cos(a), 0, sin(a)) * r
-			if c.can_stand.call(p) and _safe_at(c, p) and not _near_idle(c, p) and c.clear_walk.call(h.pos, p):
+			if c.can_stand.call(p) and _safe_at(c, p, h) and not _near_idle(c, p) and c.clear_walk.call(h.pos, p):
+				if near == null:
+					return p
+				if best == null:
+					found_at = r
+				if best == null or Combat.flat(p, near) < Combat.flat(best, near):
+					best = p
+	return best
+
+
+# Where the tank keeps near when it is chased off a patch that burns on: where the pull is
+# held. Null for anyone else and anything else, who simply take the nearest way out.
+static func _holding_near(c: Combat, h: Combatant):
+	if h != c.tank() or not c.zones.any(func(z: Zone) -> bool: return z.went and z.linger > 0.0 and z.turn == 0.0 and z.holds(h.pos, 0.4)):
+		return null
+	var planned = Combat.spot_in(c.fight, h)
+	if planned != null:
+		return planned
+	var packs: Array = c.fight.get("packs", [])
+	return (packs[-1] as Pack).stand if not packs.is_empty() else null
+
+
+# The nearest place to shelter, if a boss has lit any: a spot inside it, each hero a little
+# apart from the next.
+static func _find_shelter(c: Combat, h: Combatant):
+	var best: Zone = null
+	for z in c.zones:
+		if z.safe and (best == null or Combat.flat(z.pos, h.pos) < Combat.flat(best.pos, h.pos)):
+			best = z
+	if best == null:
+		return null
+	var a := h.slot * TAU / 4.0
+	var spot := best.pos + Vector3(cos(a), 0, sin(a)) * minf(1.4, best.r * 0.4)
+	return spot if c.can_stand.call(spot) else best.pos
+
+
+# The zone this hero carries, if any: one that goes off wherever the hero is.
+static func _carried(c: Combat, h: Combatant) -> Zone:
+	for z in c.zones:
+		if z.follow_id == h.id and not z.safe:
+			return z
+	return null
+
+
+# Where to carry a zone so that it goes off on nobody else: the nearest spot that leaves
+# every other hero outside it.
+static func _carry_to(c: Combat, h: Combatant, z: Zone):
+	var clear := func(p: Vector3) -> bool:
+		for o in c.heroes:
+			if o != h and o.alive and Combat.flat(o.pos, p) < z.r + 1.5:
+				return false
+		return true
+	if clear.call(h.pos):
+		return null
+	for r: float in [4.0, 7.0, 10.0, 13.0, 17.0, 21.0]:
+		for k in 16:
+			var a := k / 16.0 * TAU + h.id
+			var p := h.pos + Vector3(cos(a), 0, sin(a)) * r
+			if c.can_stand.call(p) and clear.call(p) and _safe_at(c, p, h) and not _near_idle(c, p) and c.clear_walk.call(h.pos, p):
 				return p
 	return null
 
@@ -112,6 +190,11 @@ static func _in_front(c: Combat, p: Vector3) -> bool:
 	return false
 
 
+# Whether a spot is in front of an enemy that turns aside what is thrown at its front.
+static func _guarded_from(e: Combatant, p: Vector3) -> bool:
+	return e.team == "enemy" and e.enemy.front_guard > 0.0 and Combat.in_front(e, p)
+
+
 # ---------- targeting and positioning
 
 static func _pick_target(c: Combat, h: Combatant) -> Combatant:
@@ -120,7 +203,10 @@ static func _pick_target(c: Combat, h: Combatant) -> Combatant:
 	var best: Combatant = null
 	var best_s := -INF
 	for e in c.engaged_enemies():
-		var s: float = e.enemy.priority * 1000.0 - _pct(e) * 100.0 + (60.0 if e.id == h.target_id else 0.0) \
+		# of two nets, the one that holds the healer is cut first
+		var healer := _healer(c)
+		var holds_healer: bool = healer != null and e.flags.get("holds", 0) == healer.id
+		var s: float = e.enemy.priority * 1000.0 + (300.0 if holds_healer else 0.0) - _pct(e) * 100.0 + (60.0 if e.id == h.target_id else 0.0) \
 			+ (80.0 if e.id == tank_target else 0.0) - Combat.dist(h, e) * (3.0 if melee else 0.3)
 		if s > best_s:
 			best_s = s
@@ -200,9 +286,17 @@ static func _ooc_goal(c: Combat, h: Combatant):
 
 static func _tank_combat(c: Combat, h: Combatant):
 	var ai := h.ai
-	var es := c.engaged_enemies()
+	var es := c.engaged_enemies().filter(func(e: Combatant) -> bool: return not e.enemy.still)
 	if es.is_empty():
 		return null
+	# with every damage dealer down or held fast, nobody else will cut a net: the tank does,
+	# and whatever it was fighting comes along
+	var nets := c.engaged_enemies().filter(func(e: Combatant) -> bool: return e.enemy.still)
+	if not nets.is_empty() and not c.heroes.any(func(o: Combatant) -> bool: return o.hero.role == "dps" and o.alive and not c.held(o)):
+		var net: Combatant = _nearest(nets, h)
+		h.target_id = net.id
+		ai.tank_spot = null
+		return null if Combat.dist(net, h) <= 2.6 + net.radius * 0.5 else net.pos
 	# gather: wake each pack of the pull in turn, with a hail as soon as one can be given, or
 	# else by walking at it, and bring them all along
 	var woken: Pack = null
@@ -234,7 +328,7 @@ static func _tank_combat(c: Combat, h: Combatant):
 	# pick up anything that is not on the tank
 	if _off_cd(h, "challenge"):
 		var loose := es.filter(func(e: Combatant) -> bool:
-			return e.target_id != h.id and e.target_id > 0 and e.forced_t <= c.time)
+			return e.target_id != h.id and e.target_id > 0 and e.forced_t <= c.time and not e.enemy.still)
 		loose.sort_custom(func(a: Combatant, b: Combatant) -> bool:
 			if a.enemy.priority != b.enemy.priority:
 				return a.enemy.priority > b.enemy.priority
@@ -253,7 +347,7 @@ static func _tank_combat(c: Combat, h: Combatant):
 		h.target_id = first.id
 		return _hold(h, planned)
 	# stand among the ranged enemies so the melee ones are dragged onto them
-	var ranged := es.filter(func(e: Combatant) -> bool: return e.enemy.reach > 5.0)
+	var ranged := es.filter(func(e: Combatant) -> bool: return e.enemy.reach > 5.0 and not e.enemy.still)
 	if ranged.any(func(e: Combatant) -> bool: return Combat.dist(e, h) > 5.5):
 		var mid := Vector3.ZERO
 		for e: Combatant in ranged:
@@ -274,6 +368,9 @@ static func _tank_combat(c: Combat, h: Combatant):
 		if e.enemy.priority > best.enemy.priority or (e.enemy.priority == best.enemy.priority and e.id == h.target_id):
 			best = e
 	h.target_id = best.id
+	# a spot that has caught fire is given up for wherever the tank stands now
+	if ai.tank_spot != null and c.zones.any(func(z: Zone) -> bool: return z.went and not z.safe and z.holds(ai.tank_spot, 0.6)):
+		ai.tank_spot = null
 	if ai.tank_spot == null:
 		ai.tank_spot = h.pos
 	return ai.tank_spot if Combat.flat(h.pos, ai.tank_spot) > (0.4 if ai.moving else 1.0) else null
@@ -294,6 +391,17 @@ static func _melee_pos(c: Combat, h: Combatant, t: Combatant, spot = null):
 		from = t.pos + Combat.toward(tt, t) * (t.radius + 1.1)
 		if not c.can_stand.call(from):
 			from = null
+		elif _would_wake(c, from):
+			# behind it is too near a pack that sleeps: the nearest side that is not, or stay put
+			var back := Combat.toward(tt, t)
+			from = null
+			for turn: float in [1.0, -1.0, 2.0, -2.0]:
+				var side := t.pos + back.rotated(Vector3.UP, turn) * (t.radius + 1.1)
+				if c.can_stand.call(side) and not _would_wake(c, side) and not _in_front(c, side):
+					from = side
+					break
+			if from == null:
+				return null
 	if from != null:
 		var settled := Combat.flat(h.pos, from) < (0.5 if h.ai.moving else 1.2) and Combat.dist(h, t) <= reach
 		return null if settled else from
@@ -303,7 +411,7 @@ static func _melee_pos(c: Combat, h: Combatant, t: Combatant, spot = null):
 # Whether a planned spot does its job: from it the hero can reach whoever it is there for, and
 # it is not in front of something that cleaves. If not, the hero finds a spot of its own.
 static func _spot_serves(c: Combat, spot: Vector3, who: Combatant) -> bool:
-	return Combat.flat(spot, who.pos) <= SPOT_REACH and c.los.call(spot, who.pos) and not _in_front(c, spot)
+	return Combat.flat(spot, who.pos) <= SPOT_REACH and c.los.call(spot, who.pos) and not _in_front(c, spot) and not _guarded_from(who, spot)
 
 
 # Hold a spot with range and line of sight to the anchor, out of frontals and ground effects,
@@ -318,7 +426,7 @@ static func _ranged_pos(c: Combat, h: Combatant, anchor: Combatant):
 	var valid := func(p: Vector3) -> bool:
 		var d := Combat.flat(p, anchor.pos)
 		return (not tank.alive or c.same_room(tank.pos, p, THRESHOLD)) and d <= 21.0 and d >= min_d \
-			and c.los.call(p, anchor.pos) and not _in_front(c, p) and _safe_at(c, p) and not _near_idle(c, p)
+			and c.los.call(p, anchor.pos) and not _in_front(c, p) and not _guarded_from(anchor, p) and _safe_at(c, p, h) and not _near_idle(c, p)
 	if valid.call(h.pos):
 		ai.pos = null
 		return null
@@ -572,23 +680,37 @@ static func think(c: Combat, h: Combatant) -> void:
 	var ai := h.ai
 	var goal = null
 	var urgent := false
+	if c.held(h):
+		ai.moving = false
+		h.has_goal = false
+		return
 
 	var boss := c.hide_caster()
+	var shelter = _find_shelter(c, h)
+	var carried := _carried(c, h)
 	if boss and boss.cast.t >= ai.reaction:
 		if ai.hide == null:
 			ai.hide = _find_hide_spot(c, h, boss)
 		if ai.hide != null:
 			goal = ai.hide
 			urgent = true
+	elif shelter != null:
+		# a place has been lit to stand in: nothing else matters until it is reached
+		ai.hide = null
+		goal = shelter
+		urgent = true
 	else:
 		ai.hide = null
 		if _in_danger(c, h):
-			if ai.escape == null or not _safe_at(c, ai.escape):
-				ai.escape = _find_escape(c, h)
+			if ai.escape == null or not _safe_at(c, ai.escape, h):
+				ai.escape = _find_escape(c, h, _holding_near(c, h))
 			goal = ai.escape
 			urgent = goal != null
 		else:
 			ai.escape = null
+			if carried and carried.t >= ai.reaction:
+				goal = _carry_to(c, h, carried)
+				urgent = goal != null
 
 	var usual = null
 	if not c.in_combat:
@@ -598,13 +720,24 @@ static func think(c: Combat, h: Combatant) -> void:
 		usual = _ooc_goal(c, h)
 	else:
 		usual = _combat_goal(c, h)
+	# round the packs that are not to be woken, between pulls and in a fight alike
+	if usual != null:
+		usual = c.steer(h, usual)
 	if not urgent:
 		goal = usual
-	# never walk into a telegraph: wait at its edge instead of stepping in and straight back out
+	# never walk into a telegraph: wait at its edge instead of stepping in and straight back out.
+	# A patch that burns on is different: it is walked round, and crossed if there is no way
+	# round, but never stopped in.
 	if goal != null and not urgent:
 		var d := Combat.flat(h.pos, goal)
-		if not _safe_at(c, h.pos.lerp(goal, minf(1.0, 1.0 / maxf(d, 1e-6)))):
+		var step := h.pos.lerp(goal, minf(1.0, 1.0 / maxf(d, 1e-6)))
+		for z in c.zones:
+			if _harmless(z, h) or not z.holds(step, 0.6):
+				continue
+			if z.went and z.linger > 0.0 and not z.holds(usual, 0.6):
+				continue
 			goal = null
+			break
 	ai.moving = goal != null and Combat.flat(h.pos, goal) > 0.35
 	h.has_goal = ai.moving
 	if ai.moving:

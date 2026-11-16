@@ -13,6 +13,8 @@ extends Node
 const FOLDER := "res://assets/music/"
 ## Seconds in a bar of every loop: the tide bell is struck once in each.
 const BAR := 3.2
+## How many parts of a place have loops of their own. A place with more parts goes round again.
+const PARTS := 3
 
 ## How loud the music is under a run, and on the menus and while paused, in decibels.
 @export var loud_db := -11.0
@@ -65,11 +67,11 @@ static func loop_for(run: Run, was := "") -> String:
 		if p.engaged and not p.cleared and (fight == null or (p.boss and not fight.boss)):
 			fight = p
 	if fight:
-		return "%s_%d" % ["boss" if fight.boss else "fight", def.rooms[fight.room].zone if fight.room >= 0 else 0]
+		return "%s_%d" % ["boss" if fight.boss else "fight", (def.rooms[fight.room].zone if fight.room >= 0 else 0) % PARTS]
 	var zone := def.zone_at(c.player.pos) if c.player else -1
 	if zone < 0:
 		zone = int(was.get_slice("_", 1)) if was != "" else 0
-	return "calm_%d" % zone
+	return "calm_%d" % (zone % PARTS)
 
 
 func _stream(loop: String, looping := true) -> AudioStream:

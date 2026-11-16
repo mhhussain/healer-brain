@@ -22,6 +22,12 @@ var auto_type := "phys"
 var priority := 1
 ## It hits in front of itself, so only the tank should stand there.
 var frontal := false
+## The share of a hero's damage it turns aside when hit from the front.
+var front_guard := 0.0
+## It never moves or attacks: a thing to be cut down.
+var still := false
+## Its figure is washed with this colour, to tell it from another kind that wears the same one.
+var tint := Color.WHITE
 var abilities: Array[EnemyAbility] = []
 ## What it does, in words for the player to read on the map: [name, what it does, the level it
 ## starts at]. Every ability is here by name, and so is anything it does without one.

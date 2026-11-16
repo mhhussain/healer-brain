@@ -7,6 +7,9 @@ extends RefCounted
 # and ask it which room a spot is in. On the floor, a Rect2's x is the world's x and its y is the
 # world's z.
 
+## How far from a pack's middle its enemies stand, in metres, when there is more than one.
+const RING := 3.2
+
 ## What saved things, such as routes, know it by.
 var id := ""
 var name := ""
@@ -25,7 +28,8 @@ var pillars: Array[Dictionary] = []
 var start := Vector3.ZERO
 ## {"name", "boss", "lamp", "enemies": [ids], "room", "center", "pull_from", "stand"}. "lamp" is
 ## the line shown when a boss falls; "room" is a place in `rooms`, or -1. They are listed in the
-## order the party takes them when nobody has planned otherwise.
+## order the party takes them when nobody has planned otherwise. A pack with a "path" (a list
+## of spots) is a patrol: until it is woken it walks from each spot to the next, and round again.
 var packs: Array[Dictionary] = []
 ## The parts of the place, in order.
 var zones: Array[String] = []
@@ -38,6 +42,16 @@ var count_needed := 0
 ## The route the party takes when nobody has planned one: a list of pulls, each a list of
 ## packs by their place in `packs`. Empty means every pack by itself, in order.
 var default_route: Array = []
+## How long a run here has, in seconds.
+var time_limit := 14 * 60.0
+## {"door": int, "packs": [int], "name": String}: a doorway that is shut until those boss packs
+## are cleared.
+var gates: Array[Dictionary] = []
+## The doorways that are shut now: door -> true. A run opens them as it goes, so a level
+## description belongs to one run.
+var shut := {}
+
+var _open_rooms := {}
 
 
 ## Adds a room and its floor. Returns its place in `rooms`.
@@ -52,6 +66,25 @@ func add_door(a: int, b: int, rect: Rect2) -> int:
 	doors.append({"a": a, "b": b, "rect": rect, "pos": Vector3(rect.get_center().x, 0, rect.get_center().y)})
 	floors.append(rect)
 	return doors.size() - 1
+
+
+## Shuts a doorway until those boss packs are cleared. Returns its place in `gates`.
+func add_gate(door: int, boss_packs: Array, gate_name: String) -> int:
+	gates.append({"door": door, "packs": boss_packs.duplicate(), "name": gate_name})
+	shut[door] = true
+	_open_rooms = {}
+	return gates.size() - 1
+
+
+func open_gate(gate: int) -> void:
+	shut.erase(gates[gate].door)
+	_open_rooms = {}
+
+
+## Sets which doorways are shut, as whoever tries a route out must before and after.
+func set_shut(doors_shut: Dictionary) -> void:
+	shut = doors_shut.duplicate()
+	_open_rooms = {}
 
 
 func add_wall(x: float, z: float, w: float, d: float, height: float) -> void:
@@ -73,6 +106,9 @@ func can_stand(p: Vector3, margin := 0.5) -> bool:
 			break
 	if not on_floor:
 		return false
+	for door: int in shut:
+		if (doors[door].rect as Rect2).has_point(at):
+			return false
 	for w in walls:
 		if (w.rect as Rect2).grow(margin).has_point(at):
 			return false
@@ -88,8 +124,13 @@ func can_stand(p: Vector3, margin := 0.5) -> bool:
 func clear_line(a: Vector3, b: Vector3, over := 0.0, margin := 0.0, standing: Array = []) -> bool:
 	var from := Vector2(a.x, a.z)
 	var to := Vector2(b.x, b.z)
+	# most walls are nowhere near the line: those are passed over at a glance
+	var near := Rect2(from, Vector2.ZERO).expand(to).grow(margin + 0.01)
 	for w in walls:
-		if w.height >= over and _crosses((w.rect as Rect2).grow(margin), from, to):
+		if w.height >= over and near.intersects(w.rect) and _crosses((w.rect as Rect2).grow(margin), from, to):
+			return false
+	for door: int in shut:
+		if _crosses(doors[door].rect, from, to):
 			return false
 	for i in pillars.size():
 		if i < standing.size() and not standing[i]:
@@ -189,14 +230,48 @@ func same_room(of: Vector3, p: Vector3, clear := 0.0) -> bool:
 
 
 ## The doorways to go through, in order, to walk from one spot to another: the fewest there
-## can be. Empty if they are in the same room, or if there is no way.
+## can be. Empty if they are in the same room, or if there is no way. A shut gate is no way.
 func doors_between(from: Vector3, to: Vector3) -> Array[int]:
+	var none: Array[int] = []
+	var way = _way(from, to)
+	return way if way != null else none
+
+
+## Whether there is a way to walk from one spot to another, with the gates as they stand.
+func reachable(from: Vector3, to: Vector3) -> bool:
+	return _way(from, to) != null
+
+
+## Whether a room cannot be walked to from the start: it is behind a gate that is still shut.
+func locked(room: int) -> bool:
+	if shut.is_empty() or room < 0:
+		return false
+	if _open_rooms.is_empty():
+		var queue: Array[int] = [maxi(room_at(start), 0)]
+		_open_rooms[queue[0]] = true
+		while not queue.is_empty():
+			var at: int = queue.pop_front()
+			for i in doors.size():
+				var d: Dictionary = doors[i]
+				if shut.has(i) or (d.a != at and d.b != at):
+					continue
+				var next: int = d.b if d.a == at else d.a
+				if not _open_rooms.has(next):
+					_open_rooms[next] = true
+					queue.append(next)
+	return not _open_rooms.has(room)
+
+
+# The doorways from one spot to another as a list, or null if there is no way.
+func _way(from: Vector3, to: Vector3):
 	var none: Array[int] = []
 	var first := door_at(from) if room_at(from) < 0 else -1
 	var last := door_at(to) if room_at(to) < 0 else -1
 	var begin: Array = [room_at(from)] if first < 0 else [doors[first].a, doors[first].b]
 	var end: Array = [room_at(to)] if last < 0 else [doors[last].a, doors[last].b]
-	if begin.has(-1) or end.has(-1) or (first >= 0 and first == last):
+	if begin.has(-1) or end.has(-1):
+		return null
+	if first >= 0 and first == last:
 		return none
 	# room -> the doorways gone through to reach it
 	var ways := {}
@@ -213,7 +288,7 @@ func doors_between(from: Vector3, to: Vector3) -> Array[int]:
 			return way
 		for i in doors.size():
 			var d: Dictionary = doors[i]
-			if d.a != room and d.b != room:
+			if shut.has(i) or (d.a != room and d.b != room):
 				continue
 			var next: int = d.b if d.a == room else d.a
 			if not ways.has(next):
@@ -221,7 +296,7 @@ func doors_between(from: Vector3, to: Vector3) -> Array[int]:
 				way.append(i)
 				ways[next] = way
 				queue.append(next)
-	return none
+	return null
 
 
 ## About how far it is to walk from one spot to another: straight from doorway to doorway.
@@ -256,6 +331,6 @@ static func posts(pack: Dictionary) -> Array[Vector3]:
 	var n: int = pack.enemies.size()
 	for i in n:
 		var a := float(i) / n * TAU + 0.6
-		var r := 3.2 if n > 1 else 0.0
+		var r := RING if n > 1 else 0.0
 		out.append(pack.center + Vector3(cos(a), 0, sin(a)) * r)
 	return out

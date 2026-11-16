@@ -16,5 +16,9 @@ var tank_spot = null
 var hide = null
 ## The tank has gone in: it has reached the spot it holds this pull at.
 var arrived := false
+## The way round the packs it must not wake, to `way_to`, and when it was found.
+var way := PackedVector3Array()
+var way_to := Vector3.INF
+var way_t := -9.0
 ## It was walking last tick. Goals use it so a hero does not start and stop on a threshold.
 var moving := false

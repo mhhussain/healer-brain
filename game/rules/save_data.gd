@@ -1,23 +1,36 @@
 class_name SaveData
 extends RefCounted
 
-# What is kept between runs: how far you have got, your best with each hero, the party you
-# last chose and the routes you have planned. It is plain data with a version number, so that
+# What is kept between runs: how far you have got in each dungeon, your best there with each
+# hero, the party you last chose and the routes you have planned. It is plain data with a version number, so that
 # it can be read by a later game and one day moved to a profile. Reading and writing the file
 # is the scene's job (scripts/save_store.gd).
 
-## Goes up when what is kept changes shape. 1 had no number and no routes.
-const VERSION := 2
+## Goes up when what is kept changes shape. 1 had no number and no routes. 2 had one dungeon:
+## its levels and bests are now the Abbey's.
+const VERSION := 3
 ## Routes kept for each level.
 const SLOTS := 3
 
+## The dungeon the next run is in: one of Levels.DUNGEONS.
+var place := "abbey"
+## Dungeon id -> {"unlocked", "level", "bests"}: how far you have got in each. Levels are
+## earned in each dungeon by itself. The three below read and write the chosen dungeon's.
+var progress := {}
 ## The highest level you may start: one above your highest timed clear. Shared by all heroes.
-var unlocked := 1
+var unlocked: int:
+	get: return progress_in(place).unlocked
+	set(n): progress_in(place).unlocked = n
+## The level chosen for the next run.
+var level: int:
+	get: return progress_in(place).level
+	set(n): progress_in(place).level = n
 ## Hero id -> {"level": highest level timed with that hero, "time": best time at it, in seconds}.
-var bests := {}
+var bests: Dictionary:
+	get: return progress_in(place).bests
+	set(d): progress_in(place).bests = d
 var party: Array[String] = ["warden", "mender", "duelist", "ranger"]
 var slot := 3
-var level := 1
 ## How loud the game is, 0 to 1, and whether sound is off.
 var volume := 0.8
 var muted := false
@@ -34,22 +47,33 @@ var markers := true
 
 
 func _init() -> void:
+	for dungeon in Levels.DUNGEONS:
+		progress_in(dungeon)
 	for id in Heroes.ALL:
 		Bindings.reset(self, id)
 
 
-## Records a finished run played as that hero. A run inside the time limit unlocks the next
-## level and may be a new best; one over it changes nothing. Returns whether a level was unlocked.
-func record(run_level: int, hero_id: String, time: float, timed: bool) -> bool:
+## How far you have got in a dungeon: {"unlocked", "level", "bests"}. Everyone starts at level 1.
+func progress_in(dungeon: String) -> Dictionary:
+	if not progress.has(dungeon):
+		progress[dungeon] = {"unlocked": 1, "level": 1, "bests": {}}
+	return progress[dungeon]
+
+
+## Records a finished run played as that hero, in the chosen dungeon or the one named. A run
+## inside the time limit unlocks that dungeon's next level and may be a new best there; one
+## over it changes nothing. Returns whether a level was unlocked.
+func record(run_level: int, hero_id: String, time: float, timed: bool, dungeon := "") -> bool:
 	if not timed:
 		return false
+	var got := progress_in(dungeon if dungeon != "" else place)
 	var unlocked_now := false
-	if run_level >= unlocked:
-		unlocked = run_level + 1
+	if run_level >= got.unlocked:
+		got.unlocked = run_level + 1
 		unlocked_now = true
-	var best: Dictionary = bests.get(hero_id, {})
+	var best: Dictionary = got.bests.get(hero_id, {})
 	if best.is_empty() or run_level > best.level or (run_level == best.level and time < best.time):
-		bests[hero_id] = {"level": run_level, "time": time}
+		got.bests[hero_id] = {"level": run_level, "time": time}
 	return unlocked_now
 
 
@@ -90,7 +114,7 @@ func use_slot(def: LevelDef, at: int) -> void:
 
 
 func to_dict() -> Dictionary:
-	return {"v": VERSION, "unlocked": unlocked, "bests": bests, "party": party, "slot": slot, "level": level,
+	return {"v": VERSION, "place": place, "progress": progress, "party": party, "slot": slot,
 		"volume": volume, "muted": muted, "markers": markers, "keys": keys, "mouse": mouse, "clicks": clicks,
 		"routes": routes}
 
@@ -98,18 +122,29 @@ func to_dict() -> Dictionary:
 ## Reads what it can from a dictionary and keeps the defaults for anything missing or wrong.
 static func from_dict(d: Dictionary) -> SaveData:
 	var s := SaveData.new()
-	s.unlocked = maxi(1, int(d.get("unlocked", 1)))
-	var bests: Variant = d.get("bests", {})
-	if bests is Dictionary:
-		for id: String in bests:
-			var b: Variant = bests[id]
-			if Heroes.by_id(id) and b is Dictionary and b.has("level") and b.has("time"):
-				s.bests[id] = {"level": int(b.level), "time": float(b.time)}
+	# before dungeons were told apart, everything was the Abbey's
+	var kept: Variant = d.get("progress")
+	if not kept is Dictionary:
+		kept = {"abbey": d}
+	for dungeon in Levels.DUNGEONS:
+		var was: Variant = kept.get(dungeon)
+		if not was is Dictionary:
+			continue
+		var got := s.progress_in(dungeon)
+		got.unlocked = maxi(1, int(was.get("unlocked", 1)))
+		got.level = clampi(int(was.get("level", 1)), 1, got.unlocked)
+		var bests: Variant = was.get("bests", {})
+		if bests is Dictionary:
+			for id: String in bests:
+				var b: Variant = bests[id]
+				if Heroes.by_id(id) and b is Dictionary and b.has("level") and b.has("time"):
+					got.bests[id] = {"level": int(b.level), "time": float(b.time)}
+	if d.get("place") is String and Levels.DUNGEONS.has(d.place):
+		s.place = d.place
 	var party: Variant = d.get("party", [])
 	if party is Array and party.size() == 4 and party.all(func(id: Variant) -> bool: return id is String and Heroes.by_id(id) != null):
 		s.party.assign(party)
 	s.slot = clampi(int(d.get("slot", 3)), 0, 3)
-	s.level = clampi(int(d.get("level", 1)), 1, s.unlocked)
 	s.volume = clampf(float(d.get("volume", 0.8)), 0.0, 1.0)
 	s.muted = d.get("muted", false) is bool and d.get("muted", false)
 	s.markers = not (d.get("markers", true) is bool) or d.get("markers", true)

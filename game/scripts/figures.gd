@@ -28,6 +28,16 @@ const FILES := {
 	"krogg": "krogg",
 	"velisse": "velisse",
 	"sulmar": "sulmar",
+	# Tollhaven's cast wear the Abbey's figures until they have their own, washed with a colour
+	# of their own (EnemyDef.tint) so that they can be told apart
+	"deckhand": "penitent",
+	"crier": "cantor",
+	"mate": "porter",
+	"dredger": "net_brother",
+	"hask": "velisse",
+	"corrow": "krogg",
+	"garrow": "krogg",
+	"keeper": "sulmar",
 }
 
 ## The clips a figure may carry. A figure that shares another's clips has them as "shared/run".
@@ -87,4 +97,7 @@ static func cast_of(party: Array, level: LevelDef) -> Array[String]:
 	# Sister Velisse wakes her ward mid-fight
 	if "velisse" in ids:
 		ids.append("hatchling")
+	# and Mother Hask throws her nets
+	if "hask" in ids:
+		ids.append("net")
 	return ids

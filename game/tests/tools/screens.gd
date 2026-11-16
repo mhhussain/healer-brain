@@ -2,8 +2,9 @@ extends SceneTree
 
 # A developer tool, not a test: walks the app through its screens so that --write-movie can
 # record frames of each to look at. It uses a save file of its own. From the repo root:
-#   godot --path game -s tests/tools/screens.gd --write-movie build/shots/f.png --fixed-fps 60 --quit-after 700 -- mender
-# The last word is the hero you play. It prints the frame at which each screen is up.
+#   godot --path game -s tests/tools/screens.gd --write-movie build/shots/f.png --fixed-fps 60 --quit-after 700 -- mender tollhaven
+# The last words are the hero you play and the dungeon (the Abbey if left out). It prints the
+# frame at which each screen is up.
 
 func _initialize() -> void:
 	SaveStore.path = "user://tool-screens-save.json"
@@ -12,11 +13,12 @@ func _initialize() -> void:
 	var hero: String = args[0] if args.size() > 0 else "mender"
 	var app: App = load("res://scenes/app.tscn").instantiate()
 	root.add_child(app)
-	_walk(app, hero)
+	_walk(app, hero, args[1] if args.size() > 1 and Levels.DUNGEONS.has(args[1]) else "abbey")
 
 
-func _walk(app: App, hero: String) -> void:
+func _walk(app: App, hero: String, dungeon: String) -> void:
 	await _frames(40)
+	app.save.place = dungeon
 	_say("title")
 	app.show_opening()
 	await _frames(200)

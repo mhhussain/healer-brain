@@ -7,10 +7,14 @@ extends SceneTree
 # for the sandbox hall. --fixed-fps lets it run as fast as the machine can, instead of in real time.
 # "route=" takes a route's text code, as the map copies it, to run that plan instead of the
 # place's own; "pulls=0+1,2,3+4" writes one on the spot from packs by number, with the packs it
-# leaves out following one at a time.
+# leaves out following one at a time; "skip=3,5" is the safe way without those packs, for a
+# place that holds more than it asks for. "party=2" runs only the third of the six parties.
 
-const GIVE_UP := 40 * 60.0
+const GIVE_UP := 60 * 60.0
 const DPS := [["duelist", "ranger"], ["duelist", "pyromancer"], ["ranger", "pyromancer"]]
+
+# the one party to run, by its place among the six, or -1 for all
+var _only := -1
 
 
 func _initialize() -> void:
@@ -19,8 +23,11 @@ func _initialize() -> void:
 	args.erase("-v")
 	var plan := ""
 	for word: String in args.duplicate():
-		if word.begins_with("route=") or word.begins_with("pulls="):
+		if word.begins_with("route=") or word.begins_with("pulls=") or word.begins_with("skip="):
 			plan = word
+			args.erase(word)
+		elif word.begins_with("party="):
+			_only = int(word.substr(6))
 			args.erase(word)
 	var levels: Array = (args[0] if args.size() > 0 else "1").split(",")
 	var seeds := int(args[1]) if args.size() > 1 else 1
@@ -35,8 +42,12 @@ func _go(levels: Array, seeds: int, verbose: bool) -> void:
 	var began := Time.get_ticks_msec()
 	var runs := 0
 	for level: String in levels:
+		var party := -1
 		for healer in Heroes.HEALERS:
 			for dps: Array in DPS:
+				party += 1
+				if _only >= 0 and party != _only:
+					continue
 				for rng_seed in range(1, seeds + 1):
 					await _run(int(level), healer, dps, rng_seed, verbose)
 					runs += 1
@@ -80,6 +91,13 @@ func _run(level: int, healer: String, dps: Array, rng_seed: int, verbose: bool) 
 func _route(plan: String, def: LevelDef) -> Route:
 	if plan.begins_with("route="):
 		return Route.from_code(plan.substr(6), def)
+	if plan.begins_with("skip="):
+		var safe := Route.default_for(def)
+		for pack: String in plan.substr(5).split(","):
+			if safe.pull_of(int(pack)) >= 0:
+				safe.toggle(int(pack), safe.pull_of(int(pack)))
+		safe.prune()
+		return safe
 	if not plan.begins_with("pulls="):
 		return null
 	var r := Route.new()

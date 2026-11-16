@@ -354,8 +354,9 @@ func _on_pack_hover(pack: int) -> void:
 		hide_details()
 		return
 	var pull := route.pull_of(pack)
-	var title := "%s    count %d    %s" % [def.packs[pack].name, def.pack_count(pack), "pull %d" % (pull + 1) if pull >= 0 else "in no pull"]
-	var beside := view.global_position + view.to_screen(def.packs[pack].center) + Vector2(MapView.PACK_REACH * view.zoom + 14.0, -24.0)
+	var title := "%s    count %d    %s%s" % [def.packs[pack].name, def.pack_count(pack), "pull %d" % (pull + 1) if pull >= 0 else "in no pull",
+		"    a patrol" if def.packs[pack].has("path") else ""]
+	var beside := view.global_position + view.to_screen(view.middle(pack)) + Vector2(MapView.PACK_REACH * view.zoom + 14.0, -24.0)
 	show_details([pack], title, beside)
 
 
@@ -435,7 +436,29 @@ func warnings() -> String:
 		lines.append("It never pulls %s." % " or ".join(miss.bosses))
 	if not lines.is_empty():
 		lines.append("The run can still start: the party takes what is left, nearest first.")
+	lines.append_array(snags())
 	return " ".join(lines)
+
+
+## Where the route cannot be walked as planned: a pull that cannot be reached without waking
+## a pack that is not in it, or one behind a gate that will still be shut.
+func snags() -> Array[String]:
+	var lines: Array[String] = []
+	var from: Vector3 = combat.tank().pos if combat and combat.tank() else def.start
+	var done: Array = range(def.packs.size()).filter(func(pack: int) -> bool: return view.done(pack))
+	for snag in Paths.check(def, route, from, done):
+		if snag.gate != "":
+			var waits: Array = []
+			for g in def.gates:
+				if g.name == snag.gate:
+					waits = g.packs.map(func(pack: int) -> String: return def.packs[pack].name)
+			lines.append("Pull %d is behind %s, which opens only when %s are at rest: the party leaves it until then." % [snag.pull + 1,
+				snag.gate.left(1).to_lower() + snag.gate.substr(1), Kit.listed(waits) if not waits.is_empty() else "its bosses"])
+		elif not snag.wakes.is_empty():
+			lines.append("Pull %d cannot be reached without waking %s." % [snag.pull + 1, Kit.listed(snag.wakes.map(func(pack: int) -> String: return def.packs[pack].name))])
+		else:
+			lines.append("Pull %d is reached the long way round, %d m, to keep clear of %s." % [snag.pull + 1, roundi(snag.metres), Kit.listed(snag.round.map(func(pack: int) -> String: return def.packs[pack].name))])
+	return lines
 
 
 func _draw_count() -> void:

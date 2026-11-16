@@ -1,6 +1,6 @@
 # Proposal: the big dungeon
 
-Status: **a proposal for the owner to approve, written on 15 November 2026. Nothing here is built.** It is the first step of milestone 11 in [`routing-and-gear-plan.md`](routing-and-gear-plan.md), which says the owner approves the name, the layout, the new enemies, the bosses and the default route before any of it is made.
+Status: **approved by the owner on 15 November 2026 and built as milestone 11.** It is kept as the record of what was proposed. What was built, with its numbers, is in [`DESIGN.md`](../DESIGN.md) section 7b; where the two differ, `DESIGN.md` is right. One thing was decided differently: the owner asked for levels to be kept for each dungeon from the start, not shared until milestone 12 as section 7 below proposed. The sketch is of the first rough layout; some rooms and doorways moved when the packs were placed.
 
 ## 1. Name and place
 

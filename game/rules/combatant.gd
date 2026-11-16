@@ -60,6 +60,8 @@ var pending := {}
 var slot_angle := 0.0
 var flags := {}
 var home := Vector3.ZERO
+## Where it stands in its pack: its post, from the pack's middle.
+var post := Vector3.ZERO
 ## Where it wants to walk, when has_goal is set. The scene does the walking.
 var goal := Vector3.ZERO
 var has_goal := false

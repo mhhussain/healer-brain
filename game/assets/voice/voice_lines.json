@@ -25,6 +25,16 @@
     "text": "The tide caught you on the stair and you came home soaked to the collar. But the lamps hold, and the abbey sleeps."
   },
   {
+    "id": "ending_in_time_tollhaven",
+    "speaker": "narrator",
+    "text": "The harbour light turns over dry stone. Behind you Tollhaven sleeps, and the sea comes home to an empty town."
+  },
+  {
+    "id": "ending_late_tollhaven",
+    "speaker": "narrator",
+    "text": "The tide took the lower streets before you were out of them. But the light is burning, and Tollhaven sleeps."
+  },
+  {
     "id": "warden_pull_1",
     "speaker": "warden",
     "text": "In, all of you. The sea takes the doorways first."
@@ -58,6 +68,26 @@
     "id": "warden_sulmar_1",
     "speaker": "warden",
     "text": "When that bell swings, find a pillar."
+  },
+  {
+    "id": "warden_hask_1",
+    "speaker": "warden",
+    "text": "Mind the nets. Cut each other loose."
+  },
+  {
+    "id": "warden_corrow_1",
+    "speaker": "warden",
+    "text": "A taxman. Of course it would be a taxman."
+  },
+  {
+    "id": "warden_garrow_1",
+    "speaker": "warden",
+    "text": "Watch the slip. That hull will not stop for you."
+  },
+  {
+    "id": "warden_keeper_1",
+    "speaker": "warden",
+    "text": "Keep ahead of his lamp, or behind stone."
   },
   {
     "id": "warden_lamp_1",
@@ -103,6 +133,26 @@
     "id": "mender_sulmar_1",
     "speaker": "mender",
     "text": "Father Abbot. You can stop ringing now."
+  },
+  {
+    "id": "mender_hask_1",
+    "speaker": "mender",
+    "text": "Mother Hask. Put the nets down, dear."
+  },
+  {
+    "id": "mender_corrow_1",
+    "speaker": "mender",
+    "text": "Nobody owes you anything now, Exciseman."
+  },
+  {
+    "id": "mender_garrow_1",
+    "speaker": "mender",
+    "text": "Old Garrow. The ship is finished. Let it go."
+  },
+  {
+    "id": "mender_keeper_1",
+    "speaker": "mender",
+    "text": "Keeper. We have brought you a light of our own."
   },
   {
     "id": "mender_lamp_1",
@@ -155,6 +205,26 @@
     "text": "He never could leave that rope alone."
   },
   {
+    "id": "bloomweaver_hask_1",
+    "speaker": "bloomweaver",
+    "text": "I knew her mother. Same temper."
+  },
+  {
+    "id": "bloomweaver_corrow_1",
+    "speaker": "bloomweaver",
+    "text": "He counted my kelp once. Twice, in fact."
+  },
+  {
+    "id": "bloomweaver_garrow_1",
+    "speaker": "bloomweaver",
+    "text": "Still building. Bless him, he never did finish one."
+  },
+  {
+    "id": "bloomweaver_keeper_1",
+    "speaker": "bloomweaver",
+    "text": "All these years he kept it lit for nobody."
+  },
+  {
     "id": "bloomweaver_lamp_1",
     "speaker": "bloomweaver",
     "text": "There. That will keep the damp off."
@@ -198,6 +268,26 @@
     "id": "duelist_sulmar_1",
     "speaker": "duelist",
     "text": "That bell would fetch a fortune. I am only saying."
+  },
+  {
+    "id": "duelist_hask_1",
+    "speaker": "duelist",
+    "text": "I have slipped better nets than hers."
+  },
+  {
+    "id": "duelist_corrow_1",
+    "speaker": "duelist",
+    "text": "Ah. We have met. He will not remember, I hope."
+  },
+  {
+    "id": "duelist_garrow_1",
+    "speaker": "duelist",
+    "text": "Nothing here worth lifting. It is all boat."
+  },
+  {
+    "id": "duelist_keeper_1",
+    "speaker": "duelist",
+    "text": "That lens alone would buy a street."
   },
   {
     "id": "duelist_lamp_1",
@@ -245,6 +335,26 @@
     "text": "Loud."
   },
   {
+    "id": "ranger_hask_1",
+    "speaker": "ranger",
+    "text": "Nets."
+  },
+  {
+    "id": "ranger_corrow_1",
+    "speaker": "ranger",
+    "text": "Paperwork."
+  },
+  {
+    "id": "ranger_garrow_1",
+    "speaker": "ranger",
+    "text": "Duck."
+  },
+  {
+    "id": "ranger_keeper_1",
+    "speaker": "ranger",
+    "text": "Bright."
+  },
+  {
     "id": "ranger_lamp_1",
     "speaker": "ranger",
     "text": "Good."
@@ -288,6 +398,26 @@
     "id": "pyromancer_sulmar_1",
     "speaker": "pyromancer",
     "text": "My great-great-grandfather made his candles."
+  },
+  {
+    "id": "pyromancer_hask_1",
+    "speaker": "pyromancer",
+    "text": "Oh, I do not like being tied up."
+  },
+  {
+    "id": "pyromancer_corrow_1",
+    "speaker": "pyromancer",
+    "text": "My family always paid on time! Mostly!"
+  },
+  {
+    "id": "pyromancer_garrow_1",
+    "speaker": "pyromancer",
+    "text": "Pitch. Pitch burns. Oh, this is going to go badly."
+  },
+  {
+    "id": "pyromancer_keeper_1",
+    "speaker": "pyromancer",
+    "text": "That is the biggest candle I have ever seen."
   },
   {
     "id": "pyromancer_lamp_1",

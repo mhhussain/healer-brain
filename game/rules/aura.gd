@@ -22,6 +22,8 @@ var tick_every := 0.0
 var tick_timer := 0.0
 var tick_dmg := 0.0
 var tick_heal := 0.0
+## Whoever has it cannot move or act.
+var hold := false
 
 
 static func make(fields: Dictionary) -> Aura:

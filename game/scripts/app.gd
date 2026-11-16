@@ -5,7 +5,7 @@ extends Node
 # the save that outlasts them. It is the only thing that reads or writes the save file.
 #
 # M opens the map during a run, between fights, and closes it again. Two keys are for looking
-# under the bonnet: F9 lets the AI play your hero too, and F8 swaps the Abbey for the sandbox
+# under the bonnet: F9 lets the AI play your hero too, and F8 swaps the dungeon for the sandbox
 # hall. Either starts the run over.
 
 const RUN := "res://scenes/run.tscn"
@@ -72,7 +72,7 @@ func _process(_delta: float) -> void:
 	music.want = Music.loop_for(run, music.want) if playing else "calm_0"
 	music.quiet = state != "run"
 	music.ducked = narrator.is_talking() or (playing and run.voice.is_talking())
-	music.late = playing and not run.combat.finished and run.combat.time >= Combat.TIME_LIMIT - 120.0
+	music.late = playing and not run.combat.finished and run.combat.time >= run.combat.time_limit - 120.0
 
 
 func _show(next: Control, new_state: String) -> void:
@@ -125,7 +125,7 @@ func show_setup() -> void:
 func show_route() -> void:
 	_end_run()
 	var map := RouteMap.new()
-	map.open(Levels.by_name(Run.place), save, save.party)
+	map.open(Levels.by_name(_place()), save, save.party)
 	map.changed.connect(_store)
 	map.closed.connect(close_map)
 	_show(map, "route")
@@ -177,8 +177,8 @@ func start_run() -> void:
 	_store()
 	Run.party.assign(save.party)
 	Run.player_slot = save.slot
+	var level := Levels.by_name(_place())
 	Run.chosen_level = save.level
-	var level := Levels.by_name(Run.place)
 	Run.route = save.route_for(level)
 	_show(Screens.loading(level.name), "loading")
 	_starting += 1
@@ -231,6 +231,13 @@ func start_run() -> void:
 	_show(null, "run")
 
 
+# Where the next run is: the dungeon chosen in the save, unless the sandbox hall was asked for.
+func _place() -> String:
+	if Run.place != "sandbox":
+		Run.place = save.place
+	return Run.place
+
+
 func _frames(count: int) -> void:
 	for i in count:
 		await get_tree().process_frame
@@ -254,12 +261,12 @@ func _on_finished() -> void:
 	var c := run.combat
 	# a run the AI played for you is not yours to record
 	var unlocked_now := false
-	if not Run.autoplay and Run.place == "abbey":
+	if not Run.autoplay and Run.place == save.place:
 		unlocked_now = save.record(c.level, run.player.c.hero.id, c.total_time(), c.timed())
 		_store()
 	get_tree().paused = true
 	_show(Screens.summary(c, unlocked_now, save.unlocked > c.level, start_run, _next_level, show_setup), "summary")
-	narrator.say(Story.ending(c.timed()))
+	narrator.say(Story.ending(c.timed(), Run.place))
 
 
 func _next_level() -> void:
@@ -299,5 +306,5 @@ func _unhandled_input(event: InputEvent) -> void:
 			Run.autoplay = not Run.autoplay
 			start_run()
 		elif code == KEY_F8:
-			Run.place = "sandbox" if Run.place == "abbey" else "abbey"
+			Run.place = "sandbox" if Run.place != "sandbox" else save.place
 			start_run()

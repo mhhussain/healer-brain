@@ -184,9 +184,24 @@ static func setup(save: SaveData, on_change: Callable, on_start: Callable, on_ro
 	hero.add_child(editor)
 	cols.add_child(hero)
 
-	# the level: any you have unlocked
+	# the dungeon, and the level: any you have unlocked there
 	var levels := Kit.vbox(8)
 	levels.name = "Levels"
+	var place := Levels.by_name(save.place)
+	levels.add_child(Kit.label("Dungeon", 20, Kit.GOLD))
+	for id in Levels.DUNGEONS:
+		var there := Levels.by_name(id)
+		var go := Kit.button(there.name, func() -> void:
+			save.place = id
+			rebuild.call(), 14)
+		go.name = "Dungeon_" + id
+		go.custom_minimum_size.x = 210
+		if id == save.place:
+			go.add_theme_color_override("font_color", Kit.GOLD)
+		levels.add_child(go)
+	var bosses := place.packs.filter(func(p: Dictionary) -> bool: return p.boss).size()
+	levels.add_child(Kit.para("%d packs and %d bosses, to be done in %s. %s" % [place.packs.size() - bosses, bosses, Kit.clock(place.time_limit),
+		"It holds more than its count asks for: some packs can be left." if place.count_needed > 0 else "Every pack must fall."], 12, Kit.GREY, 230.0))
 	levels.add_child(Kit.label("Level", 20, Kit.GOLD))
 	var grid := GridContainer.new()
 	grid.columns = 4
@@ -203,12 +218,11 @@ static func setup(save: SaveData, on_change: Callable, on_start: Callable, on_ro
 			b.add_theme_color_override("font_color", Kit.GOLD)
 		grid.add_child(b)
 	levels.add_child(grid)
-	levels.add_child(Kit.para("Enemies have 8% more health and hit 8% harder each level, and learn new tricks at 3, 6 and 9. Finish inside 14:00 to unlock the next.", 12, Kit.GREY, 230.0))
+	levels.add_child(Kit.para("Enemies have 8%% more health and hit 8%% harder each level, and learn new tricks at 3, 6 and 9. Finish inside %s to unlock the next. Each dungeon keeps its own levels." % Kit.clock(place.time_limit), 12, Kit.GREY, 230.0))
 	var best: Dictionary = save.bests.get(def.id, {})
 	levels.add_child(Kit.para("Your best as %s: %s" % [def.name.split(" ")[0],
 		"level %d in %s" % [best.level, Kit.clock(best.time)] if not best.is_empty() else "none yet"], 12, Kit.BONE, 230.0))
 	# the route: the one used last, or the safe way if none was ever planned
-	var place := Levels.by_name(Run.place)
 	var plan := save.route_for(place)
 	levels.add_child(Kit.label("Route", 20, Kit.GOLD))
 	var pulls := plan.pulls.filter(func(p: Dictionary) -> bool: return not p.packs.is_empty()).size()
@@ -220,7 +234,7 @@ static func setup(save: SaveData, on_change: Callable, on_start: Callable, on_ro
 		var route := Kit.button("Plan the route", func() -> void: on_route.call(), 14)
 		route.name = "Plan"
 		levels.add_child(route)
-	var start := Kit.button("Enter the Abbey", func() -> void: on_start.call(), 18)
+	var start := Kit.button("Enter " + ("the Abbey" if place.id == "abbey" else place.name), func() -> void: on_start.call(), 18)
 	start.name = "Start"
 	levels.add_child(start)
 	cols.add_child(levels)
@@ -261,11 +275,11 @@ static func summary(c: Combat, unlocked_now: bool, can_go_up: bool, on_again: Ca
 	var head := Kit.label("%s: %s at level %d" % ["Timed" if timed else "Completed, over the time", Kit.clock(c.total_time()), c.level], 26, Kit.GOLD if timed else Kit.BONE)
 	head.name = "Result"
 	col.add_child(head)
-	var note := "Level %d unlocked." % (c.level + 1) if unlocked_now else "" if timed else "The next level unlocks when you finish inside %s." % Kit.clock(Combat.TIME_LIMIT)
+	var note := "Level %d unlocked." % (c.level + 1) if unlocked_now else "" if timed else "The next level unlocks when you finish inside %s." % Kit.clock(c.time_limit)
 	if note != "":
 		col.add_child(Kit.label(note, 14, Kit.GOLD if unlocked_now else Kit.GREY))
 	col.add_child(Kit.label(Hud.progress(c), 12, Kit.GREY))
-	var ending := Kit.para(Story.ending(timed).text, 15, Kit.BONE, 620.0)
+	var ending := Kit.para(Story.ending(timed, c.place.id if c.place else "abbey").text, 15, Kit.BONE, 620.0)
 	ending.name = "Ending"
 	col.add_child(ending)
 	var grid := GridContainer.new()

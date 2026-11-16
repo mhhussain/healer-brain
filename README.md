@@ -1,12 +1,12 @@
 # Fourfold
 
-A solo dungeon runner in the style of timed MMO dungeons, played in the browser. You play one hero (tank, healer or damage dealer) and AI plays the other three, through nine rooms and three bosses against a 14-minute clock.
+A solo dungeon runner in the style of timed MMO dungeons, played in the browser. You play one hero (tank, healer or damage dealer) and AI plays the other three, through one of two dungeons against the clock: the Drowned Abbey, nine rooms and three bosses in 14 minutes, or Tollhaven, a town of three wings and four bosses in 25, by a route you plan on a map.
 
 - **Play:** https://mhhussain.github.io/healer-brain/
 - **Design:** [DESIGN.md](DESIGN.md)
 - **The game itself:** [`game/`](game/README.md), a Godot 4 project. Its README covers the layout, how to play, test and export it, and how the voice, art and sound are made.
 - **Art and sound:** [`game/assets/README.md`](game/assets/README.md) lists every stand-in and how to replace it.
-- **What is next:** route planning, a larger dungeon and gear. [`docs/routing-and-gear-plan.md`](docs/routing-and-gear-plan.md) is what was agreed; [`docs/routing-and-gear-handoff.md`](docs/routing-and-gear-handoff.md) is the brief for building it.
+- **What is next:** gear, teams and a shop. Route planning and the larger dungeon are built. [`docs/routing-and-gear-plan.md`](docs/routing-and-gear-plan.md) is what was agreed; [`docs/routing-and-gear-handoff.md`](docs/routing-and-gear-handoff.md) is the brief for building it.
 
 ## Develop
 

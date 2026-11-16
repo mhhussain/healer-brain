@@ -39,6 +39,22 @@ One `.glb` per hero and enemy. Which file belongs to whom is the table in `scrip
 | Sister Velisse | `velisse.glb` | Giant hooded skeleton in pale teal |
 | Abbot Sulmar | `sulmar.glb` | Giant skeleton mage in dark gold, staff |
 
+Tollhaven's cast have no files of their own yet. Each wears one of the Abbey's, washed with a colour set on the enemy (`tint` in `rules/enemies.gd`) so that the two can be told apart:
+
+| Who | Wears | Washed |
+|---|---|---|
+| Drowned Deckhand (`deckhand`) | `penitent.glb` | pale blue |
+| Tide Crier (`crier`) | `cantor.glb` | yellow |
+| Shipwright's Mate (`mate`) | `porter.glb` | tar grey |
+| Dredger (`dredger`) | `net_brother.glb` | green |
+| Mother Hask (`hask`) | `velisse.glb` | sea green |
+| Exciseman Corrow (`corrow`) | `krogg.glb` | lilac |
+| Old Garrow (`garrow`) | `krogg.glb` | tan |
+| The Keeper of the Light (`keeper`) | `sulmar.glb` | pale gold |
+| A net (`net`) | none | the grey capsule |
+
+To give one a figure of its own, save the file in `characters/`, name it in the table in `scripts/figures.gd`, and set its `tint` back to white.
+
 ### To replace one
 
 Save your `.glb` over the file of the same name and let Godot import it. Nothing else changes. A figure must be:

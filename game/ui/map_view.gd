@@ -24,6 +24,8 @@ const PULL_COLORS: Array[Color] = [
 const ENEMY_MARKS := {
 	"brute": [Color("b5651d"), "P"], "berserker": [Color("d9534f"), "F"], "hexer": [Color("9b6fd6"), "C"],
 	"archer": [Color("4aa3a3"), "N"], "shaman": [Color("6fbf73"), "A"], "overseer": [Color("d4a72c"), "Pr"],
+	"deckhand": [Color("7fa8cf"), "D"], "crier": [Color("e0b84f"), "T"], "mate": [Color("8d7f76"), "M"],
+	"dredger": [Color("4f9f6e"), "G"],
 }
 const BOSS_MARK := [Color("e0503a"), "B"]
 ## How far out from its enemies a pull's outline runs, in metres.
@@ -86,6 +88,8 @@ func fit() -> void:
 	_fit = minf((size.x - 60.0) / all.size.x, (size.y - 120.0) / all.size.y)
 	zoom = clampf(_fit, 0.5, MAX_ZOOM)
 	centre = all.get_center()
+	# with room to spare at the sides, the map sits to the right, clear of the key
+	centre.x -= clampf((size.x - 60.0 - all.size.x * zoom) / 2.0, 0.0, 130.0) / zoom
 	_fitted = true
 	queue_redraw()
 
@@ -119,13 +123,30 @@ static func enemy_mark(id: String) -> Array:
 	return BOSS_MARK if Enemies.by_id(id).boss else ENEMY_MARKS.get(id, [Kit.GREY, "?"])
 
 
+## Where a pack's middle is: where the level puts it, or, for a patrol in a run, wherever it
+## has walked to.
+func middle(pack: int) -> Vector3:
+	if combat != null and pack < combat.packs.size() and not combat.packs[pack].path.is_empty():
+		return combat.packs[pack].at
+	return def.packs[pack].center
+
+
+## Where each enemy of a pack stands.
+func posts(pack: int) -> Array[Vector3]:
+	var out := LevelDef.posts(def.packs[pack])
+	var moved: Vector3 = middle(pack) - def.packs[pack].center
+	for i in out.size():
+		out[i] += moved
+	return out
+
+
 ## The pack whose ground that point of the view is on, or -1.
 func pack_at(s: Vector2) -> int:
 	var at := to_level(s)
 	var best := -1
 	var best_d := PACK_REACH
 	for i in def.packs.size():
-		var d := Combat.flat(at, def.packs[i].center)
+		var d := Combat.flat(at, middle(i))
 		if d < best_d:
 			best_d = d
 			best = i
@@ -251,7 +272,7 @@ func _draw() -> void:
 	for d in def.doors:
 		draw_rect(_rect(d.rect), DOORWAY)
 	for w in def.walls:
-		draw_rect(_rect(w.rect), WALL if w.height >= 1.5 else KERB)
+		draw_rect(_rect(w.rect), WALL if w.height >= 1.3 else KERB)
 	for i in def.pillars.size():
 		var p: Dictionary = def.pillars[i]
 		var fallen: bool = combat != null and i < combat.pillars.size() and not combat.pillars[i].alive
@@ -263,6 +284,8 @@ func _draw() -> void:
 			Kit.text(self, Vector2(r.get_center().x, r.position.y + 16.0), room.name, 12, Color(Kit.GREY, 0.8), r.size.x)
 	for i in def.lamps.size():
 		_draw_lamp(i)
+	for gate in def.gates:
+		_draw_gate(gate)
 	_draw_path()
 	for i in route.pulls.size():
 		_draw_pull(i)
@@ -288,7 +311,7 @@ func _pull_middle(i: int) -> Vector3:
 	var mid := Vector3.ZERO
 	var packs: Array = route.pulls[i].packs
 	for pack: int in packs:
-		mid += def.packs[pack].center / packs.size()
+		mid += middle(pack) / packs.size()
 	return mid
 
 
@@ -310,7 +333,7 @@ func pull_outline(i: int) -> PackedVector2Array:
 	var round := PackedVector2Array()
 	var out := maxf(OUTLINE * zoom, 9.0)
 	for pack: int in route.pulls[i].packs:
-		for post in LevelDef.posts(def.packs[pack]):
+		for post in posts(pack):
 			var at := to_screen(post)
 			for k in 12:
 				round.append(at + Vector2.from_angle(k / 12.0 * TAU) * out)
@@ -343,22 +366,52 @@ func _draw_pull(i: int) -> void:
 # greyed if it is in none.
 func _draw_pack(i: int) -> void:
 	var pack: Dictionary = def.packs[i]
-	var at := to_screen(pack.center)
+	var at := to_screen(middle(i))
 	var planned := route.pull_of(i) >= 0
 	var is_done := done(i)
+	if pack.has("path") and not is_done:
+		_draw_patrol(pack.path, hover == i)
 	if hover == i:
 		draw_arc(at, (PACK_REACH - 0.6) * zoom, 0.0, TAU, 40, Color(Kit.BONE, 0.5), 1.0, true)
-	var posts := LevelDef.posts(pack)
-	for k in posts.size():
+	var stood := posts(i)
+	for k in stood.size():
 		var mark := enemy_mark(pack.enemies[k])
 		var r := maxf(3.0, Enemies.by_id(pack.enemies[k]).radius * zoom * 1.3)
 		var fill: Color = mark[0] if planned else Color((mark[0] as Color).lerp(Color(0.5, 0.5, 0.5), 0.6), 0.6)
 		if is_done:
 			fill = Color(fill, 0.25)
-		draw_circle(to_screen(posts[k]), r, fill)
-		draw_arc(to_screen(posts[k]), r, 0.0, TAU, 20, Color(0, 0, 0, 0.7), 1.0, true)
+		draw_circle(to_screen(stood[k]), r, fill)
+		draw_arc(to_screen(stood[k]), r, 0.0, TAU, 20, Color(0, 0, 0, 0.7), 1.0, true)
 	if is_done:
 		Kit.text(self, at + Vector2(0, 5.0), "done", 11, Color(Kit.GREY, 0.8), 60.0)
+
+
+# The way a patrol walks: a dotted line from each of its spots to the next and round again,
+# brighter while the pointer is on the pack.
+func _draw_patrol(path: Array, bright: bool) -> void:
+	var color := Color(Kit.BONE, 0.85 if bright else 0.4)
+	for k in path.size():
+		if path.size() == 2 and k == 1:
+			break
+		var a := to_screen(path[k])
+		var b := to_screen(path[(k + 1) % path.size()])
+		draw_dashed_line(a, b, color, 2.0 if bright else 1.5, 6.0)
+	for spot: Vector3 in path:
+		draw_circle(to_screen(spot), 2.5, color)
+
+
+# A gate that is still shut: bars across its doorway, and what it waits for.
+func _draw_gate(gate: Dictionary) -> void:
+	if not def.shut.has(gate.door):
+		return
+	var r := _rect(def.doors[gate.door].rect)
+	draw_rect(r, Color(Kit.RED, 0.25))
+	for k in 4:
+		var x := r.position.x + (k + 0.5) * r.size.x / 4.0
+		draw_line(Vector2(x, r.position.y), Vector2(x, r.end.y), Kit.RED, 2.0)
+	draw_rect(r, Kit.RED, false, 1.5)
+	if r.size.x >= 14.0:
+		Kit.text(self, Vector2(r.get_center().x, r.end.y + 13.0), "shut", 11, Kit.RED, 60.0)
 
 
 func _draw_party() -> void:
@@ -405,6 +458,14 @@ func _draw_key() -> void:
 			y += 20.0
 	draw_colored_polygon(PackedVector2Array([Vector2(20, y - 6), Vector2(26, y), Vector2(20, y + 6), Vector2(14, y)]), Kit.GOLD)
 	Kit.text(self, Vector2(36, y + 4.0), "A lamp: where a beaten party starts again", 12, Kit.GREY, 300.0, HORIZONTAL_ALIGNMENT_LEFT)
+	if def.packs.any(func(p: Dictionary) -> bool: return p.has("path")):
+		y += 20.0
+		draw_dashed_line(Vector2(12, y), Vector2(28, y), Color(Kit.BONE, 0.7), 1.5, 4.0)
+		Kit.text(self, Vector2(36, y + 4.0), "A patrol's round", 12, Kit.GREY, 300.0, HORIZONTAL_ALIGNMENT_LEFT)
+	for gate in def.gates:
+		y += 20.0
+		draw_rect(Rect2(13, y - 6, 14, 12), Kit.RED, false, 1.5)
+		Kit.text(self, Vector2(36, y + 4.0), "%s: shut until %d bosses rest" % [gate.name, gate.packs.size()], 12, Kit.GREY, 520.0, HORIZONTAL_ALIGNMENT_LEFT)
 
 
 ## The sign for a place in the party, drawn on anything: a shield for the tank, a cross for

@@ -8,8 +8,8 @@ extends RefCounted
 
 ## Something happened: {"k": kind, ...}. Kinds:
 ## hit, heal, death, ability, interrupt, dispel, engage, clear, wipe, revive (rules);
-## text, beam, ring, alert (things to show); spawn, despawn, dash, pillar, pillars_up (things
-## the scene must do).
+## text, beam, ring, alert (things to show); spawn, despawn, dash, yank, pillar, pillars_up,
+## gate (things the scene must do).
 signal event(e: Dictionary)
 
 ## How near a hero must come for an enemy to notice, in metres.
@@ -17,16 +17,21 @@ const AGGRO := 11.0
 ## A press this long before an ability is ready still goes off, the moment it can.
 const QUEUE_WINDOW := 0.5
 const TAB_RANGE := 45.0
-const TIME_LIMIT := 14 * 60.0
 const DEATH_PENALTY := 5.0
 ## An AI tank gathering the packs of a pull is given this long before the party stops holding
 ## its damage for it, in seconds.
 const GATHER_LIMIT := 15.0
+## How fast a patrol walks, in metres a second.
+const PATROL_SPEED := 2.6
+## A hit from within this angle of the way an enemy faces is a hit from the front, in radians.
+const FRONT := 1.35
 
 var level := 1
 ## Enemy health and damage are multiplied by this: 8% a level, compounding.
 var scale := 1.0
 var time := 0.0
+## How long the run has to be timed, in seconds: the place's own.
+var time_limit := 14 * 60.0
 ## Seconds since the first pull.
 var elapsed := 0.0
 var deaths := 0
@@ -81,6 +86,12 @@ var error := ""
 var error_t := 0.0
 
 var _units := {}
+var _paths: Paths
+var _avoid_t := -9.0
+# the nearest pack left once the plan has run out, and what it was found for: the tick, where
+# the tank stood and how many packs were cleared
+var _nearest: Pack
+var _nearest_for := []
 var _queued := {}
 var _next_id := 1
 var _rng := RandomNumberGenerator.new()
@@ -131,6 +142,7 @@ func add_lamp(name: String, at: Vector3, pack_id := -1) -> void:
 func enter(def: LevelDef, plan: Route = null) -> void:
 	place = def
 	count_needed = def.count_needed
+	time_limit = def.time_limit
 	route = plan if plan else Route.default_for(def)
 	for d in def.packs:
 		var pack := add_pack(d.name, d.boss)
@@ -138,9 +150,11 @@ func enter(def: LevelDef, plan: Route = null) -> void:
 		pack.room = d.get("room", -1)
 		pack.pull_from = d.pull_from
 		pack.stand = d.stand
+		pack.at = d.center
+		pack.path.assign(d.get("path", []))
 		var posts := LevelDef.posts(d)
 		for i in d.enemies.size():
-			spawn_enemy(d.enemies[i], posts[i], pack.id)
+			spawn_enemy(d.enemies[i], posts[i], pack.id).post = posts[i] - d.center
 	for l in def.lamps:
 		add_lamp(l.name, l.pos, l.pack)
 	if lamps.is_empty():
@@ -221,30 +235,45 @@ func random_heroes(n: int) -> Array[Combatant]:
 ## next" asks here. It is the first pull of the route with a pack still standing, so a pull
 ## that beat the party is made again and packs already dead are passed over. Once the plan has
 ## run out it is the nearest pack that still stands, with "index" -1, or the nearest boss once
-## the count is met. Empty when nothing is left.
+## the count is met. Empty when nothing is left. A pack behind a gate that is still shut is
+## passed over until the gate opens.
 func next_pull() -> Dictionary:
 	if route:
 		for i in route.pulls.size():
 			var p: Dictionary = route.pulls[i]
 			var left: Array[Pack] = []
 			for id: int in p.packs:
-				if id < packs.size() and not packs[id].cleared:
+				if id < packs.size() and not packs[id].cleared and not locked(packs[id]):
 					left.append(packs[id])
 			if not left.is_empty():
 				return {"index": i, "packs": left, "spots": p.spots, "go": p.go}
+	# asked many times a tick, and a long walk to measure in a big place
+	var asked := [time, tank().pos if tank() else Vector3.ZERO, packs.filter(func(p: Pack) -> bool: return p.cleared).size()]
+	if asked != _nearest_for:
+		_nearest_for = asked
+		_nearest = _nearest_left()
+	var one: Array[Pack] = [_nearest]
+	return {"index": -1, "packs": one, "spots": {}, "go": false} if _nearest else {}
+
+
+func _nearest_left() -> Pack:
 	var met := count() >= count_goal()
 	var from := tank().pos if tank() else Vector3.ZERO
 	var best: Pack = null
 	var best_d := INF
 	for p in packs:
-		if p.cleared or p.units.is_empty() or (met and not p.boss):
+		if p.cleared or p.units.is_empty() or (met and not p.boss) or locked(p):
 			continue
 		var d := place.walk_length(from, p.units[0].home) if place else flat(from, p.units[0].home)
 		if d < best_d:
 			best_d = d
 			best = p
-	var one: Array[Pack] = [best]
-	return {"index": -1, "packs": one, "spots": {}, "go": false} if best else {}
+	return best
+
+
+## Whether a pack cannot be reached yet: it is behind a gate that is still shut.
+func locked(p: Pack) -> bool:
+	return place != null and place.locked(p.room)
 
 
 ## Whether every pack of the pull being fought has been woken.
@@ -307,7 +336,7 @@ func total_time() -> float:
 
 
 func timed() -> bool:
-	return finished and total_time() <= TIME_LIMIT
+	return finished and total_time() <= time_limit
 
 
 ## The tank: the first hero whose role says so, or the first hero.
@@ -334,6 +363,88 @@ static func toward(a: Combatant, b: Combatant) -> Vector3:
 
 func sees(a: Combatant, b: Combatant) -> bool:
 	return los.call(a.pos, b.pos)
+
+
+## Whether a spot is in front of an enemy: within a wide angle of the way it faces.
+static func in_front(e: Combatant, p: Vector3) -> bool:
+	var off := Vector2(p.x - e.pos.x, p.z - e.pos.z)
+	return off.length() < 0.01 or absf(Vector2(e.facing.x, e.facing.z).angle_to(off)) < FRONT
+
+
+## Whether a unit is held fast: it cannot move or act.
+func held(u: Combatant) -> bool:
+	return u.auras.any(func(a: Aura) -> bool: return a.hold)
+
+
+## Drags a unit to a spot at once. The scene puts its figure there.
+func yank(u: Combatant, to: Vector3) -> void:
+	u.pos = Vector3(to.x, 0, to.z)
+	u.has_goal = false
+	u.cast = null
+	event.emit({"k": "yank", "id": u.id})
+
+
+## The nearest pack of keepers still asleep within that many metres of a spot, or null. Bosses
+## do not count, nor a pack behind a shut gate.
+func sleeping_near(at: Vector3, within: float) -> Pack:
+	var best: Pack = null
+	var best_d := within
+	for p in packs:
+		if p.boss or p.engaged or p.cleared or locked(p) or not p.units.any(func(u: Combatant) -> bool: return u.alive):
+			continue
+		var d := flat(at, p.at)
+		if d <= best_d:
+			best_d = d
+			best = p
+	return best
+
+
+# ---------- finding the way
+
+## Where an AI hero heads for to walk to a spot: the spot itself, or, if the plain way there
+## would wake a pack that is not in the pull or cross a patch that is burning, the next stop on
+## a way round. A spot that is itself on such ground is not walked onto: the hero stops short
+## of it. Only when a spot is clear and every way to it is not does the hero go through.
+func steer(h: Combatant, to: Vector3) -> Vector3:
+	if place == null or place.floors.is_empty():
+		return to
+	var ways := _ways()
+	if not ways.threatened(h.pos, to):
+		h.ai.way_to = Vector3.INF
+		return to
+	var ai := h.ai
+	# looked for again once a second, or when where it leads has moved: no oftener, even if none was found
+	if flat(ai.way_to, to) > 2.0 or time - ai.way_t > 1.0:
+		ai.way = ways.way(h.pos, to)
+		if ways.covered(to) and not ai.way.is_empty():
+			ai.way = ways.short_of(ai.way)
+			if ai.way.is_empty():
+				ai.way = PackedVector3Array([h.pos])
+		ai.way_to = to
+		ai.way_t = time
+	return ways.ahead(h.pos, ai.way) if not ai.way.is_empty() else to
+
+
+# The way-finder, told which packs to keep clear of: every pack that sleeps and is not in the
+# pull being made or fought.
+func _ways() -> Paths:
+	if _paths == null:
+		_paths = Paths.new(place)
+	if time - _avoid_t >= 0.25:
+		_avoid_t = time
+		var wanted: Array = fight.get("packs", []) if in_combat else next_pull().get("packs", [])
+		var list := []
+		for p in packs:
+			var standing := p.units.filter(func(u: Combatant) -> bool: return u.alive).size()
+			if p.cleared or p.engaged or wanted.has(p) or standing == 0:
+				continue
+			list.append({"id": p.id, "at": p.at, "r": Paths.watch(standing), "room": p.room})
+		# a patch that burns on is ground to keep off too
+		for z in zones:
+			if z.went and not z.safe and z.kind == "circle" and z.follow_id == 0:
+				list.append({"id": -1 - int(z.get_instance_id() % 1000000000), "at": z.pos, "r": z.r + 0.6, "room": -1})
+		_paths.avoid(list)
+	return _paths
 
 
 # ---------- things to show
@@ -401,6 +512,14 @@ func damage(src: Combatant, tgt: Combatant, amount: float, type := "phys", o := 
 			a *= au.taken
 			if type == "phys":
 				a *= au.taken_phys
+	# a shield turns aside most of what comes at it from the front; the hero is hated no less
+	var kept := 1.0
+	if tgt.enemy and tgt.enemy.front_guard > 0.0 and src and src.hero and not o.get("raw", false) and in_front(tgt, src.pos):
+		kept = 1.0 - tgt.enemy.front_guard
+		a *= kept
+		if time - tgt.flags.get("guard_t", -9.0) > 1.5:
+			tgt.flags["guard_t"] = time
+			text(tgt.pos, "Shielded", Color("9fb0b1"))
 	for au in tgt.auras:
 		if au.absorb <= 0.0 or a <= 0.0:
 			continue
@@ -421,7 +540,7 @@ func damage(src: Combatant, tgt: Combatant, amount: float, type := "phys", o := 
 		if src and src.hero:
 			src.stats.dmg += a
 			engage_from(src, tgt)
-			add_threat(tgt, src.id, a * src.hero.threat_mult)
+			add_threat(tgt, src.id, a / kept * src.hero.threat_mult)
 	elif tgt.hero.id == "warden" and src and a > 0.0 and time - tgt.rage_gate >= 1.0:
 		# the Warden earns grit by being hit
 		tgt.rage_gate = time
@@ -656,6 +775,8 @@ func use_ability(u: Combatant, idx: int, target: Combatant) -> String:
 	var ab := u.hero.abilities[idx]
 	if not u.alive:
 		return "You are dead"
+	if held(u):
+		return "You are held fast"
 	if u.cds.get(ab.id, 0.0) > 0.0:
 		return "cd"
 	if not ab.off_gcd and (u.gcd > 0.0 or u.cast):
@@ -800,6 +921,9 @@ func tick(dt: float) -> void:
 	for h in heroes:
 		if ai_plays and h.alive and (not h.is_player or autoplay):
 			HeroAI.think(self, h)
+	for p in packs:
+		if not p.path.is_empty() and not p.engaged and not p.cleared:
+			_patrol(p, dt)
 	for e in enemies:
 		if e.alive:
 			_enemy_tick(e, dt)
@@ -816,11 +940,28 @@ func tick(dt: float) -> void:
 			error = ""
 
 
+# A patrol walks on towards the next spot of its path, and its enemies' posts go with it.
+func _patrol(p: Pack, dt: float) -> void:
+	var to := p.path[p.path_i]
+	var d := flat(p.at, to)
+	var step := PATROL_SPEED * dt
+	if d <= step:
+		p.at = to
+		p.path_i = (p.path_i + 1) % p.path.size()
+	else:
+		p.at += (to - p.at) / d * step
+	p.pull_from = p.at
+	for u in p.units:
+		if not u.summoned:
+			u.home = p.at + u.post
+
+
 func _enemy_tick(e: Combatant, dt: float) -> void:
 	var def := e.enemy
 	if not e.engaged:
-		# walk back to its post, and notice any hero who comes near
-		e.has_goal = flat(e.pos, e.home) > 0.3
+		# walk back to its post, and notice any hero who comes near; a patrol's post walks,
+		# and it keeps step with it
+		e.has_goal = flat(e.pos, e.home) > (0.05 if not packs[e.pack_id].path.is_empty() else 0.3)
 		e.goal = e.home
 		e.aggro_t -= dt
 		if e.aggro_t > 0.0:
@@ -832,6 +973,8 @@ func _enemy_tick(e: Combatant, dt: float) -> void:
 				break
 		return
 	e.has_goal = false
+	if def.still:
+		return
 	if def.passive.is_valid():
 		def.passive.call(self, e)
 	var tgt := pick_threat_target(e)
@@ -876,6 +1019,13 @@ func _enemy_tick(e: Combatant, dt: float) -> void:
 			elif ab.targeting == "random":
 				var p: Combatant = unit(e.pending.target_id) if e.pending.get("ab") == ab.id else null
 				t = p if p and p.alive else random_hero()
+			elif ab.targeting == "farthest":
+				# whoever stands furthest off, if anyone stands off at all
+				for h in heroes:
+					if h.alive and dist(h, e) > 8.0 and sees(e, h) and (t == null or dist(h, e) > dist(t, e)):
+						t = h
+				if t == null:
+					continue
 			if ab.needs_los and t and not sees(e, t):
 				# walk until it can see whoever it picked
 				e.pending = {"ab": ab.id, "target_id": t.id}
@@ -949,8 +1099,9 @@ func _update_unit(u: Combatant, dt: float) -> void:
 		return
 	var def := u.hero
 	var c := u.cast
+	var fast := held(u)
 	if c:
-		if u.moved:
+		if u.moved or fast:
 			u.cast = null
 		else:
 			c.t += dt
@@ -974,7 +1125,7 @@ func _update_unit(u: Combatant, dt: float) -> void:
 		for a in u.auras:
 			haste *= a.haste
 		u.auto_timer -= dt * haste
-	var free := def.role == "tank" or (u.is_player and not autoplay) or can_attack()
+	var free := not fast and (def.role == "tank" or (u.is_player and not autoplay) or can_attack())
 	if t and t.alive and t.team == "enemy" and t.engaged and u.cast == null and u.auto_timer <= 0.0 and free:
 		if dist(u, t) <= def.auto_reach + t.radius * 0.5 and (def.auto_reach < 5.0 or sees(u, t)):
 			u.auto_timer = def.auto_interval
@@ -989,11 +1140,31 @@ func _update_zones(dt: float) -> void:
 	for z: Zone in before:
 		z.t += dt
 		var owner := unit(z.owner_id)
+		if z.follow_id > 0:
+			var with := unit(z.follow_id)
+			if with == null or not with.alive:
+				continue
+			z.pos = with.pos
+		if z.turn != 0.0:
+			z.dir = z.dir.rotated(Vector3.UP, -z.turn * dt)
+		if z.safe:
+			if z.t < z.delay:
+				keep.append(z)
+			continue
 		if z.t >= z.delay:
-			event.emit({"k": "boom", "at": z.pos, "r": z.r, "id": z.owner_id})
-			for h in heroes:
-				if h.alive and z.holds(h.pos):
-					damage(owner, h, z.dmg, z.type, {"no_beam": true, "scaled": true})
+			if not z.went:
+				z.went = true
+				z.tick_t = z.every
+				if z.dmg > 0.0:
+					event.emit({"k": "boom", "at": z.pos, "r": z.r, "id": z.owner_id, "kind": z.kind})
+					_burn(z, owner, z.dmg)
+			if z.linger <= 0.0 or z.t >= z.delay + z.linger or (z.owner_id > 0 and (owner == null or not owner.alive)):
+				continue
+			z.tick_t -= dt
+			if z.tick_t <= 1e-6:
+				z.tick_t += z.every
+				_burn(z, owner, z.linger_dmg)
+			keep.append(z)
 			continue
 		if z.tied and (owner == null or not owner.alive or owner.cast == null):
 			continue
@@ -1003,6 +1174,13 @@ func _update_zones(dt: float) -> void:
 		if not before.has(z):
 			keep.append(z)
 	zones = keep
+
+
+# Hurts every hero standing in a zone.
+func _burn(z: Zone, owner: Combatant, amount: float) -> void:
+	for h in heroes:
+		if h.alive and z.holds(h.pos) and (not z.sight or owner == null or sees(owner, h)):
+			damage(owner, h, amount, z.type, {"no_beam": true, "scaled": true})
 
 
 ## Hands each enemy cast that can be stopped to one party member, so two do not spend their
@@ -1072,6 +1250,7 @@ func _update_combat() -> void:
 				if l.pack == p.id:
 					l.lit = true
 					l.lit_at = time
+			_open_gates()
 	in_combat = packs.any(func(p: Pack) -> bool: return p.engaged and not p.cleared)
 	if not in_combat:
 		fight = {}
@@ -1087,6 +1266,21 @@ func _update_combat() -> void:
 				event.emit({"k": "revive", "id": h.id})
 	elif heroes.all(func(h: Combatant) -> bool: return not h.alive):
 		_wipe()
+
+
+# A gate opens once every boss it waits for is at rest.
+func _open_gates() -> void:
+	if place == null:
+		return
+	for i in place.gates.size():
+		var g: Dictionary = place.gates[i]
+		if not place.shut.has(g.door) or not g.packs.all(func(id: int) -> bool: return packs[id].cleared):
+			continue
+		place.open_gate(i)
+		if _paths:
+			_paths.open_door(g.door)
+		event.emit({"k": "gate", "id": i})
+		alert("%s stands open." % g.name)
 
 
 # Everyone is down: every pack in the fight goes back to its posts, healed, and the party

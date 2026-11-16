@@ -37,6 +37,7 @@ var def: LevelDef
 
 var _region: NavigationRegion3D
 var _pillars: Array[StaticBody3D] = []
+var _gates := {}  # gate -> the barrier across its doorway
 var _wall_mat: StandardMaterial3D
 var _pillar_mat: StandardMaterial3D
 var _kit_mat: StandardMaterial3D
@@ -106,9 +107,54 @@ func build(level: LevelDef) -> void:
 		body.set_meta("pillar", _pillars.size())
 		_pillars.append(body)
 
+	for i in def.gates.size():
+		_bar(i)
+
 	_region = NavigationRegion3D.new()
 	add_child(_region)
 	_bake()
+
+
+# A shut gate: a barrier across the middle of its doorway, which blocks the way and the view.
+# The floor under it is in the navigation mesh all the same, so that opening it needs no new
+# mesh; nobody is sent through a gate that is shut.
+func _bar(gate: int) -> void:
+	var door: Rect2 = def.doors[def.gates[gate].door].rect
+	var room: Rect2 = def.rooms[def.doors[def.gates[gate].door].a].rect
+	var upright := is_equal_approx(room.end.y, door.position.y) or is_equal_approx(room.position.y, door.end.y)
+	var r := Rect2(door.position.x, door.get_center().y - 0.3, door.size.x, 0.6) if upright \
+		else Rect2(door.get_center().x - 0.3, door.position.y, 0.6, door.size.y)
+	var tall := 2.6
+	var box := BoxShape3D.new()
+	box.size = Vector3(r.size.x, tall, r.size.y)
+	var piece := _piece("wall")
+	var block: BoxMesh = null
+	if piece.is_empty():
+		block = BoxMesh.new()
+		block.size = box.size
+	var body := _solid(box, block, _wall_mat, Vector3(r.get_center().x, tall / 2.0, r.get_center().y))
+	if not piece.is_empty():
+		# drawn by the same means as every wall, so no new shader, and hung on the barrier so
+		# that it goes when the barrier does
+		var before := get_child_count()
+		_row(piece, r, tall)
+		var look := get_child(before)
+		remove_child(look)
+		body.add_child(look)
+		look.position = -body.position
+	_gates[gate] = body
+
+
+## A gate has opened: its barrier goes.
+func open_gate(gate: int) -> void:
+	var body: Node = _gates.get(gate)
+	if body:
+		_gates.erase(gate)
+		body.queue_free()
+
+
+func gate_shut(gate: int) -> bool:
+	return _gates.has(gate)
 
 
 # ---------- dressing the place with the room pieces

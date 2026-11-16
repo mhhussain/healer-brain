@@ -153,3 +153,10 @@ static func bar(on: CanvasItem, r: Rect2, part: float, fill: Color, marked := fa
 static func frame(on: CanvasItem, r: Rect2, edge: Color, width := 1.0) -> void:
 	on.draw_rect(r, DARK)
 	on.draw_rect(r, edge, false, width)
+
+
+## "a", "a and b", "a, b and c".
+static func listed(words: Array) -> String:
+	if words.size() <= 1:
+		return "".join(words)
+	return ", ".join(words.slice(0, -1)) + " and " + str(words[-1])

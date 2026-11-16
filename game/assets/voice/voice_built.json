@@ -1,7 +1,27 @@
 {
+  "bloomweaver_corrow_1": {
+    "speed": 0.88,
+    "text": "He counted my kelp once. Twice, in fact.",
+    "voice": "bf_isabella"
+  },
   "bloomweaver_fallen_1": {
     "speed": 0.88,
     "text": "Up, dear. The kelp has you.",
+    "voice": "bf_isabella"
+  },
+  "bloomweaver_garrow_1": {
+    "speed": 0.88,
+    "text": "Still building. Bless him, he never did finish one.",
+    "voice": "bf_isabella"
+  },
+  "bloomweaver_hask_1": {
+    "speed": 0.88,
+    "text": "I knew her mother. Same temper.",
+    "voice": "bf_isabella"
+  },
+  "bloomweaver_keeper_1": {
+    "speed": 0.88,
+    "text": "All these years he kept it lit for nobody.",
     "voice": "bf_isabella"
   },
   "bloomweaver_krogg_1": {
@@ -44,9 +64,29 @@
     "text": "A ward full of crabs. She would be mortified.",
     "voice": "bf_isabella"
   },
+  "duelist_corrow_1": {
+    "speed": 1.05,
+    "text": "Ah. We have met. He will not remember, I hope.",
+    "voice": "bm_fable"
+  },
   "duelist_fallen_1": {
     "speed": 1.05,
     "text": "I am not carrying anyone.",
+    "voice": "bm_fable"
+  },
+  "duelist_garrow_1": {
+    "speed": 1.05,
+    "text": "Nothing here worth lifting. It is all boat.",
+    "voice": "bm_fable"
+  },
+  "duelist_hask_1": {
+    "speed": 1.05,
+    "text": "I have slipped better nets than hers.",
+    "voice": "bm_fable"
+  },
+  "duelist_keeper_1": {
+    "speed": 1.05,
+    "text": "That lens alone would buy a street.",
     "voice": "bm_fable"
   },
   "duelist_krogg_1": {
@@ -94,14 +134,44 @@
     "text": "You climb the sea stair with dry boots. Below you, for the first time in a hundred years, the abbey sleeps.",
     "voice": "bm_george"
   },
+  "ending_in_time_tollhaven": {
+    "speed": 0.9,
+    "text": "The harbour light turns over dry stone. Behind you Tollhaven sleeps, and the sea comes home to an empty town.",
+    "voice": "bm_george"
+  },
   "ending_late": {
     "speed": 0.9,
     "text": "The tide caught you on the stair and you came home soaked to the collar. But the lamps hold, and the abbey sleeps.",
     "voice": "bm_george"
   },
+  "ending_late_tollhaven": {
+    "speed": 0.9,
+    "text": "The tide took the lower streets before you were out of them. But the light is burning, and Tollhaven sleeps.",
+    "voice": "bm_george"
+  },
+  "mender_corrow_1": {
+    "speed": 0.97,
+    "text": "Nobody owes you anything now, Exciseman.",
+    "voice": "bf_emma"
+  },
   "mender_fallen_1": {
     "speed": 0.97,
     "text": "No, no, no. Up you get!",
+    "voice": "bf_emma"
+  },
+  "mender_garrow_1": {
+    "speed": 0.97,
+    "text": "Old Garrow. The ship is finished. Let it go.",
+    "voice": "bf_emma"
+  },
+  "mender_hask_1": {
+    "speed": 0.97,
+    "text": "Mother Hask. Put the nets down, dear.",
+    "voice": "bf_emma"
+  },
+  "mender_keeper_1": {
+    "speed": 0.97,
+    "text": "Keeper. We have brought you a light of our own.",
     "voice": "bf_emma"
   },
   "mender_krogg_1": {
@@ -164,9 +234,29 @@
     "text": "Three lamps wait in the dark. Light them, and the abbey may finally sleep.",
     "voice": "bm_george"
   },
+  "pyromancer_corrow_1": {
+    "speed": 1.08,
+    "text": "My family always paid on time! Mostly!",
+    "voice": "am_puck"
+  },
   "pyromancer_fallen_1": {
     "speed": 1.08,
     "text": "Was that my fault? That felt like my fault.",
+    "voice": "am_puck"
+  },
+  "pyromancer_garrow_1": {
+    "speed": 1.08,
+    "text": "Pitch. Pitch burns. Oh, this is going to go badly.",
+    "voice": "am_puck"
+  },
+  "pyromancer_hask_1": {
+    "speed": 1.08,
+    "text": "Oh, I do not like being tied up.",
+    "voice": "am_puck"
+  },
+  "pyromancer_keeper_1": {
+    "speed": 1.08,
+    "text": "That is the biggest candle I have ever seen.",
     "voice": "am_puck"
   },
   "pyromancer_krogg_1": {
@@ -209,9 +299,29 @@
     "text": "I am sure she is a very good nurse.",
     "voice": "am_puck"
   },
+  "ranger_corrow_1": {
+    "speed": 0.95,
+    "text": "Paperwork.",
+    "voice": "af_bella"
+  },
   "ranger_fallen_1": {
     "speed": 0.95,
     "text": "Get up.",
+    "voice": "af_bella"
+  },
+  "ranger_garrow_1": {
+    "speed": 0.95,
+    "text": "Duck.",
+    "voice": "af_bella"
+  },
+  "ranger_hask_1": {
+    "speed": 0.95,
+    "text": "Nets.",
+    "voice": "af_bella"
+  },
+  "ranger_keeper_1": {
+    "speed": 0.95,
+    "text": "Bright.",
     "voice": "af_bella"
   },
   "ranger_krogg_1": {
@@ -254,9 +364,29 @@
     "text": "Too many legs.",
     "voice": "af_bella"
   },
+  "warden_corrow_1": {
+    "speed": 0.95,
+    "text": "A taxman. Of course it would be a taxman.",
+    "voice": "am_fenrir"
+  },
   "warden_fallen_1": {
     "speed": 0.95,
     "text": "Hold the line. We will fetch them after.",
+    "voice": "am_fenrir"
+  },
+  "warden_garrow_1": {
+    "speed": 0.95,
+    "text": "Watch the slip. That hull will not stop for you.",
+    "voice": "am_fenrir"
+  },
+  "warden_hask_1": {
+    "speed": 0.95,
+    "text": "Mind the nets. Cut each other loose.",
+    "voice": "am_fenrir"
+  },
+  "warden_keeper_1": {
+    "speed": 0.95,
+    "text": "Keep ahead of his lamp, or behind stone.",
     "voice": "am_fenrir"
   },
   "warden_krogg_1": {

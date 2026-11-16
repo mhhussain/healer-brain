@@ -85,6 +85,8 @@ func test_the_save_says_which_version_it_is_and_an_older_one_still_reads():
 	old.erase("v")
 	old.erase("routes")
 	old.erase("markers")
+	old.erase("place")
+	old.erase("progress")
 	old["unlocked"] = 4
 	var read := SaveData.from_dict(old)
 	assert_eq(read.unlocked, 4)

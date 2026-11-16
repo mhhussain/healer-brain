@@ -113,7 +113,7 @@ The screen shows a count bar, the number of the next pull, and ground markers fo
 
 Levels exist today: each one adds 8% enemy health and damage, compounding and without a cap, with new enemy abilities at levels 3, 6 and 9. That stays. What changes:
 
-- Levels are **tracked per dungeon**. The Abbey keeps its levels.
+- Levels are **tracked per dungeon**. The Abbey keeps its levels. (Built with Tollhaven.)
 - Timing a run opens the next level. Beating the timer by **20% opens two levels up, by 40% three**.
 - Failing costs nothing; retry as often as you like.
 - **Records**, per dungeon: the highest level timed and the best time at each level, with the team that did it. This is what a later profile page would show.
@@ -210,9 +210,9 @@ Each ends at a point where the owner plays and reviews. Stop there.
 
 **10. Routes on the Abbey.** (Built; its rules are in `DESIGN.md` sections 2, 3, 6 and 8. Left for milestone 11, where the dungeon needs them: walking round packs that are not in the pull, the warning that a pull will wake another pack, and patrol paths on the map.) The route as data, saved in three slots, with the text code. The map planner. The AI following a route: order, several packs in a pull, the tank spot, party spots, "go at once", recovering after a wipe, carrying on when the plan ends. The Abbey's default route. In the run: the count bar, the next pull's number, ground markers, M for the map.
 
-**11. The big dungeon.** The owner approves the name, layout sketch, enemies and bosses first. Then: three wings, about 22 packs, four bosses, patrols, new enemies, pathing around packs, the map's warnings, its default route, the 25-minute timer.
+**11. The big dungeon.** (Built: Tollhaven. The owner approved [`tollhaven-proposal.md`](tollhaven-proposal.md) as proposed, and asked for levels to be kept for each dungeon from the start, so that part of milestone 12 came in with it. Its rules are in `DESIGN.md` sections 4, 6, 7b and 8.) The owner approves the name, layout sketch, enemies and bosses first. Then: three wings, about 22 packs, four bosses, patrols, new enemies, pathing around packs, the map's warnings, its default route, the 25-minute timer.
 
-**12. Levels and basic gear.** Levels per dungeon, fast clears and records. The end chest. Generated weapons and armour, and trinkets. Item level and its ceiling. The inventory, teams, the default team, the new start screen, the three gear keys. Save export and import.
+**12. Levels and basic gear.** Levels per dungeon (done in milestone 11: each dungeon's unlocked level, chosen level and bests are kept apart), fast clears and records. The end chest. Generated weapons and armour, and trinkets. Item level and its ceiling. The inventory, teams, the default team, the new start screen, the three gear keys. Save export and import.
 
 **13. Rare gear and the shop.** Epic abilities, sets, legendaries, the unique flag. Coin, selling and the gamble.
 
@@ -238,7 +238,7 @@ Sources: the MDT author's guide on Wowhead (`wowhead.com/guide/how-to-use-mythic
 
 These were not decided. Settle each with the owner, or propose a value and tune it in play, in the milestone that needs it.
 
-- **Count values** per enemy and the total each dungeon needs. Milestone 9 proposed values, to be tuned in play: 3 for the casters and archers, 4 for the two melee kinds, 8 for the Prior, nothing for bosses and what they call up. The Abbey holds 92 and asks for all of it. The big dungeon's total is still open. (Milestone 11)
+- **Count values** per enemy and the total each dungeon needs. Milestone 9 proposed values, to be tuned in play: 3 for the casters and archers, 4 for the two melee kinds, 8 for the Prior, nothing for bosses and what they call up. The Abbey holds 92 and asks for all of it. Tollhaven holds 300 and asks for 231, with 1 for a Deckhand, 4 for a Tide Crier and 5 for a Shipwright's Mate or a Dredger: proposed values, to be tuned in play.
 - **Which key** keeps M: settled. M opens the map; turning sound off is a box in the game's menu and on the setup screen.
 - **The player's "current item level"** that drops are measured against, and how far above it a drop lands. One option: the average of the best item owned in each slot. (Milestone 12)
 - **The item-level ceiling** for each dungeon level. (Milestone 12)

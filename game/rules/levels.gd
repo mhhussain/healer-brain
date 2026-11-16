@@ -42,6 +42,7 @@ const LOW := 1.0
 ## the landing the party starts on. Each room is joined to the next by one doorway.
 static func abbey() -> LevelDef:
 	var l := LevelDef.new()
+	l.id = "abbey"
 	l.name = "The Drowned Abbey"
 	l.zones = ["The Sea Gate", "The Infirmary", "The Nave"]
 	# the room the party starts in
@@ -99,6 +100,7 @@ static func _by_the_way_on(right: float) -> Vector3:
 ## one through the doorway.
 static func sandbox() -> LevelDef:
 	var l := LevelDef.new()
+	l.id = "sandbox"
 	l.name = "Sandbox"
 	# two rooms, and a doorway in the middle of the wall between them
 	l.add_room("The first room", Rect2(-4, -7, 29.7, 14))

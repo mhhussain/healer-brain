@@ -14,7 +14,7 @@ var pos_t := 0.0
 var tank_spot = null
 ## Where it is hiding from a cast the party must hide from.
 var hide = null
-## The pack the tank has already gone in to: it has reached the spot it holds that pack at.
-var entered := -1
+## The tank has gone in: it has reached the spot it holds this pull at.
+var arrived := false
 ## It was walking last tick. Goals use it so a hero does not start and stop on a threshold.
 var moving := false

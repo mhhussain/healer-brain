@@ -2,14 +2,14 @@
 
 Status: **approved and built.** The game is the Godot project in [`game/`](game/README.md), published from `main`. Numbers below are its tuned values.
 
-**Next:** route planning, a second and larger dungeon, and gear were agreed on 15 November 2026. The first step is built: the dungeon is rooms joined by doorways, enemies are worth count, and a beaten party starts again from a sanctuary lamp. The rest is not built yet. Section 12 sums it up; the full record is [`docs/routing-and-gear-plan.md`](docs/routing-and-gear-plan.md).
+**Next:** route planning, a second and larger dungeon, and gear were agreed on 15 November 2026. The first two steps are built: the dungeon is rooms joined by doorways, enemies are worth count, a beaten party starts again from a sanctuary lamp, and you can plan a route on a map which the AI then follows. The rest is not built yet. Section 12 sums it up; the full record is [`docs/routing-and-gear-plan.md`](docs/routing-and-gear-plan.md).
 
 Fourfold was first built in TypeScript as a side-on belt-scroller (kept at the tag `typescript-game`), and this document was written for that game. It was then rebuilt in Godot with an isometric view, which is the game now. The rules here hold for it, and section 3 (controls) describes it. Some passages, section 11 above all, still describe how the first version looked and sounded; where the game differs from them:
 
 - The dungeon, heroes, enemies, AI, clock, unlocks and bests are all in and run to the same times as before (all-AI: about 7:25 to 8:05 at level 1, 10:15 to 11:00 at level 5, 12:00 to 13:00 at level 7).
 - Effects over time always get their last tick. In the TypeScript game rounding dropped it for some, so Mending Kelp healed 360 and Tallow Burn dealt 200; here they give the 420 and 240 their descriptions promise.
 - The interface is rebuilt to section 8, in plain grey-box styling: the title, the party setup (with the key editor and the level), the run's frames and action bar, the pause menu and the summary. Party setup and level select share one screen.
-- The story is spoken as well as shown: the opening card is read by a narrator, the party's lines are said aloud in their own voices with a speech bubble, and the summary ends on one of the two endings. The voices are made with Kokoro (text to speech); M turns sound off and on, and there is a volume slider on the setup screen and in the pause menu.
+- The story is spoken as well as shown: the opening card is read by a narrator, the party's lines are said aloud in their own voices with a speech bubble, and the summary ends on one of the two endings. The voices are made with Kokoro (text to speech); there is a volume slider and an "Off" box on the setup screen and in the pause menu.
 - The art is a starter set of stand-ins, to be replaced figure by figure: chunky low-poly humanoids with arms and legs (the storybook bell-shaped figures of section 11 would not take a skeleton), the drowned as sea-green skeletons, and the Abbey laid from a free dungeon kit under teal fill light and a warm key light. [`game/assets/README.md`](game/assets/README.md) lists what stands in for whom and how to swap each.
 - Sound effects and music are files now, not synthesised as the game runs: the music of section 11 (the drone, the bells, the drum, the choir, the tide bell) is rendered to loops by a script, three moods for each part of the abbey, and the game fades between them. The effects are a mix of free recordings and bells from the same script. An enemy's chant is one swelling voice, pitched by who sings, that stops when the cast lands or is cut off.
 - Not rebuilt yet: weather, the zones' own looks, the rising tide and the sea growing louder in the last two minutes.
@@ -23,7 +23,7 @@ Fourfold is an original, solo, browser-based dungeon runner in the style of time
 | Control | You play one hero per run. AI plays the other three. |
 | Party | 1 tank, 1 healer, 2 DPS. You choose every slot, duplicates allowed. |
 | View | Real-time isometric: a 3D floor seen from a fixed camera looking down from one corner, which follows your hero. (The first version was a belt-scroller seen from the side.) |
-| Run | One linear dungeon: 6 trash packs, 3 bosses, an enemy count to meet, 14-minute timer. Planned: routes you plan on a map, and a second, larger dungeon with a choice of ways through (section 12). |
+| Run | One linear dungeon: 6 trash packs, 3 bosses, an enemy count to meet, 14-minute timer, run by a route you may plan on a map. Planned: a second, larger dungeon with a choice of ways through (section 12). |
 | Levels | Enemies gain 8% health and damage per level (compounding), plus new abilities at levels 3, 6 and 9. No cap. |
 | Unlocks | You may start any level up to one above your highest timed clear. Shared across heroes. |
 | Progression | No gear yet. Highest timed level and best time are recorded per hero. Planned: gear, teams and a shop, with levels and records kept per dungeon (section 12). No talents; gear abilities do that job. |
@@ -35,7 +35,7 @@ Fourfold is an original, solo, browser-based dungeon runner in the style of time
 ## 2. Run flow
 
 1. **Title** → **Party setup**: pick your hero, then the heroes for the three AI slots.
-2. **Level select**: any unlocked level.
+2. **Level select**: any unlocked level. **Plan the route** if you wish; without a plan the party goes the safe way.
 3. **Run**: the timer starts on the first pull and stops when every boss is dead and the count is met.
 4. **Summary**: time, result, and per-hero damage, healing, interrupts, dispels and deaths.
 
@@ -44,6 +44,14 @@ Result rules:
 - **Timed**: every boss dead and the count met inside 14:00. Unlocks the next level.
 - **Completed**: the same, after 14:00. Recorded, unlocks nothing.
 - There is no way to fail outright; you can abandon from the pause menu.
+
+### Routes
+
+- A route is an ordered list of **pulls**. A pull is one or more packs taken together, in the order they were added. It may also say where the tank holds them, where the healer and each damage dealer stand, that the tank should **go at once** without waiting for the party, and carry a one-line note. Anything left out is the AI's choice.
+- Every dungeon comes with a route called **the safe way**: each pack by itself, in order. It is what the party follows if you never open the map, and what the map shows first, ready to change.
+- Routes are kept for each dungeon in **three slots** with names; a run follows the one used last. A route can be copied out as a line of text (it begins `FF1:`) and loaded from one.
+- If the plan leaves something out, the run can still start: once the plan runs out the party takes the nearest pack that still stands, or the nearest boss once the count is met.
+- If the plan breaks (the party is beaten, or wakes a pack it did not mean to), the party finishes that fight and then makes the first pull that still has a pack standing. Packs already dead are passed over.
 
 ## 3. Controls
 
@@ -59,6 +67,7 @@ Result rules:
 | Middle and side mouse buttons | Use the ability bound to them, wherever the pointer is. Unbound by default. |
 | Esc | Clear target; again to open the pause menu. |
 | P | Pause. |
+| M | Open the map, between fights; M or Esc closes it. The run stands still while it is open. |
 
 - **Movement** is relative to the camera, not the dungeon: the halls run from the lower left of the screen to the upper right, so W and D together walk straight along them. The hero reaches full speed (8.5 m/s) in about a tenth of a second and stops as quickly.
 - **The camera** never turns. It trails the hero slightly and leads about a metre in the direction of travel.
@@ -218,10 +227,21 @@ Teammates play reliably well at every level, with reaction delays of 0.3–0.6 s
   - Dispels within about a second.
   - Uses the damage-reduction ability on tank busters and the major cooldown when three allies are below half health.
 - **AI DPS**
-  - Wait 1.5 s after the tank's first hit before attacking, then focus the tank's target.
+  - Wait 1.5 s after the tank's first hit on the pack woken last before attacking, then focus the tank's target.
   - Switch to priority targets (enemy healers first).
   - Use the major cooldown on bosses and large packs.
 - **When you tank**: nobody attacks until you do. AI DPS then go all out; holding threat is your job.
+
+### Following a route
+
+- **Gathering.** For a pull of several packs the tank wakes them in the order they were added: with its hail (Challenge) when that is ready and the pack is in sight within 27 m, otherwise by walking at it. It then takes them all to where it holds the pull.
+- **Holding.** With a tank spot planned, the tank goes to it and stays on it, stepping off only to get out of danger. It does not move among the ranged enemies as it otherwise would: where they end up is part of the plan. With none planned it goes in as usual, in the room of the pack woken last.
+- **Holding damage.** While an AI tank is still gathering, nobody else attacks, for up to 15 s. With you as the tank they go when you do, as always.
+- **Spots.** A ranged hero or the healer with a planned spot walks to it before the pull, if it can be stood on without waking anything, and the tank waits for them to be there. In the fight they stay on it for as long as it does its job: within 28 m and in sight of whoever they are there for, and not in front of an enemy that cleaves. Otherwise they pick a spot of their own. A melee hero uses its spot only as the side to attack from. Everyone still leaves a spot to dodge, and returns.
+- **No spot.** A hero with nothing planned keeps with the tank while it gathers, then fights as usual.
+- **Waiting.** The tank waits for the party before each pull as before, unless the pull says go at once.
+- **After a wipe** the tank goes in again as it did the first time.
+- **When you tank** the route cannot steer you. It is shown instead: the next pull's number over its packs and a ring where the plan would have you hold. The AI healer and damage dealers still use their planned spots.
 
 ### Interrupt turns
 
@@ -296,7 +316,15 @@ At **level 9**, every trash enemy deals 25% more damage below 25% health.
 - **Nameplates** over every enemy: health, cast bar (yellow = interruptible, grey = not, **KICK** = your turn), and a border that turns red when the enemy is attacking a non-tank.
 - **Debuff chips** under each nameplate: one per debuff the party has put on the enemy, in its caster's colour, draining as it runs out and showing the seconds left (tenths in the last three). Yours come first, edged in gold.
 - **Action bar**: six buttons with their keys and mouse button, cooldown sweep, cost and out-of-range or no-line-of-sight dimming. Hover for a tooltip.
-- **Run bar**: timer against 14:00, the count earned as a percentage of what the dungeon asks for, lamps lit, deaths.
+- **Run bar**: timer against 14:00, then the count as a bar and a percentage of what the dungeon asks for, lamps lit, deaths, and the number of the pull being fought or coming next.
+- **The plan on the ground**: the next pull's number floats over each of its packs that still sleeps, a ring in the tank's colour marks where the plan has the tank hold, and a gold ring marks your own spot. A box on the setup screen and in the pause menu turns these off.
+- **The map** (before a run from "Plan the route", during one with M): the dungeon from straight above, drawn from the level's own description, all of it visible. It is laid out like Mythic Dungeon Tools and Keystone.guru. The map is on the left; on the right the list of pulls with the count above it.
+  - Each pull has a colour and a number. On the map its packs are ringed in that colour and a line joins the pulls in order; packs in no pull are grey. In the list a row shows the pull's enemies as lettered discs with how many, what it is worth and the count reached by the end of it. The pull that reaches 100% is marked in green.
+  - Click a pack to put it in the pull being edited, again to take it out. Shift-click, or "Add a pull", starts a new pull. Click a row to edit that pull, drag it to change the order, right-click it to insert a pull above, join it to the one above, or delete it.
+  - The markers T, H, D and D are dragged onto the map to set the spots of the pull being edited; dropped off the floor, or right-clicked, they go back.
+  - Hovering a pack lists its enemies with their health, count and abilities. The wheel zooms about the pointer; dragging moves the map.
+  - It warns when the route falls short of the count or never pulls a boss, and still lets the run start.
+  - Over a run, packs already dead are shown as done and cannot be moved, the party's positions are shown, and changes take effect at once.
 - **Telegraphs**: ground circles and cones drawn on the floor before they hit.
 - **Camera**: follows your hero, runs 1 m ahead of the way you are walking, and leans up to 7 m towards the fight, so both stay on screen. AI teammates fight within 21 m of their target for the same reason. A heavy hit on a hero jolts the screen, more so when it is on you; this is off when the system asks for reduced motion.
 - **Alerts**: a short text call for major boss casts.
@@ -309,15 +337,16 @@ At **level 9**, every trash enemy deals 25% more damage below 25% health.
 - **Movement** belongs to the engine: units are physics bodies, walls block them, line of sight is a ray cast and the AI walks a navigation mesh. Physics interpolation keeps motion even on any refresh rate.
 - **Automated runs**: the same scene runs headless with AI in all four slots. The tests check that every party composition times level 1; `tests/tools/sim.gd` prints times, deaths and per-hero output for the given levels and number of seeds (see [`game/README.md`](game/README.md)).
 - **Balance as tuned**: all-AI parties time level 1 in about 8 minutes and level 7 in 12–13. Most still time level 8; they start wiping on the last boss around level 9–10.
+- **What a route is worth in the Abbey**, measured with all-AI parties at level 5 (the safe way: 10:11 to 11:04): pulling the packs of each part in pairs with nothing else planned changes nothing (10:19 to 11:05), because the ranged enemies stay spread out and gathering takes time. Marking every pull "go at once" changes nothing either, since the party is ready by the time the tank arrives. Pairs held behind the wall between their two rooms, so that the second pack has to come through the doorway to the tank, save 20 to 30 seconds (9:50 to 10:33), and one party in six wiped once doing it.
 - **Under the bonnet**: F9 lets the AI play your hero too, F8 swaps the Abbey for a sandbox hall, F3 shows speed and frames a second. Adding `?debug` to the URL exposes the hero's state as `window.fourfold` for browser tests.
-- **Save data**: the browser's storage only: crew, level, unlocked level, per-hero bests, key bindings and volume.
+- **Save data**: the browser's storage only: crew, level, unlocked level, per-hero bests, key bindings, volume, and three routes for each dungeon. It is plain data with a version number.
 - **Deploy**: a GitHub Action tests, exports and publishes to GitHub Pages on every push to `main`.
 
 ## 10. Out of scope for the first version
 
 Gear, talents, run modifiers, route choices, more dungeons, mobile and touch, rebinding the movement keys, saving mid-run.
 
-Of these, route choices, a second dungeon and gear are now planned (section 12). Talents are dropped for good: gear abilities do that job.
+Of these, routes are now built, and a second dungeon and gear are planned (section 12). Talents are dropped for good: gear abilities do that job.
 
 ## 11. Theme: The Drowned Abbey
 
@@ -337,7 +366,7 @@ The theme is a reskin. Ids, numbers and mechanics are unchanged; only names, dra
 | Level space | Three zones of three encounters, each ending in a lamp. |
 | Interface | Wet slate: dark see-through panels with gold edges and old-print lettering. Parchment only for the story card and speech bubbles. |
 | Story weight | One opening card, one line of banter per pull and boss, a line per lamp, two endings. No cutscenes. `game/rules/story.gd`. |
-| Sound | First synthesised as the game ran; now files made to the same recipe by `tools/audio/make_audio.py`. On by default, with a mute button, a volume slider and the M key. |
+| Sound | First synthesised as the game ran; now files made to the same recipe by `tools/audio/make_audio.py`. On by default, with a volume slider and an "Off" box on the setup screen and in the pause menu. |
 | Weather | (Not in the game yet.) Drawn from the clock: rain that leans with the gusts at the Sea Gate, drips from the Infirmary vault, dust and candle smoke in the Nave. |
 | Thresholds | Once the party has gone through a doorway the sea comes in over it, and draws back if they are driven out. It is why nobody fights on a threshold. |
 
@@ -397,7 +426,7 @@ When a boss is laid to rest its lamp lights and warm gold light floods back thro
 
 ## 12. Next: routing, a big dungeon and gear
 
-Agreed on 15 November 2026. Milestone 9 (rooms, count, lamps) is built and its rules are in the sections above; the rest is not built yet. This is a summary. [`docs/routing-and-gear-plan.md`](docs/routing-and-gear-plan.md) is the full record and [`docs/routing-and-gear-handoff.md`](docs/routing-and-gear-handoff.md) is the brief for building it. As each milestone lands, its rules move into the sections above.
+Agreed on 15 November 2026. Milestones 9 (rooms, count, lamps) and 10 (routes, the map, the AI following a route) are built and their rules are in the sections above; the rest is not built yet. This is a summary. [`docs/routing-and-gear-plan.md`](docs/routing-and-gear-plan.md) is the full record and [`docs/routing-and-gear-handoff.md`](docs/routing-and-gear-handoff.md) is the brief for building it. As each milestone lands, its rules move into the sections above.
 
 - **Routing.** Before a run you open a map of the dungeon and plan a route: an ordered list of pulls. A pull names one or more packs taken together, where the tank holds them, and where the healer and damage dealers stand. All of it is optional; with no plan the AI follows a safe default route. The map can be opened during a run, between fights, to change the pulls not yet made.
 - **Count.** Each enemy is worth points. A run is complete when every boss is dead and the dungeon's count is met. A dungeon holds about 130% of the count it needs, so the route decides what is left alive.

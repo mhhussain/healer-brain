@@ -7,6 +7,8 @@ extends RefCounted
 # and ask it which room a spot is in. On the floor, a Rect2's x is the world's x and its y is the
 # world's z.
 
+## What saved things, such as routes, know it by.
+var id := ""
 var name := ""
 ## Walkable floor, as rectangles that may overlap. Rooms and doorways add their own.
 var floors: Array[Rect2] = []
@@ -33,6 +35,9 @@ var zones: Array[String] = []
 var lamps: Array[Dictionary] = []
 ## The count a run must reach, from what its enemies are worth. 0 asks for all the place holds.
 var count_needed := 0
+## The route the party takes when nobody has planned one: a list of pulls, each a list of
+## packs by their place in `packs`. Empty means every pack by itself, in order.
+var default_route: Array = []
 
 
 ## Adds a room and its floor. Returns its place in `rooms`.
@@ -117,6 +122,26 @@ func pillar_between(a: Vector3, b: Vector3, standing: Array = []) -> int:
 	return best
 
 
+# ---------- count
+
+## What a pack is worth towards the count.
+func pack_count(i: int) -> int:
+	var n := 0
+	for enemy_id: String in packs[i].enemies:
+		n += Enemies.by_id(enemy_id).count
+	return n
+
+
+## The count a run here must reach: what it asks for, or all it holds if it does not say.
+func count_goal() -> int:
+	if count_needed > 0:
+		return count_needed
+	var n := 0
+	for i in packs.size():
+		n += pack_count(i)
+	return n
+
+
 # ---------- rooms
 
 ## The room a spot is in, or -1: in a doorway, off the floor, or in a place with no rooms.
@@ -197,6 +222,16 @@ func doors_between(from: Vector3, to: Vector3) -> Array[int]:
 				ways[next] = way
 				queue.append(next)
 	return none
+
+
+## About how far it is to walk from one spot to another: straight from doorway to doorway.
+func walk_length(from: Vector3, to: Vector3) -> float:
+	var d := 0.0
+	var at := from
+	for door in doors_between(from, to):
+		d += Combat.flat(at, doors[door].pos)
+		at = doors[door].pos
+	return d + Combat.flat(at, to)
 
 
 # How far a spot is from a rectangle of floor; 0 inside it.

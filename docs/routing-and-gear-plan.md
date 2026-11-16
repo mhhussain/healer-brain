@@ -1,6 +1,6 @@
 # Plan: routing, a big dungeon, and gear
 
-Status: **agreed on 15 November 2026. Milestone 9 is built; 10 to 13 are not.** This is the record of a design session: every decision below was put to the owner and accepted. Build it in the five milestones of section 6. To start work in a new session, read [`routing-and-gear-handoff.md`](routing-and-gear-handoff.md) first.
+Status: **agreed on 15 November 2026. Milestones 9 and 10 are built; 11 to 13 are not.** This is the record of a design session: every decision below was put to the owner and accepted. Build it in the five milestones of section 6. To start work in a new session, read [`routing-and-gear-handoff.md`](routing-and-gear-handoff.md) first.
 
 [`DESIGN.md`](../DESIGN.md) describes the game as it is built today. As each milestone lands, move its decisions from here into `DESIGN.md`.
 
@@ -89,7 +89,7 @@ It copies the shape that Mythic Dungeon Tools and Keystone.guru (Raider.IO's pla
 - Before a run: a "Plan route" button (on the party screen in milestone 10; the route panel of the start screen from milestone 12).
 - During a run: the M key. The game pauses while the map is open, and it cannot be opened mid-fight. Only pulls not yet made can be edited.
 
-Note: M mutes sound today. Milestone 10 must move one of the two.
+Note: M used to mute the sound. The owner gave M to the map; sound is turned off from the menu.
 
 ### During the run
 
@@ -208,7 +208,7 @@ Each ends at a point where the owner plays and reviews. Stop there.
 
 **9. Rooms and count.** (Built; its rules are in `DESIGN.md` sections 2, 4, 6 and 7.) Rework the rules from one hall to rooms joined by doors. Add enemy count; a run ends on bosses plus count. Sanctuary lamps become the points a wipe returns to. The Abbey must play as it does today, and the all-AI times must not move.
 
-**10. Routes on the Abbey.** The route as data, saved in three slots, with the text code. The map planner. The AI following a route: order, several packs in a pull, the tank spot, party spots, "go at once", recovering after a wipe, carrying on when the plan ends. The Abbey's default route. In the run: the count bar, the next pull's number, ground markers, M for the map.
+**10. Routes on the Abbey.** (Built; its rules are in `DESIGN.md` sections 2, 3, 6 and 8. Left for milestone 11, where the dungeon needs them: walking round packs that are not in the pull, the warning that a pull will wake another pack, and patrol paths on the map.) The route as data, saved in three slots, with the text code. The map planner. The AI following a route: order, several packs in a pull, the tank spot, party spots, "go at once", recovering after a wipe, carrying on when the plan ends. The Abbey's default route. In the run: the count bar, the next pull's number, ground markers, M for the map.
 
 **11. The big dungeon.** The owner approves the name, layout sketch, enemies and bosses first. Then: three wings, about 22 packs, four bosses, patrols, new enemies, pathing around packs, the map's warnings, its default route, the 25-minute timer.
 
@@ -239,7 +239,7 @@ Sources: the MDT author's guide on Wowhead (`wowhead.com/guide/how-to-use-mythic
 These were not decided. Settle each with the owner, or propose a value and tune it in play, in the milestone that needs it.
 
 - **Count values** per enemy and the total each dungeon needs. Milestone 9 proposed values, to be tuned in play: 3 for the casters and archers, 4 for the two melee kinds, 8 for the Prior, nothing for bosses and what they call up. The Abbey holds 92 and asks for all of it. The big dungeon's total is still open. (Milestone 11)
-- **Which key** keeps M: the map or mute. (Milestone 10)
+- **Which key** keeps M: settled. M opens the map; turning sound off is a box in the game's menu and on the setup screen.
 - **The player's "current item level"** that drops are measured against, and how far above it a drop lands. One option: the average of the best item owned in each slot. (Milestone 12)
 - **The item-level ceiling** for each dungeon level. (Milestone 12)
 - **How much** a point of item level adds to damage, healing and health. (Milestone 12)

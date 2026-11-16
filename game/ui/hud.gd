@@ -3,7 +3,7 @@ extends Control
 
 # The interface during a run. From the bottom up: the action bar; the party in one row; then
 # your frame on the left and your target's on the right, with your cast bar between them.
-# Across the top is the run: the clock, the rooms and lamps cleared, the deaths.
+# Across the top is the run: the clock, the count, the lamps lit, the deaths and the next pull.
 
 signal ability_clicked(idx: int)
 signal frame_clicked(hero_id: int, event: InputEventMouseButton)
@@ -134,7 +134,8 @@ func _draw() -> void:
 	var over := t > Combat.TIME_LIMIT
 	Kit.bar(self, Rect2(mid - 170, 16, 340, 8), t / Combat.TIME_LIMIT, Kit.RED if over else Kit.GOLD)
 	Kit.text(self, Vector2(mid, 44), "Level %d    %s / %s" % [c.level, Kit.clock(t), Kit.clock(Combat.TIME_LIMIT)], 16, Kit.RED if over else Kit.BONE, 400.0)
-	Kit.text(self, Vector2(mid, 62), progress(c), 12, Kit.GREY, 400.0)
+	Kit.bar(self, Rect2(mid - 170, 54, 340, 5), float(c.count()) / maxf(c.count_goal(), 1.0), Kit.GREEN)
+	Kit.text(self, Vector2(mid, 78), progress(c) + pull_words(c), 12, Kit.GREY, 600.0)
 
 	for i in _alerts.size():
 		var a := _alerts[i]
@@ -147,6 +148,15 @@ func _draw() -> void:
 		Kit.text(self, Vector2(mid, top + 28), p.cast.name, 13, Kit.BONE)
 	if c.error != "":
 		Kit.text(self, Vector2(mid, top + 66), c.error, 14, Color(Kit.RED, clampf(3.0 - c.error_t * 2.0, 0.0, 1.0)), 260.0)
+
+
+## Which pull of the plan is being fought or comes next: "    Next: pull 3". Nothing once the
+## plan has run out.
+static func pull_words(c: Combat) -> String:
+	if c.in_combat:
+		return "    Pull %d" % (c.fight.index + 1) if c.fight.get("index", -1) >= 0 else ""
+	var next := c.next_pull()
+	return "    Next: pull %d" % (next.index + 1) if next.get("index", -1) >= 0 else ""
 
 
 ## "Count 31%    Lamps 0/3    Deaths 1 (+5 s)"

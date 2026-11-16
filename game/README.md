@@ -6,16 +6,16 @@ Godot **4.7.2**, GDScript, Compatibility renderer. CI uses the same version (`.g
 
 ## Layout
 
-- `rules/`: the rules of the game as plain GDScript classes with no scene in them: heroes, enemies and levels as data (a level is rooms joined by doorways, with its packs, its sanctuary lamps and the count it asks for), `Combat` for abilities, auras, threat, count and who is in a fight, `HeroAI` for what the AI party decides, `Story` for what the party says and when, and `SaveData` and `Bindings` for what is kept between runs. They are tested on their own.
+- `rules/`: the rules of the game as plain GDScript classes with no scene in them: heroes, enemies and levels as data (a level is rooms joined by doorways, with its packs, its sanctuary lamps and the count it asks for), `Combat` for abilities, auras, threat, count and who is in a fight, `Route` for a plan of pulls and its text code, `HeroAI` for what the AI party decides and how it follows a route, `Story` for what the party says and when, and `SaveData` and `Bindings` for what is kept between runs. They are tested on their own.
 - `scripts/`: the nodes. `App` is the game as a whole: it moves between the screens and the run and owns the save. `Run` builds the level, owns the rules, tells them where each `Unit` stands, ticks them 60 times a second and shows what happens. `LevelBuilder` makes the floor, walls, collision and navigation mesh from a level's description, and dresses them with the room pieces. `Unit` shows a hero or enemy as its figure and picks its clip (idle, run, attack, cast, hit, fall) from what the rules report; `Figures` says which file is whose. `Sound` turns what the rules report into sound effects, and `Music` fades between loops as the run moves between wandering, fights and bosses. `Walker` walks enemies and AI heroes to where the rules want them, along the navigation mesh.
-- `ui/`: the interface. `Hud` and its frames and buttons during a run, `WorldOverlay` for what is drawn over the figures, `Screens` for the title, setup, pause and summary, `KeysEditor`, and `Kit` for the colours and theme they share.
+- `ui/`: the interface. `Hud` and its frames and buttons during a run, `WorldOverlay` for what is drawn over the figures, `Screens` for the title, setup, pause and summary, `RouteMap` for the route planner and `MapView` for the map it is built round, `KeysEditor`, and `Kit` for the colours and theme they share.
 - `assets/`: the voice recordings, and the starter art and sound: one 3D figure per hero and enemy, the room pieces the level is laid with, the sound effects and the music. [`assets/README.md`](assets/README.md) says where they came from and how to replace each with your own.
 - `scenes/`: `app.tscn` (where the game starts), `run.tscn` (one run) and `unit.tscn` (every hero and enemy).
 - `tests/`: GUT tests, and `tests/tools/` for things that are not tests:
   - `sim.gd`: all-AI runs for balance (see below).
   - `capture.gd`: lets the AI play for `--write-movie`, to get frames to look at.
   - `hitches.gd`: lets the AI play in a window and prints frames that took too long.
-  - `screens.gd`: walks the app through its screens for `--write-movie`.
+  - `screens.gd`: walks the app through its screens, the route planner among them, for `--write-movie`.
   - `lineup.gd`: stands the whole cast in two rows playing one clip, for `--write-movie`.
   - `voice_manifest.gd`: writes the list of voice lines from the story.
 
@@ -27,9 +27,9 @@ Open `game/project.godot` in Godot and press F5. Or from the repo root:
 godot --path game
 ```
 
-The game is the Drowned Abbey: you and three AI party members, nine rooms, three bosses, a count to meet and a 14-minute clock. It opens on the title, then the party setup, where you pick the crew, your hero, its keys and the level. Timing a level unlocks the next. Starting a run shows a card with a bar while the run is read and built; the engine's one-off work of first drawing each kind of thing is done behind that card, not in the first fight.
+The game is the Drowned Abbey: you and three AI party members, nine rooms, three bosses, a count to meet and a 14-minute clock. It opens on the title, then the party setup, where you pick the crew, your hero, its keys and the level, and may plan the route: which packs the tank pulls together, in what order, and where everyone stands. M opens the same map during a run, between fights. Timing a level unlocks the next. Starting a run shows a card with a bar while the run is read and built; the engine's one-off work of first drawing each kind of thing is done behind that card, not in the first fight.
 
-Your crew, level, unlocks, bests and key bindings are kept in `user://fourfold-save.json` (in a browser, in the browser's own storage). Only the app reads or writes it; tests and the tools below use files of their own or none.
+Your crew, level, unlocks, bests, key bindings and routes are kept in `user://fourfold-save.json` (in a browser, in the browser's own storage). Only the app reads or writes it; tests and the tools below use files of their own or none.
 
 Three keys are for looking under the bonnet during a run:
 
@@ -60,7 +60,14 @@ The AI plays all four heroes through the real scene, for every healer and pair o
 godot --headless --fixed-fps 60 --path game -s tests/tools/sim.gd -- 1,3,5 2
 ```
 
-That is levels 1, 3 and 5 of the Abbey with two seeds each; add `-v` for when each pack fell, or `sandbox` as a third word for the sandbox hall. Each line gives the time, deaths, and per hero damage a second, healing a second, interrupts and deaths. A run of the Abbey takes about 20 seconds.
+That is levels 1, 3 and 5 of the Abbey with two seeds each; add `-v` for when each pack fell, or `sandbox` as a third word for the sandbox hall. The same code, level, party and seed always give the same line, so a change that should alter nothing can be proved to by comparing lines.
+
+To run a route instead of the safe way, add `route=` and a code copied from the map, or write one on the spot with `pulls=`: packs by number (the Abbey's are 0 to 8, bosses 2, 5 and 8), `+` between packs of one pull and `,` between pulls. Packs left out follow one at a time.
+
+```sh
+godot --headless --fixed-fps 60 --path game -s tests/tools/sim.gd -- 1,5 1 abbey pulls=0+1,2,3+4,5,6+7,8
+```
+ Each line gives the time, deaths, and per hero damage a second, healing a second, interrupts and deaths. A run of the Abbey takes about 20 seconds.
 
 ## Test
 

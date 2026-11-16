@@ -83,6 +83,8 @@ func _draw() -> void:
 			y += 28
 		_chips(u.c, Vector2(s.x, y + 2), p.id)
 
+	_plan(cam, screen)
+
 	for t in _texts:
 		var k: float = t.t / TEXT_LIFE
 		var s := cam.unproject_position(t.at) - Vector2(0, 50.0 * k)
@@ -92,6 +94,28 @@ func _draw() -> void:
 		var speaker: Unit = b.unit
 		var head := speaker.get_global_transform_interpolated().origin + Vector3(0, speaker.height + 1.0 + speaker.lift, 0)
 		_bubble(cam.unproject_position(head), b.text, clampf((b.life - b.t) * 3.0, 0.0, 1.0) * clampf(b.t * 8.0, 0.0, 1.0))
+
+
+# The plan for the pull being fought or coming next: its number over each of its packs that
+# still sleeps, and a word on each ring the run has put on the floor.
+func _plan(cam: Camera3D, screen: Rect2) -> void:
+	var pull := run.marked_pull()
+	if pull.get("index", -1) >= 0:
+		for pack: Pack in pull.packs:
+			var standing := pack.units.filter(func(e: Combatant) -> bool: return e.alive)
+			if pack.engaged or pack.cleared or standing.is_empty():
+				continue
+			var mid := Vector3.ZERO
+			for e: Combatant in standing:
+				mid += e.pos / standing.size()
+			var s := cam.unproject_position(mid + Vector3(0, 4.4, 0))
+			if screen.has_point(s):
+				Kit.text(self, s, "Pull %d" % (pull.index + 1), 18, MapView.pull_color(pull.index))
+	for pair: Array in [[run.tank_spot(), "Tank holds here"], [run.own_spot(), "Your spot"]]:
+		if pair[0] != null:
+			var s := cam.unproject_position(pair[0])
+			if screen.has_point(s):
+				Kit.text(self, s + Vector2(0, 26), pair[1], 12, Kit.BONE)
 
 
 # Parchment with dark lettering and a tail down to whoever is speaking.

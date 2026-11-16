@@ -321,7 +321,7 @@ func test_a_run_the_ai_played_is_not_recorded():
 	assert_true(app.save.bests.is_empty())
 
 
-func test_sound_is_set_from_the_save_and_m_turns_it_off():
+func test_sound_is_set_from_the_save_and_the_menu_turns_it_off():
 	var app: App = load("res://scenes/app.tscn").instantiate()
 	add_child_autofree(app)
 	var master := AudioServer.get_bus_index("Master")
@@ -331,12 +331,17 @@ func test_sound_is_set_from_the_save_and_m_turns_it_off():
 	(app.screen.find_child("Volume", true, false) as HSlider).value = 0.4
 	assert_almost_eq(db_to_linear(AudioServer.get_bus_volume_db(master)), 0.4, 0.01)
 	app._unhandled_input(key(KEY_M))
+	assert_false(AudioServer.is_bus_mute(master), "M is the map's key now")
+	(app.screen.find_child("Mute", true, false) as CheckBox).button_pressed = true
 	assert_true(AudioServer.is_bus_mute(master))
-	assert_true((app.screen.find_child("Mute", true, false) as CheckBox).button_pressed)
 	var back := SaveStore.load_save()
 	assert_true(back.muted, "and it is remembered")
 	assert_almost_eq(back.volume, 0.4, 0.001)
-	app._unhandled_input(key(KEY_M))
+	await app.start_run()
+	app.run.pause_requested.emit()
+	var box := app.screen.find_child("Mute", true, false) as CheckBox
+	assert_true(box.button_pressed, "the same box is in the game's menu")
+	box.button_pressed = false
 	assert_false(AudioServer.is_bus_mute(master))
 	AudioServer.set_bus_volume_db(master, 0.0)
 

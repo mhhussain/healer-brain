@@ -4,14 +4,16 @@ extends Node
 # The game as a whole: the title, the party setup, the run, the pause menu and the summary, and
 # the save that outlasts them. It is the only thing that reads or writes the save file.
 #
-# M turns the sound off and on anywhere. Two keys are for looking under the bonnet: F9 lets the
-# AI play your hero too, and F8 swaps the Abbey for the sandbox hall. Either starts the run over.
+# M opens the map during a run, between fights, and closes it again. Two keys are for looking
+# under the bonnet: F9 lets the AI play your hero too, and F8 swaps the Abbey for the sandbox
+# hall. Either starts the run over.
 
 const RUN := "res://scenes/run.tscn"
 
 var save: SaveData
 var run: Run
-## "title", "opening", "setup", "loading", "run", "paused" or "summary".
+## "title", "opening", "setup", "route" (planning before a run), "loading", "run", "paused",
+## "map" (the planner over a run) or "summary".
 var state := "title"
 var screen: Control
 ## The narrator: the opening and the ending.
@@ -66,7 +68,7 @@ func _on_node_added(node: Node) -> void:
 # The music follows the game: quiet on the menus, the run's own loop under a run, lower while
 # anyone is speaking, and the tide bell once the clock is in its last two minutes.
 func _process(_delta: float) -> void:
-	var playing := run != null and is_instance_valid(run) and state in ["run", "paused", "summary"]
+	var playing := run != null and is_instance_valid(run) and state in ["run", "paused", "map", "summary"]
 	music.want = Music.loop_for(run, music.want) if playing else "calm_0"
 	music.quiet = state != "run"
 	music.ducked = narrator.is_talking() or (playing and run.voice.is_talking())
@@ -116,7 +118,45 @@ func show_opening() -> void:
 func show_setup() -> void:
 	_end_run()
 	narrator.hush()
-	_show(Screens.setup(save, _store, start_run), "setup")
+	_show(Screens.setup(save, _store, start_run, show_route), "setup")
+
+
+## The planner, before a run: the route for the place the next run is in.
+func show_route() -> void:
+	_end_run()
+	var map := RouteMap.new()
+	map.open(Levels.by_name(Run.place), save, save.party)
+	map.changed.connect(_store)
+	map.closed.connect(close_map)
+	_show(map, "route")
+
+
+## The planner over a run. The run stands still while it is open. Not in a fight.
+func open_map() -> void:
+	if state != "run":
+		return
+	if run.combat.in_combat:
+		if run.hud:
+			run.hud.alert("The map cannot be opened in a fight.")
+		return
+	get_tree().paused = true
+	var map := RouteMap.new()
+	map.open(run.level.def, save, Run.party, run.combat)
+	map.changed.connect(_store)
+	map.closed.connect(close_map)
+	_show(map, "map")
+
+
+## Closes the planner: back to the run it was over, or to the setup screen.
+func close_map() -> void:
+	if not state in ["map", "route"]:
+		return
+	(screen as RouteMap).finish()
+	if state == "route":
+		show_setup()
+		return
+	get_tree().paused = false
+	_show(null, "run")
 
 
 func _end_run() -> void:
@@ -139,6 +179,7 @@ func start_run() -> void:
 	Run.player_slot = save.slot
 	Run.chosen_level = save.level
 	var level := Levels.by_name(Run.place)
+	Run.route = save.route_for(level)
 	_show(Screens.loading(level.name), "loading")
 	_starting += 1
 	var mine := _starting
@@ -234,14 +275,13 @@ func _unhandled_input(event: InputEvent) -> void:
 	var enter := code == KEY_ENTER or code == KEY_KP_ENTER
 	var editing := screen and (screen.find_child("Keys", true, false) as KeysEditor) != null \
 		and (screen.find_child("Keys", true, false) as KeysEditor).is_waiting()
-	if code == KEY_M and not editing:
-		save.muted = not save.muted
-		_store()
-		var box := screen.find_child("Mute", true, false) as CheckBox if screen else null
-		if box:
-			box.set_pressed_no_signal(save.muted)
-		return
 	match state:
+		"run":
+			if code == KEY_M:
+				open_map()
+		"map", "route":
+			if code == KEY_M or code == KEY_ESCAPE:
+				close_map()
 		"title":
 			if enter or code == KEY_SPACE:
 				show_opening()
@@ -254,7 +294,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		"summary":
 			if enter:
 				start_run()
-	if state in ["run", "paused", "summary"]:
+	if state in ["run", "paused", "map", "summary"]:
 		if code == KEY_F9:
 			Run.autoplay = not Run.autoplay
 			start_run()

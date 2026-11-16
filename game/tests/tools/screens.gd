@@ -30,6 +30,24 @@ func _walk(app: App, hero: String) -> void:
 	app.show_setup()
 	await _frames(60)
 	_say("setup")
+	# the planner: two packs in the first pull, with a spot for the tank and one for a damage dealer
+	app.show_route()
+	var map := app.screen as RouteMap
+	await _frames(10)
+	map._on_pack(1, false)
+	map._on_spot(0, map.def.packs[1].stand, true)
+	map._on_spot(3, map.def.doors[1].pos + Vector3(-4, 0, 0), true)
+	map.route.pulls[0].go = true
+	map.select(0)
+	await _frames(30)
+	_say("route")
+	map.view.zoom_about(map.view.to_screen(map.def.packs[1].center), 3.0)
+	map.view.hover = 1
+	await _frames(30)
+	_say("route, closer")
+	app.close_map()
+	await _frames(20)
+	_say("setup with a route")
 	await app.start_run()
 	# let the party pull and fight for a while, with the AI playing your hero so something happens
 	app.run.combat.autoplay = true
@@ -39,6 +57,17 @@ func _walk(app: App, hero: String) -> void:
 	await _frames(40)
 	_say("pause")
 	app.resume()
+	# the map over the run, once the fight is won
+	for pack in app.run.combat.packs:
+		if pack.engaged:
+			for e in pack.units:
+				app.run.combat.damage(app.run.player.c, e, 9999999.0)
+	await _frames(90)
+	_say("run, between pulls")
+	app.open_map()
+	await _frames(30)
+	_say("map")
+	app.close_map()
 	for e in app.run.combat.enemies.duplicate():
 		app.run.combat.damage(app.run.player.c, e, 9999999.0)
 	await _frames(40)

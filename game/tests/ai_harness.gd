@@ -17,7 +17,7 @@ var events: Array[Dictionary] = []
 var _side := {}  # unit id -> which way it goes round things
 
 
-func _init(def: LevelDef, party: Array, run_level := 1, rng_seed := 1, autoplay := true, player_slot := 0) -> void:
+func _init(def: LevelDef, party: Array, run_level := 1, rng_seed := 1, autoplay := true, player_slot := 0, route: Route = null) -> void:
 	level = def
 	combat = Combat.new(run_level, rng_seed)
 	combat.autoplay = autoplay
@@ -35,7 +35,7 @@ func _init(def: LevelDef, party: Array, run_level := 1, rng_seed := 1, autoplay 
 	for i in party.size():
 		var h := combat.add_hero(Heroes.by_id(party[i]), i == player_slot)
 		h.pos = def.start + Vector3(-i * 1.6, 0, 1.2 if i % 2 else -1.2)
-	combat.enter(def)
+	combat.enter(def, route)
 
 
 func tick() -> void:

@@ -24,6 +24,9 @@ static var autoplay := false
 static var rng_seed := 0
 ## Where the key and mouse bindings are read from: the player's save, or the usual keys.
 static var keys: SaveData = SaveData.new()
+## The plan for the run, or null for the place's own safe one. It is copied: the run's plan
+## can be changed from the map without touching this.
+static var route: Route
 
 ## In the sandbox hall, start over when it is cleared instead of finishing the run.
 @export var endless := true
@@ -47,6 +50,9 @@ var sandbox := false
 var hover_frame_id := 0
 
 var _told := false
+# rings on the floor for the next pull: where the tank holds it, and where you stand
+var _tank_mark: MeshInstance3D
+var _own_mark: MeshInstance3D
 
 var _units := {}  # combatant id -> Unit
 var _warm_mats: Array[StandardMaterial3D] = []
@@ -107,9 +113,11 @@ func _ready() -> void:
 		var u := _spawn(c, PI / -2.0)
 		if c.is_player:
 			player = u
-	combat.enter(def)
+	combat.enter(def, route.copy() if route and route.level == def.id else null)
 	for e in combat.enemies:
 		_spawn(e, PI / 2.0)
+	_tank_mark = _spot_mark(combat.tank().hero.color)
+	_own_mark = _spot_mark(Kit.GOLD)
 	if camera and player:
 		camera.follow(player)
 	if hud:
@@ -232,6 +240,46 @@ func _process(_delta: float) -> void:
 		combat.hover_ally_id = hover_frame_id if hover_frame_id > 0 else figure.c.id if figure else 0
 	if camera:
 		camera.fight = _fight()
+	_show_spots()
+
+
+## The pull whose plan is shown during the run: the one being fought, or the one that comes
+## next. Empty if the markers are turned off.
+func marked_pull() -> Dictionary:
+	if not keys.markers:
+		return {}
+	return combat.fight if combat.in_combat else combat.next_pull()
+
+
+## Where the plan has the tank hold that pull, or null; and where it has you stand, unless you
+## are the tank.
+func tank_spot():
+	return Combat.spot_in(marked_pull(), combat.tank())
+
+
+func own_spot():
+	return Combat.spot_in(marked_pull(), player.c) if player.c != combat.tank() else null
+
+
+func _show_spots() -> void:
+	for pair: Array in [[_tank_mark, tank_spot()], [_own_mark, own_spot()]]:
+		var mark: MeshInstance3D = pair[0]
+		mark.visible = pair[1] != null
+		if mark.visible:
+			mark.global_position = Vector3(pair[1].x, 0.05, pair[1].z)
+
+
+# A ring on the floor, hidden until there is a spot to mark. It is made of the same stuff as
+# the rings under the heroes, so the engine has its shader from the start.
+func _spot_mark(color: Color) -> MeshInstance3D:
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.85
+	torus.outer_radius = 1.0
+	torus.rings = 40
+	torus.ring_segments = 4
+	var mark := _effect(torus, Color(color, 0.9))
+	mark.visible = false
+	return mark
 
 
 # Where the fight is from your hero: the middle of the enemies in it, or nowhere.

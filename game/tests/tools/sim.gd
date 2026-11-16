@@ -2,9 +2,12 @@ extends SceneTree
 
 # Headless all-AI runs for balance tuning: the AI plays all four heroes through the real scene.
 # From the repo root:
-#   godot --headless --fixed-fps 60 --path game -s tests/tools/sim.gd -- [levels] [seeds] [place] [-v]
+#   godot --headless --fixed-fps 60 --path game -s tests/tools/sim.gd -- [levels] [seeds] [place] [-v] [route=CODE]
 # such as "-- 1,3,5 2" for levels 1, 3 and 5 of the Abbey with two seeds each, or "-- 1 1 sandbox"
 # for the sandbox hall. --fixed-fps lets it run as fast as the machine can, instead of in real time.
+# "route=" takes a route's text code, as the map copies it, to run that plan instead of the
+# place's own; "pulls=0+1,2,3+4" writes one on the spot from packs by number, with the packs it
+# leaves out following one at a time.
 
 const GIVE_UP := 40 * 60.0
 const DPS := [["duelist", "ranger"], ["duelist", "pyromancer"], ["ranger", "pyromancer"]]
@@ -14,9 +17,17 @@ func _initialize() -> void:
 	var args := Array(OS.get_cmdline_user_args())
 	var verbose := args.has("-v")
 	args.erase("-v")
+	var plan := ""
+	for word: String in args.duplicate():
+		if word.begins_with("route=") or word.begins_with("pulls="):
+			plan = word
+			args.erase(word)
 	var levels: Array = (args[0] if args.size() > 0 else "1").split(",")
 	var seeds := int(args[1]) if args.size() > 1 else 1
 	Run.place = args[2] if args.size() > 2 else "abbey"
+	Run.route = _route(plan, Levels.by_name(Run.place))
+	if plan != "":
+		print("route: " + (" | ".join(Run.route.pulls.map(func(p: Dictionary) -> String: return "+".join(p.packs.map(func(i: int) -> String: return str(i))))) if Run.route else "not a route for this place"))
 	_go(levels, seeds, verbose)
 
 
@@ -63,6 +74,25 @@ func _run(level: int, healer: String, dps: Array, rng_seed: int, verbose: bool) 
 		print("   packs at " + " ".join(marks))
 	main.queue_free()
 	await process_frame
+
+
+# The plan asked for on the command line, or null for the place's own.
+func _route(plan: String, def: LevelDef) -> Route:
+	if plan.begins_with("route="):
+		return Route.from_code(plan.substr(6), def)
+	if not plan.begins_with("pulls="):
+		return null
+	var r := Route.new()
+	r.level = def.id
+	for group: String in plan.substr(6).split(","):
+		var at := r.add_pull()
+		for pack: String in group.split("+"):
+			if int(pack) < def.packs.size() and r.pull_of(int(pack)) < 0:
+				r.toggle(int(pack), at)
+	for i in def.packs.size():
+		if r.pull_of(i) < 0:
+			r.toggle(i, r.add_pull())
+	return r
 
 
 func _clock(seconds: float) -> String:

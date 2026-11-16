@@ -12,7 +12,7 @@ extends RefCounted
 ## Keys the game keeps for itself, and what for.
 const RESERVED := {
 	KEY_A: "moving", KEY_Q: "moving", KEY_D: "moving", KEY_E: "moving", KEY_W: "moving", KEY_S: "moving",
-	KEY_SPACE: "jumping", KEY_TAB: "targeting", KEY_ESCAPE: "the menu", KEY_P: "pausing", KEY_M: "sound",
+	KEY_SPACE: "jumping", KEY_TAB: "targeting", KEY_ESCAPE: "the menu", KEY_P: "pausing", KEY_M: "the map",
 }
 ## The mouse buttons an ability can take, and the buttons a click-cast can use.
 const MOUSE: Array[String] = ["M", "X1", "X2"]

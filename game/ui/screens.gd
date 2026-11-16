@@ -5,7 +5,7 @@ extends RefCounted
 # summary. Each is built here and handed the things to call when its buttons are pressed.
 
 const ROLES := ["Tank", "Healer", "Damage", "Damage"]
-const CONTROLS := "W A S D move (Q and E also go left and right).  Space jumps.  The mouse wheel zooms.\nTab or a left click targets an enemy; Esc clears it, and Esc again opens this menu.  P pauses.\nAn ally ability goes to the ally under the mouse: a party frame or the figure. With nobody under it, to you."
+const CONTROLS := "W A S D move (Q and E also go left and right).  Space jumps.  The mouse wheel zooms.\nTab or a left click targets an enemy; Esc clears it, and Esc again opens this menu.  P pauses.  M opens the map, between fights.\nAn ally ability goes to the ally under the mouse: a party frame or the figure. With nobody under it, to you."
 
 
 static func title(on_begin: Callable) -> Control:
@@ -91,7 +91,7 @@ static func sound_row(save: SaveData, on_change: Callable) -> Control:
 	row.add_child(slider)
 	var mute := CheckBox.new()
 	mute.name = "Mute"
-	mute.text = "Off (M)"
+	mute.text = "Off"
 	mute.button_pressed = save.muted
 	mute.toggled.connect(func(off: bool) -> void:
 		save.muted = off
@@ -100,9 +100,22 @@ static func sound_row(save: SaveData, on_change: Callable) -> Control:
 	return row
 
 
-## The party, your hero and its keys, and the level. `on_change` is called whenever the save
-## has changed; `on_start` when the run should begin.
-static func setup(save: SaveData, on_change: Callable, on_start: Callable) -> Control:
+## Whether the next pull's spots are marked on the ground during a run.
+static func markers_row(save: SaveData, on_change: Callable) -> Control:
+	var box := CheckBox.new()
+	box.name = "Markers"
+	box.text = "Mark the next pull and its spots on the ground"
+	box.button_pressed = save.markers
+	box.toggled.connect(func(on: bool) -> void:
+		save.markers = on
+		on_change.call())
+	return box
+
+
+## The party, your hero and its keys, the level and the route. `on_change` is called whenever
+## the save has changed, `on_start` when the run should begin and `on_route` when the map
+## should be opened to plan the route.
+static func setup(save: SaveData, on_change: Callable, on_start: Callable, on_route := Callable()) -> Control:
 	var root := Kit.screen(1.0)
 	root.name = "Setup"
 	var cols := Kit.hbox(28)
@@ -110,7 +123,7 @@ static func setup(save: SaveData, on_change: Callable, on_start: Callable) -> Co
 	# rebuilt from the save after every change, so every part agrees with it
 	var rebuild := func() -> void:
 		on_change.call()
-		var fresh := setup(save, on_change, on_start)
+		var fresh := setup(save, on_change, on_start, on_route)
 		var parent := root.get_parent()
 		if parent:
 			var place := root.get_index()
@@ -152,6 +165,7 @@ static func setup(save: SaveData, on_change: Callable, on_start: Callable) -> Co
 	crew.add_child(Kit.label("How to play", 16, Kit.GOLD))
 	crew.add_child(Kit.para(CONTROLS.replace("this menu", "the menu"), 12, Kit.GREY, 300.0))
 	crew.add_child(sound_row(save, on_change))
+	crew.add_child(markers_row(save, on_change))
 	cols.add_child(crew)
 
 	# your hero: how to play it, what it does, and its keys
@@ -193,6 +207,19 @@ static func setup(save: SaveData, on_change: Callable, on_start: Callable) -> Co
 	var best: Dictionary = save.bests.get(def.id, {})
 	levels.add_child(Kit.para("Your best as %s: %s" % [def.name.split(" ")[0],
 		"level %d in %s" % [best.level, Kit.clock(best.time)] if not best.is_empty() else "none yet"], 12, Kit.BONE, 230.0))
+	# the route: the one used last, or the safe way if none was ever planned
+	var place := Levels.by_name(Run.place)
+	var plan := save.route_for(place)
+	levels.add_child(Kit.label("Route", 20, Kit.GOLD))
+	var pulls := plan.pulls.filter(func(p: Dictionary) -> bool: return not p.packs.is_empty()).size()
+	var named := Kit.para("%s: %d pulls" % [plan.name if plan.name != "" else "Unnamed", pulls], 12, Kit.BONE, 230.0)
+	named.name = "RouteName"
+	levels.add_child(named)
+	levels.add_child(Kit.para("Which packs the tank pulls together, in what order, and where everyone stands. Leave it and the party goes the safe way.", 12, Kit.GREY, 230.0))
+	if on_route.is_valid():
+		var route := Kit.button("Plan the route", func() -> void: on_route.call(), 14)
+		route.name = "Plan"
+		levels.add_child(route)
 	var start := Kit.button("Enter the Abbey", func() -> void: on_start.call(), 18)
 	start.name = "Start"
 	levels.add_child(start)
@@ -207,6 +234,7 @@ static func pause(save: SaveData, hero_id: String, on_change: Callable, on_resum
 	col.add_child(Kit.label("Paused", 24, Kit.GOLD))
 	col.add_child(Kit.para(CONTROLS, 12, Kit.GREY, 640.0))
 	col.add_child(sound_row(save, on_change))
+	col.add_child(markers_row(save, on_change))
 	var editor := KeysEditor.new()
 	editor.name = "Keys"
 	editor.show_hero(save, hero_id)

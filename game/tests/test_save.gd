@@ -51,3 +51,56 @@ func test_a_damaged_save_falls_back_to_what_is_safe():
 	assert_eq(s.slot, 3)
 	assert_eq(s.level, 7, "never above what is unlocked")
 	assert_eq(SaveData.from_dict({}).to_dict(), SaveData.new().to_dict())
+
+
+func test_routes_are_kept_in_three_slots_for_each_level_and_the_last_used_comes_back():
+	var abbey := Levels.abbey()
+	var s := SaveData.new()
+	assert_eq(s.route_slot(abbey), 0)
+	assert_null(s.route_in(abbey, 0), "a slot is empty until something is kept in it")
+	assert_eq(s.route_for(abbey).to_dict(), Route.default_for(abbey).to_dict(), "with nothing kept, the level's own route")
+	var mine := Route.default_for(abbey)
+	mine.name = "Mine"
+	mine.merge_up(1)
+	mine.set_spot(0, 0, abbey.packs[1].stand)
+	s.keep_route(abbey, 2, mine)
+	assert_eq(s.route_slot(abbey), 2)
+	assert_eq(s.route_for(abbey).to_dict(), mine.to_dict())
+	assert_null(s.route_in(abbey, 1))
+	assert_eq(s.route_for(Levels.sandbox()).level, "sandbox", "each level has its own")
+	var back := SaveData.from_dict(JSON.parse_string(JSON.stringify(s.to_dict())))
+	assert_eq(back.to_dict(), s.to_dict())
+	assert_eq(back.route_for(abbey).name, "Mine")
+	assert_eq(back.route_for(abbey).pulls[0].spots[0], abbey.packs[1].stand)
+	back.use_slot(abbey, 0)
+	assert_eq(back.route_for(abbey).name, Route.default_for(abbey).name, "an empty slot gives the level's own route")
+	back.keep_route(abbey, 2, null)
+	assert_null(back.route_in(abbey, 2))
+
+
+func test_the_save_says_which_version_it_is_and_an_older_one_still_reads():
+	var s := SaveData.new()
+	assert_eq(s.to_dict().v, SaveData.VERSION)
+	var old := s.to_dict()
+	old.erase("v")
+	old.erase("routes")
+	old.erase("markers")
+	old["unlocked"] = 4
+	var read := SaveData.from_dict(old)
+	assert_eq(read.unlocked, 4)
+	assert_true(read.markers)
+	assert_eq(read.routes, {})
+
+
+func test_routes_with_nonsense_in_them_do_no_harm():
+	var abbey := Levels.abbey()
+	var s := SaveData.from_dict({"muted": "yes", "markers": 0, "routes": {"abbey": {"used": 7, "slots": ["x", {"level": "sandbox", "pulls": []}, {"level": "abbey", "pulls": [{"packs": [1, 0]}]}, 4]},
+		"nowhere": "y", 5: {}, "sandbox": {"slots": 3}}})
+	assert_false(s.muted)
+	assert_true(s.markers)
+	assert_eq(s.route_slot(abbey), 2)
+	assert_eq(s.route_for(abbey).pulls[0].packs, [1, 0])
+	assert_null(s.route_in(abbey, 0))
+	assert_null(s.route_in(abbey, 1), "a route for somewhere else is not used here")
+	assert_eq(s.routes.keys(), ["abbey"])
+	assert_null(s.routes.abbey.slots[1], "nor kept")

@@ -19,6 +19,9 @@ const QUEUE_WINDOW := 0.5
 const TAB_RANGE := 45.0
 const TIME_LIMIT := 14 * 60.0
 const DEATH_PENALTY := 5.0
+## An AI tank gathering the packs of a pull is given this long before the party stops holding
+## its damage for it, in seconds.
+const GATHER_LIMIT := 15.0
 
 var level := 1
 ## Enemy health and damage are multiplied by this: 8% a level, compounding.
@@ -49,6 +52,13 @@ var count_needed := 0
 ## Where a beaten party starts again: {"name": String, "pos": Vector3, "pack": int, "lit": bool,
 ## "lit_at": float}. "pack" is the boss pack whose fall lights it, or -1.
 var lamps: Array[Dictionary] = []
+## The plan for the run: which packs are pulled together and in what order. Without one the
+## party takes the nearest pack each time. It may be changed between fights.
+var route: Route
+## The pull being fought, as next_pull() gave it when the fight began, with "began": when.
+## Empty out of a fight. A fight that began with a pack the plan did not expect is a pull of
+## that pack alone.
+var fight := {}
 var player: Combatant
 ## The ally under the mouse, if any: ally abilities go there.
 var hover_ally_id := 0
@@ -115,11 +125,13 @@ func add_lamp(name: String, at: Vector3, pack_id := -1) -> void:
 	lamps.append({"name": name, "pos": at, "pack": pack_id, "lit": pack_id < 0, "lit_at": -1.0})
 
 
-## Puts the run in a place: its packs at their posts, its lamps and the count it asks for. Add
-## the heroes first, so that they have the first ids.
-func enter(def: LevelDef) -> void:
+## Puts the run in a place: its packs at their posts, its lamps and the count it asks for, to
+## be run by that plan or else the place's own. Add the heroes first, so that they have the
+## first ids.
+func enter(def: LevelDef, plan: Route = null) -> void:
 	place = def
 	count_needed = def.count_needed
+	route = plan if plan else Route.default_for(def)
 	for d in def.packs:
 		var pack := add_pack(d.name, d.boss)
 		pack.lamp = d.lamp
@@ -203,14 +215,50 @@ func random_heroes(n: int) -> Array[Combatant]:
 	return a.slice(0, n)
 
 
-## The pack the tank goes for next. Everything that asks "which pack next" asks here: for now
-## it is the first in the level's own order that still stands, and a planned route will answer
-## in its place.
-func next_pack() -> Pack:
+## The pull the party makes next: {"index": its place in the route, "packs": those of its packs
+## that still stand, in the order they are to be woken, "spots": {place in the party: Vector3},
+## "go": whether the tank goes without waiting for the party}. Everything that asks "what
+## next" asks here. It is the first pull of the route with a pack still standing, so a pull
+## that beat the party is made again and packs already dead are passed over. Once the plan has
+## run out it is the nearest pack that still stands, with "index" -1, or the nearest boss once
+## the count is met. Empty when nothing is left.
+func next_pull() -> Dictionary:
+	if route:
+		for i in route.pulls.size():
+			var p: Dictionary = route.pulls[i]
+			var left: Array[Pack] = []
+			for id: int in p.packs:
+				if id < packs.size() and not packs[id].cleared:
+					left.append(packs[id])
+			if not left.is_empty():
+				return {"index": i, "packs": left, "spots": p.spots, "go": p.go}
+	var met := count() >= count_goal()
+	var from := tank().pos if tank() else Vector3.ZERO
+	var best: Pack = null
+	var best_d := INF
 	for p in packs:
-		if not p.cleared:
-			return p
-	return null
+		if p.cleared or p.units.is_empty() or (met and not p.boss):
+			continue
+		var d := place.walk_length(from, p.units[0].home) if place else flat(from, p.units[0].home)
+		if d < best_d:
+			best_d = d
+			best = p
+	var one: Array[Pack] = [best]
+	return {"index": -1, "packs": one, "spots": {}, "go": false} if best else {}
+
+
+## Whether every pack of the pull being fought has been woken.
+func gathered() -> bool:
+	for p: Pack in fight.get("packs", []):
+		if not p.engaged and not p.cleared:
+			return false
+	return true
+
+
+## Where that hero is planned to stand for a pull, or null: the pull's spot for its place in
+## the party.
+static func spot_in(pull: Dictionary, h: Combatant):
+	return pull.get("spots", {}).get(h.slot)
 
 
 ## Whether a spot is in the room someone at `of` stands in, clear of its doorways by that many
@@ -441,6 +489,11 @@ func _wake(u: Combatant) -> void:
 func engage(pack: Pack, hero: Combatant) -> void:
 	if pack.engaged or pack.cleared:
 		return
+	if not in_combat:
+		var plan := next_pull()
+		var alone: Array[Pack] = [pack]
+		fight = plan if plan.get("packs", []).has(pack) else {"index": -1, "packs": alone, "spots": {}, "go": false}
+		fight["began"] = time
 	pack.engaged = true
 	pack.engaged_at = time
 	pack.tank_hit_at = -1.0
@@ -558,17 +611,20 @@ func hide_caster() -> Combatant:
 	return null
 
 
-## Damage dealers and healers hold their damage until the tank has had a moment to take threat.
+## Damage dealers and healers hold their damage until the tank has had a moment to take threat
+## on the pack woken last, and while an AI tank is still gathering the packs of its pull.
 func can_attack() -> bool:
 	var pack: Pack = null
 	for p in packs:
-		if p.engaged and not p.cleared:
+		if p.engaged and not p.cleared and (pack == null or p.engaged_at > pack.engaged_at):
 			pack = p
-			break
 	if pack == null:
 		return false
-	if not tank().alive:
+	var t := tank()
+	if not t.alive:
 		return true
+	if (not t.is_player or autoplay) and not gathered() and time - fight.began < GATHER_LIMIT:
+		return false
 	if pack.tank_hit_at < 0.0:
 		return time - pack.engaged_at > 4.0
 	return time - pack.tank_hit_at > 1.5
@@ -1017,6 +1073,8 @@ func _update_combat() -> void:
 					l.lit = true
 					l.lit_at = time
 	in_combat = packs.any(func(p: Pack) -> bool: return p.engaged and not p.cleared)
+	if not in_combat:
+		fight = {}
 	if not endless and not packs.is_empty() and complete():
 		finished = true
 		return
@@ -1046,6 +1104,7 @@ func _wipe() -> void:
 		if p.engaged and not p.cleared:
 			_reset_pack(p)
 	in_combat = false
+	fight = {}
 	for i in heroes.size():
 		var h := heroes[i]
 		h.alive = true

@@ -9,6 +9,10 @@ extends RefCounted
 const ARRIVED := 1.1
 ## The party keeps this far inside the tank's room from the doorways into it, in metres.
 const THRESHOLD := 1.5
+## A hero is on its planned spot when it is this near it, in metres.
+const ON_SPOT := 2.5
+## From a planned spot a ranged hero must be able to reach who it is there for, in metres.
+const SPOT_REACH := 28.0
 
 static func _pct(u: Combatant) -> float:
 	return u.hp / u.max_hp
@@ -124,20 +128,36 @@ static func _pick_target(c: Combat, h: Combatant) -> Combatant:
 	return best
 
 
-static func _party_ready(c: Combat, tank: Combatant) -> bool:
+# Where a hero waits for a pull to begin: its planned spot, if it has one that can be stood on
+# without waking anything. Otherwise null, and it keeps with the tank.
+static func _waits_at(c: Combat, pull: Dictionary, h: Combatant):
+	var spot = Combat.spot_in(pull, h)
+	return null if spot == null or h == c.tank() or _near_idle(c, spot) else spot
+
+
+# Everyone is alive and well, and where they should be: on their planned spot, or with the tank.
+static func _party_ready(c: Combat, tank: Combatant, pull: Dictionary) -> bool:
 	for h in c.heroes:
-		if not h.alive or _pct(h) < 0.8 or Combat.dist(h, tank) > 22.0:
+		if not h.alive or _pct(h) < 0.8:
+			return false
+		var spot = _waits_at(c, pull, h)
+		var there: bool = spot != null and Combat.flat(h.pos, spot) <= ON_SPOT
+		# the AI goes to its spot; you may wait on yours or come along
+		var ai_led := not h.is_player or c.autoplay
+		if (ai_led and spot != null and not there) or (not there and Combat.dist(h, tank) > 22.0 and (spot == null or not ai_led)):
 			return false
 	var healer := _healer(c)
 	return healer == null or healer.res >= healer.res_max * 0.6
 
 
-# Out of a fight, the tank leads the way to the next pack and pulls it once everyone is ready.
+# Out of a fight, the tank leads the way to the first pack of the next pull and wakes it once
+# everyone is ready, or at once if the plan says so.
 static func _tank_travel(c: Combat, h: Combatant):
-	var pack := c.next_pack()
-	if pack == null:
+	var pull := c.next_pull()
+	if pull.is_empty():
 		return null
-	var ok := _party_ready(c, h)
+	var pack: Pack = pull.packs[0]
+	var ok: bool = pull.go or _party_ready(c, h, pull)
 	var vis: Combatant = null
 	for e in pack.units:
 		if not e.alive or Combat.dist(e, h) > 27.0 or not c.sees(h, e):
@@ -150,19 +170,32 @@ static func _tank_travel(c: Combat, h: Combatant):
 		h.target_id = vis.id
 		_use(c, h, "challenge", vis)
 		return null
-	# do not run off without the player
+	# do not run off without the player, unless they are waiting where the plan puts them
 	var human := null if c.autoplay else c.player
 	if human and human != h and Combat.dist(human, h) > 28.0:
-		return null
+		var spot = Combat.spot_in(pull, human)
+		if spot == null or Combat.flat(human.pos, spot) > ON_SPOT:
+			return null
 	return pack.pull_from
+
+
+# Keeping up with the tank, a few steps behind, each in its own place.
+static func _follow(h: Combatant, tank: Combatant):
+	var stop := 2.5 + h.slot * 1.3
+	return tank.pos if Combat.dist(h, tank) > (stop if h.ai.moving else stop + 1.5) else null
+
+
+# Standing on a spot, with a little slack so a hero does not shuffle about on it.
+static func _hold(h: Combatant, spot: Vector3):
+	return spot if Combat.flat(h.pos, spot) > (0.4 if h.ai.moving else 1.0) else null
 
 
 static func _ooc_goal(c: Combat, h: Combatant):
 	var tank := c.tank()
 	if h == tank:
 		return _tank_travel(c, h)
-	var stop := 2.5 + h.slot * 1.3
-	return tank.pos if Combat.dist(h, tank) > (stop if h.ai.moving else stop + 1.5) else null
+	var spot = _waits_at(c, c.next_pull(), h)
+	return _hold(h, spot) if spot != null else _follow(h, tank)
 
 
 static func _tank_combat(c: Combat, h: Combatant):
@@ -170,18 +203,34 @@ static func _tank_combat(c: Combat, h: Combatant):
 	var es := c.engaged_enemies()
 	if es.is_empty():
 		return null
-	# go in: the fight happens inside the room, not on the threshold
-	var pack: Pack = null
-	for p in c.packs:
-		if p.engaged and not p.cleared:
-			pack = p
-			break
-	if pack and ai.entered != pack.id and Combat.flat(h.pos, pack.stand) <= ARRIVED:
-		ai.entered = pack.id
-	if pack and ai.entered != pack.id:
+	# gather: wake each pack of the pull in turn, with a hail as soon as one can be given, or
+	# else by walking at it, and bring them all along
+	var woken: Pack = null
+	for pack: Pack in c.fight.get("packs", []):
+		if pack.cleared:
+			continue
+		if pack.engaged:
+			woken = pack
+			continue
+		var near: Combatant = _nearest(pack.units.filter(func(e: Combatant) -> bool: return e.alive), h)
+		if near == null:
+			continue
 		ai.tank_spot = null
 		h.target_id = _nearest(es, h).id
-		return pack.stand
+		if Combat.dist(near, h) <= 27.0 and c.sees(h, near) and _off_cd(h, "challenge"):
+			_use(c, h, "challenge", near)
+		return near.pos
+	# go in: to the spot the plan holds this pull at, or else well inside the room of the pack
+	# woken last, so the fight is not on the threshold
+	var planned = Combat.spot_in(c.fight, h)
+	var hold = planned if planned != null else woken.stand if woken else null
+	if hold != null and not ai.arrived:
+		if Combat.flat(h.pos, hold) <= ARRIVED:
+			ai.arrived = true
+		else:
+			ai.tank_spot = null
+			h.target_id = _nearest(es, h).id
+			return hold
 	# pick up anything that is not on the tank
 	if _off_cd(h, "challenge"):
 		var loose := es.filter(func(e: Combatant) -> bool:
@@ -194,6 +243,15 @@ static func _tank_combat(c: Combat, h: Combatant):
 			if _use(c, h, "challenge", e):
 				break
 	var near := es.filter(func(e: Combatant) -> bool: return Combat.dist(e, h) <= 3.2 + e.radius * 0.5)
+	# a planned spot is held: the tank steps off it only to get out of danger
+	if planned != null:
+		ai.tank_spot = planned
+		var first: Combatant = _nearest(near if not near.is_empty() else es, h)
+		for e: Combatant in near:
+			if e.enemy.priority > first.enemy.priority or (e.enemy.priority == first.enemy.priority and e.id == h.target_id):
+				first = e
+		h.target_id = first.id
+		return _hold(h, planned)
 	# stand among the ranged enemies so the melee ones are dragged onto them
 	var ranged := es.filter(func(e: Combatant) -> bool: return e.enemy.reach > 5.0)
 	if ranged.any(func(e: Combatant) -> bool: return Combat.dist(e, h) > 5.5):
@@ -222,15 +280,30 @@ static func _tank_combat(c: Combat, h: Combatant):
 
 
 # Melee damage dealers stand behind the enemy: on the far side of it from whoever it is fighting.
-static func _melee_pos(c: Combat, h: Combatant, t: Combatant):
+# A planned spot is the side to attack from instead, unless that side is in front of something
+# that cleaves.
+static func _melee_pos(c: Combat, h: Combatant, t: Combatant, spot = null):
 	var tt := c.unit(t.target_id)
 	var reach := 2.8 + t.radius * 0.5
-	if tt and tt != h and tt.alive and tt.team == "hero":
-		var p := t.pos + Combat.toward(tt, t) * (t.radius + 1.1)
-		if c.can_stand.call(p):
-			var settled := Combat.flat(h.pos, p) < (0.5 if h.ai.moving else 1.2) and Combat.dist(h, t) <= reach
-			return null if settled else p
+	var from = null
+	if spot != null and Combat.flat(spot, t.pos) > 0.5:
+		from = t.pos + Vector3(spot.x - t.pos.x, 0, spot.z - t.pos.z).normalized() * (t.radius + 1.1)
+		if not c.can_stand.call(from) or _in_front(c, from):
+			from = null
+	if from == null and tt and tt != h and tt.alive and tt.team == "hero":
+		from = t.pos + Combat.toward(tt, t) * (t.radius + 1.1)
+		if not c.can_stand.call(from):
+			from = null
+	if from != null:
+		var settled := Combat.flat(h.pos, from) < (0.5 if h.ai.moving else 1.2) and Combat.dist(h, t) <= reach
+		return null if settled else from
 	return null if Combat.dist(h, t) <= reach else t.pos
+
+
+# Whether a planned spot does its job: from it the hero can reach whoever it is there for, and
+# it is not in front of something that cleaves. If not, the hero finds a spot of its own.
+static func _spot_serves(c: Combat, spot: Vector3, who: Combatant) -> bool:
+	return Combat.flat(spot, who.pos) <= SPOT_REACH and c.los.call(spot, who.pos) and not _in_front(c, spot)
 
 
 # Hold a spot with range and line of sight to the anchor, out of frontals and ground effects,
@@ -274,6 +347,8 @@ static func _combat_goal(c: Combat, h: Combatant):
 	var t := _pick_target(c, h)
 	if t:
 		h.target_id = t.id
+	var spot = Combat.spot_in(c.fight, h)
+	var melee := def.auto_reach < 5.0
 	if def.role == "healer":
 		var tank := c.tank()
 		var anchor := tank if tank.alive else h
@@ -281,10 +356,22 @@ static func _combat_goal(c: Combat, h: Combatant):
 		for a in c.heroes:
 			if a.alive and a != h and _pct(a) < 0.6 and (Combat.dist(a, h) > 28.0 or not c.sees(h, a)):
 				anchor = a
-		return null if anchor == h else _ranged_pos(c, h, anchor)
+		if anchor == h:
+			return null
+		# while the tank is still gathering and in no trouble, the spot is where to wait
+		var waiting: bool = not c.gathered() and _pct(anchor) >= 0.6 and not _in_front(c, spot) if spot != null else false
+		if spot != null and (waiting or _spot_serves(c, spot, anchor)):
+			return _hold(h, spot)
+		return _ranged_pos(c, h, anchor)
 	if t == null or not c.can_attack():
-		return null
-	return _melee_pos(c, h, t) if def.auto_reach < 5.0 else _ranged_pos(c, h, t)
+		# holding its damage: on its spot if it has one to stand on, and keeping up with a
+		# tank that is still gathering if it has not
+		if spot != null and not melee:
+			return _hold(h, spot)
+		return null if c.gathered() else _follow(h, c.tank())
+	if melee:
+		return _melee_pos(c, h, t, spot)
+	return _hold(h, spot) if spot != null and _spot_serves(c, spot, t) else _ranged_pos(c, h, t)
 
 
 # ---------- actions
@@ -507,6 +594,7 @@ static func think(c: Combat, h: Combatant) -> void:
 	if not c.in_combat:
 		ai.tank_spot = null
 		ai.pos = null
+		ai.arrived = false
 		usual = _ooc_goal(c, h)
 	else:
 		usual = _combat_goal(c, h)

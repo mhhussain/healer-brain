@@ -1,8 +1,15 @@
 class_name SaveData
 extends RefCounted
 
-# What is kept between runs: how far you have got, your best with each hero, and the party you
-# last chose. Reading and writing the file is the scene's job (scripts/save_store.gd).
+# What is kept between runs: how far you have got, your best with each hero, the party you
+# last chose and the routes you have planned. It is plain data with a version number, so that
+# it can be read by a later game and one day moved to a profile. Reading and writing the file
+# is the scene's job (scripts/save_store.gd).
+
+## Goes up when what is kept changes shape. 1 had no number and no routes.
+const VERSION := 2
+## Routes kept for each level.
+const SLOTS := 3
 
 ## The highest level you may start: one above your highest timed clear. Shared by all heroes.
 var unlocked := 1
@@ -20,6 +27,10 @@ var keys := {}
 var mouse := {}
 ## Hero id -> ability id -> a click on a party frame, such as "L" or "S+R".
 var clicks := {}
+## Level id -> {"used": the slot used last, "slots": [a route as plain data, or null]}.
+var routes := {}
+## Whether the next pull's spots are marked on the ground during a run.
+var markers := true
 
 
 func _init() -> void:
@@ -42,9 +53,46 @@ func record(run_level: int, hero_id: String, time: float, timed: bool) -> bool:
 	return unlocked_now
 
 
+# ---------- routes
+
+## Which of a level's slots was used last.
+func route_slot(def: LevelDef) -> int:
+	return routes.get(def.id, {}).get("used", 0)
+
+
+## The route kept in one of a level's slots, or null if the slot is empty.
+func route_in(def: LevelDef, at: int) -> Route:
+	var slots: Array = routes.get(def.id, {}).get("slots", [])
+	return Route.from_dict(slots[at], def) if at < slots.size() else null
+
+
+## The route to run a level by: the one in the slot used last, or the level's own.
+func route_for(def: LevelDef) -> Route:
+	var kept := route_in(def, route_slot(def))
+	return kept if kept else Route.default_for(def)
+
+
+## Keeps a route in one of a level's slots and makes that the slot in use. Null empties it.
+func keep_route(def: LevelDef, at: int, route: Route) -> void:
+	if not routes.has(def.id):
+		var empty := []
+		empty.resize(SLOTS)
+		routes[def.id] = {"used": 0, "slots": empty}
+	routes[def.id].used = at
+	routes[def.id].slots[at] = route.to_dict() if route else null
+
+
+func use_slot(def: LevelDef, at: int) -> void:
+	if routes.has(def.id):
+		routes[def.id].used = at
+	elif at != 0:
+		keep_route(def, at, null)
+
+
 func to_dict() -> Dictionary:
-	return {"unlocked": unlocked, "bests": bests, "party": party, "slot": slot, "level": level,
-		"volume": volume, "muted": muted, "keys": keys, "mouse": mouse, "clicks": clicks}
+	return {"v": VERSION, "unlocked": unlocked, "bests": bests, "party": party, "slot": slot, "level": level,
+		"volume": volume, "muted": muted, "markers": markers, "keys": keys, "mouse": mouse, "clicks": clicks,
+		"routes": routes}
 
 
 ## Reads what it can from a dictionary and keeps the defaults for anything missing or wrong.
@@ -63,9 +111,31 @@ static func from_dict(d: Dictionary) -> SaveData:
 	s.slot = clampi(int(d.get("slot", 3)), 0, 3)
 	s.level = clampi(int(d.get("level", 1)), 1, s.unlocked)
 	s.volume = clampf(float(d.get("volume", 0.8)), 0.0, 1.0)
-	s.muted = d.get("muted", false) == true
+	s.muted = d.get("muted", false) is bool and d.get("muted", false)
+	s.markers = not (d.get("markers", true) is bool) or d.get("markers", true)
 	s._read_bindings(d)
+	s._read_routes(d)
 	return s
+
+
+# Routes are kept as plain data and read when they are wanted, since what makes sense in one
+# depends on the level. Here only the shape is checked.
+func _read_routes(d: Dictionary) -> void:
+	var saved: Variant = d.get("routes")
+	if not saved is Dictionary:
+		return
+	for id: Variant in saved:
+		var entry: Variant = saved[id]
+		if not id is String or not entry is Dictionary or not entry.get("slots") is Array:
+			continue
+		var slots := []
+		slots.resize(SLOTS)
+		for i in mini(SLOTS, entry.slots.size()):
+			var route := Route.from_dict(entry.slots[i], null)
+			if route and route.level == id:
+				slots[i] = route.to_dict()
+		var used: Variant = entry.get("used", 0)
+		routes[id] = {"used": clampi(int(used), 0, SLOTS - 1) if used is int or used is float else 0, "slots": slots}
 
 
 # Bindings are taken one ability at a time, so a save from before an ability existed, or with

@@ -1,6 +1,6 @@
 # Handoff: building routing, the big dungeon and gear
 
-Written on 15 November 2026 as the starting brief for a new session, and brought up to date as milestones 9, 10 and 11 were built. **Milestone 11 (Tollhaven) is built and waits for the owner to play it. Start at milestone 12** once they have.
+Written on 15 November 2026 as the starting brief for a new session, and brought up to date as milestones 9, 10 and 11 were built. **Milestone 11 (Tollhaven) is built, and the owner has played and approved it. Milestone 12 has begun**: its proposal, [`gear-proposal.md`](gear-proposal.md), is with the owner, and nothing of it is built until they answer.
 
 Read these, in this order:
 

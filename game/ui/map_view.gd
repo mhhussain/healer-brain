@@ -256,9 +256,10 @@ func _draw() -> void:
 		var p: Dictionary = def.pillars[i]
 		var fallen: bool = combat != null and i < combat.pillars.size() and not combat.pillars[i].alive
 		draw_circle(to_screen(p.pos), maxf(2.0, p.r * zoom), Color(WALL, 0.3) if fallen else WALL)
-	if zoom >= 5.0:
-		for room in def.rooms:
-			var r := _rect(room.rect)
+	# a room's name, wherever there is room for it
+	for room in def.rooms:
+		var r := _rect(room.rect)
+		if ThemeDB.fallback_font.get_string_size(room.name, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x <= r.size.x - 8.0:
 			Kit.text(self, Vector2(r.get_center().x, r.position.y + 16.0), room.name, 12, Color(Kit.GREY, 0.8), r.size.x)
 	for i in def.lamps.size():
 		_draw_lamp(i)

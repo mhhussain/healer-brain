@@ -19,7 +19,7 @@ Read these, in this order:
   - **Tollhaven**: eighteen rooms (a market, three wings of three rooms and a boss, two passages joining the wings, a gated pier to the last boss), 22 trash packs and 4 bosses, three patrols, a count of 300 of which 231 is asked for, 25 minutes. `DESIGN.md` section 7b has it all, with a map.
 - All-AI run times on the safe way, which are the balance check:
   - The Abbey: about 7:25 to 8:05 at level 1, 10:15 to 11:00 at level 5, 12:00 to 13:00 at level 7. At level 7 a few runs in eighteen wipe once on the last boss and go over the time.
-  - Tollhaven: 15:58 to 18:26 at level 1 with nobody dying. `DESIGN.md` section 9 has the higher levels and what leaving packs out is worth.
+  - Tollhaven: 16:00 to 18:30 at level 1, 21:00 to 22:30 at level 4, and 27:00 to 28:45 at level 7, which is over its 25:00; nobody died in those. Leaving five corner packs out (`skip=3,5,6,11,15`) saves about 1:30 at level 1 and 3:00 at levels 4 and 7. `DESIGN.md` section 9 has the detail. The bosses, each alone: all fall up to level 7; Mother Hask starts beating the AI at level 8.
 - The balance runner is exactly repeatable: the same code, level, party and seed give the same line. Use it to prove a change alters nothing: run the old commit from a `git worktree` (or a copy of the tree) in its own folder and compare lines. Milestones 9, 10 and 11 were all checked this way; milestone 11 left every line of the Abbey's eighteen runs as it was.
 - Routes, the map planner and the AI that follows a route are in. There is no gear and no coin.
 

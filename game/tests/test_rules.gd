@@ -597,6 +597,20 @@ func test_the_prior_makes_his_brothers_hit_harder_from_level_3():
 	assert_eq(combat.damage(prior, w, 100.0), roundf(100.0 * combat.scale), "not himself")
 
 
+func test_everything_an_enemy_does_is_written_out_for_the_map():
+	for id: String in ["brute", "hexer", "archer", "shaman", "berserker", "overseer", "krogg", "velisse", "hatchling", "sulmar"]:
+		var e := Enemies.by_id(id)
+		assert_gt(e.traits.size(), 0, e.name + " does something")
+		var told := {}
+		for t: Array in e.traits:
+			assert_eq(t.size(), 3, "%s: a name, what it does and a level" % e.name)
+			assert_gt((t[1] as String).length(), 15, "%s: %s is explained" % [e.name, t[0]])
+			told[t[0]] = t[2]
+		for ab in e.abilities:
+			assert_true(told.has(ab.name), "%s: %s is written out" % [e.name, ab.name])
+			assert_eq(told.get(ab.name), maxi(1, ab.min_level), "%s: %s begins at the level it says" % [e.name, ab.name])
+
+
 # ---------- count, the end of a run and lamps
 
 func test_count_is_earned_by_the_kill_and_things_called_up_are_worth_nothing():

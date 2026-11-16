@@ -23,6 +23,9 @@ var priority := 1
 ## It hits in front of itself, so only the tank should stand there.
 var frontal := false
 var abilities: Array[EnemyAbility] = []
+## What it does, in words for the player to read on the map: [name, what it does, the level it
+## starts at]. Every ability is here by name, and so is anything it does without one.
+var traits: Array = []
 ## Every tick while fighting: func(c: Combat, e: Combatant) -> void
 var passive := Callable()
 ## func(c: Combat, e: Combatant) -> void

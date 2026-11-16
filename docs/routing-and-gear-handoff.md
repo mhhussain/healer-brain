@@ -13,7 +13,7 @@ Read these, in this order:
 
 - The game is the Godot 4.7.2 project in `game/` (GDScript, Compatibility renderer, single-threaded web export). It is published at https://mhhussain.github.io/healer-brain/.
 - `main` is the only branch that matters. A push to `main` runs `.github/workflows/deploy.yml`: import, the GUT tests, web export, publish. If a test or the export fails, nothing is published.
-- 211 tests pass with milestone 10 in.
+- 214 tests pass with milestone 10 in.
 - All-AI run times on the safe way, which are the balance check: about 7:25 to 8:05 at level 1, 10:15 to 11:00 at level 5, 12:00 to 13:00 at level 7. At level 7 a few runs in eighteen wipe once on the last boss and go over the time.
 - The balance runner is exactly repeatable: the same code, level, party and seed give the same line. Use it to prove a change alters nothing: run the old commit from a `git worktree` in its own folder and compare lines. Milestones 9 and 10 were both checked this way. Milestone 10 changed one thing in a run on the safe way: after a wipe the tank goes in again as it did the first time.
 - The dungeon is the Drowned Abbey: the landing and nine rooms in a row, 6 trash packs of 4 and 3 bosses, 27 enemies, a count of 92 that asks for every pack, a 14-minute timer.
@@ -96,7 +96,7 @@ Search for the names; line numbers drift.
 - Lamps have no figure in the scene. The map draws them as diamonds.
 - A room is one rectangle. The map draws rooms, doorways, walls and pillars as they are described, so a new shape of room needs nothing more than its description.
 - From the plan's routing section, not built because the Abbey cannot show them: walking round the wake range of packs that are not in the pull, the warning that a pull cannot be reached without waking another pack, and patrols with their paths on the map.
-- The map's enemy "portraits" are lettered discs (`MapView.ENEMY_MARKS`); a new kind of enemy needs an entry there.
+- The map's enemy "portraits" are lettered discs (`MapView.ENEMY_MARKS`); a new kind of enemy needs an entry there. What an enemy does is written out for the map in `Enemies.TRAITS`; a new enemy or ability needs a line there too, and a test fails without one.
 
 ## 5. Milestone 11, to begin with
 

@@ -319,10 +319,11 @@ At **level 9**, every trash enemy deals 25% more damage below 25% health.
 - **Run bar**: timer against 14:00, then the count as a bar and a percentage of what the dungeon asks for, lamps lit, deaths, and the number of the pull being fought or coming next.
 - **The plan on the ground**: the next pull's number floats over each of its packs that still sleeps, a ring in the tank's colour marks where the plan has the tank hold, and a gold ring marks your own spot. A box on the setup screen and in the pause menu turns these off.
 - **The map** (before a run from "Plan the route", during one with M): the dungeon from straight above, drawn from the level's own description, all of it visible. It is laid out like Mythic Dungeon Tools and Keystone.guru. The map is on the left; on the right the list of pulls with the count above it.
-  - Each pull has a colour and a number. On the map its packs are ringed in that colour and a line joins the pulls in order; packs in no pull are grey. In the list a row shows the pull's enemies as lettered discs with how many, what it is worth and the count reached by the end of it. The pull that reaches 100% is marked in green.
+  - Each pull has a colour and a number. On the map one outline in that colour is drawn round all the packs of the pull, so packs taken together read as one shape, and a line joins the pulls in order; packs in no pull are grey. In the list a row shows the pull's enemies as lettered discs with how many, what it is worth and the count reached by the end of it. The pull that reaches 100% is marked in green.
   - Click a pack to put it in the pull being edited, again to take it out. Shift-click, or "Add a pull", starts a new pull. Click a row to edit that pull, drag it to change the order, right-click it to insert a pull above, join it to the one above, or delete it.
-  - The markers T, H, D and D are dragged onto the map to set the spots of the pull being edited; dropped off the floor, or right-clicked, they go back.
-  - Hovering a pack lists its enemies with their health, count and abilities. The wheel zooms about the pointer; dragging moves the map.
+  - Four markers are dragged onto the map to set the spots of the pull being edited: a shield for the tank, a cross for the healer and a sword for each damage dealer, in their heroes' colours. Dropped off the floor, or right-clicked, they go back.
+  - Resting the pointer on a pack, or on a row of the list, lists its enemies with their health at the chosen level and their count, and says what each of them does and from which level.
+  - The wheel zooms about the pointer; dragging moves the map.
   - It warns when the route falls short of the count or never pulls a boss, and still lets the run start.
   - Over a run, packs already dead are shown as done and cannot be moved, the party's positions are shown, and changes take effect at once.
 - **Telegraphs**: ground circles and cones drawn on the floor before they hit.

@@ -42,7 +42,7 @@ func _walk(app: App, hero: String) -> void:
 	await _frames(30)
 	_say("route")
 	map.view.zoom_about(map.view.to_screen(map.def.packs[1].center), 3.0)
-	map.view.hover = 1
+	map.view._set_hover(1)
 	await _frames(30)
 	_say("route, closer")
 	app.close_map()

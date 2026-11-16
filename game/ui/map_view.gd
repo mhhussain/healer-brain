@@ -12,6 +12,8 @@ extends Control
 signal pack_clicked(pack: int, fresh: bool)
 ## A spot marker was dropped: on the floor at `at`, or off it (`placed` false) to clear it.
 signal spot_dropped(place: int, at: Vector3, placed: bool)
+## The pointer came onto a pack's ground, or left it (-1).
+signal pack_hovered(pack: int)
 
 ## One colour a pull, by its place in the route; they come round again after the last.
 const PULL_COLORS: Array[Color] = [
@@ -24,7 +26,8 @@ const ENEMY_MARKS := {
 	"archer": [Color("4aa3a3"), "N"], "shaman": [Color("6fbf73"), "A"], "overseer": [Color("d4a72c"), "Pr"],
 }
 const BOSS_MARK := [Color("e0503a"), "B"]
-const PLACE_LETTERS := ["T", "H", "D", "D"]
+## How far out from its enemies a pull's outline runs, in metres.
+const OUTLINE := 2.3
 const FLOOR := Color(0.2, 0.24, 0.27)
 const DOORWAY := Color(0.27, 0.31, 0.33)
 const WALL := Color(0.42, 0.46, 0.48)
@@ -204,7 +207,7 @@ func _gui_input(event: InputEvent) -> void:
 			if _pan_moved >= 6.0 or _pressed_pack < 0:
 				centre -= mm.relative / zoom
 				_keep_in_view()
-		hover = pack_at(mm.position) if _dragging < 0 else -1
+		_set_hover(pack_at(mm.position) if _dragging < 0 else -1)
 		queue_redraw()
 
 
@@ -224,8 +227,14 @@ func _keep_in_view() -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_MOUSE_EXIT:
-		hover = -1
+		_set_hover(-1)
 		queue_redraw()
+
+
+func _set_hover(pack: int) -> void:
+	if pack != hover:
+		hover = pack
+		pack_hovered.emit(pack)
 
 
 # ---------- drawing
@@ -254,13 +263,13 @@ func _draw() -> void:
 	for i in def.lamps.size():
 		_draw_lamp(i)
 	_draw_path()
+	for i in route.pulls.size():
+		_draw_pull(i)
 	for i in def.packs.size():
 		_draw_pack(i)
 	_draw_party()
 	_draw_spots()
 	_draw_key()
-	if hover >= 0 and _dragging < 0:
-		_draw_details(hover)
 
 
 func _draw_lamp(i: int) -> void:
@@ -294,36 +303,59 @@ func _draw_path() -> void:
 		last = at
 
 
+## The outline of a pull, in the view: one shape round every enemy of every pack in it, so
+## that packs taken together read as one thing. Empty for a pull with no packs.
+func pull_outline(i: int) -> PackedVector2Array:
+	var round := PackedVector2Array()
+	var out := maxf(OUTLINE * zoom, 9.0)
+	for pack: int in route.pulls[i].packs:
+		for post in LevelDef.posts(def.packs[pack]):
+			var at := to_screen(post)
+			for k in 12:
+				round.append(at + Vector2.from_angle(k / 12.0 * TAU) * out)
+	return Geometry2D.convex_hull(round) if not round.is_empty() else round
+
+
+# A pull: its outline in its colour, bolder for the pull being edited, with its number on top.
+func _draw_pull(i: int) -> void:
+	var shape := pull_outline(i)
+	if shape.is_empty():
+		return
+	var packs: Array = route.pulls[i].packs
+	var is_done: bool = packs.all(func(pack: int) -> bool: return done(pack))
+	var color := Color(pull_color(i), 0.3 if is_done else 1.0)
+	draw_colored_polygon(shape.slice(0, shape.size() - 1), Color(color, 0.05 if is_done else 0.16))
+	draw_polyline(shape, color, 3.0 if i == current else 1.5, true)
+	var top := shape[0]
+	var mid := 0.0
+	for p in shape:
+		mid += p.x / shape.size()
+		if p.y < top.y:
+			top = p
+	var tag := Vector2(mid, top.y - 4.0)
+	Kit.text(self, tag, str(i + 1), 15, color, 60.0)
+	if i == route.completes_at(def):
+		Kit.text(self, tag + Vector2(0, -15.0), "100%", 11, Kit.GREEN, 60.0)
+
+
+# A pack's enemies, each a disc where it stands: in their own colours if the pack is in a pull,
+# greyed if it is in none.
 func _draw_pack(i: int) -> void:
 	var pack: Dictionary = def.packs[i]
 	var at := to_screen(pack.center)
-	var pull := route.pull_of(i)
+	var planned := route.pull_of(i) >= 0
 	var is_done := done(i)
-	var color := pull_color(pull) if pull >= 0 else FADED
-	if is_done:
-		color = Color(color, 0.3)
-	var reach := (PACK_REACH - 0.6) * zoom
-	# its ground: tinted in its pull's colour, edged more boldly for the pull being edited
-	if pull >= 0:
-		draw_circle(at, reach, Color(color, 0.14 if not is_done else 0.05))
-		draw_arc(at, reach, 0.0, TAU, 40, color, 3.0 if pull == current else 1.5, true)
-	elif hover == i:
-		draw_arc(at, reach, 0.0, TAU, 40, FADED, 1.0, true)
+	if hover == i:
+		draw_arc(at, (PACK_REACH - 0.6) * zoom, 0.0, TAU, 40, Color(Kit.BONE, 0.5), 1.0, true)
 	var posts := LevelDef.posts(pack)
 	for k in posts.size():
 		var mark := enemy_mark(pack.enemies[k])
-		var def_e := Enemies.by_id(pack.enemies[k])
-		var r := maxf(3.0, def_e.radius * zoom * 1.3)
-		var fill: Color = mark[0] if pull >= 0 else Color((mark[0] as Color).lerp(Color(0.5, 0.5, 0.5), 0.6), 0.6)
+		var r := maxf(3.0, Enemies.by_id(pack.enemies[k]).radius * zoom * 1.3)
+		var fill: Color = mark[0] if planned else Color((mark[0] as Color).lerp(Color(0.5, 0.5, 0.5), 0.6), 0.6)
 		if is_done:
 			fill = Color(fill, 0.25)
 		draw_circle(to_screen(posts[k]), r, fill)
 		draw_arc(to_screen(posts[k]), r, 0.0, TAU, 20, Color(0, 0, 0, 0.7), 1.0, true)
-	if pull >= 0:
-		var tag := at + Vector2(0, -reach - 4.0)
-		Kit.text(self, tag, str(pull + 1), 15, color, 60.0)
-		if pull == route.completes_at(def) and i == route.pulls[pull].packs[-1]:
-			Kit.text(self, tag + Vector2(0, -15.0), "100%", 11, Kit.GREEN, 60.0)
 	if is_done:
 		Kit.text(self, at + Vector2(0, 5.0), "done", 11, Color(Kit.GREY, 0.8), 60.0)
 
@@ -351,7 +383,7 @@ func _draw_spots() -> void:
 		var placed := spots.has(place) or _dragging == place
 		draw_circle(at, MARKER, Color(0.05, 0.06, 0.08, 0.95))
 		draw_arc(at, MARKER, 0.0, TAU, 24, color if placed else Color(color, 0.6), 2.5 if placed else 1.5, true)
-		Kit.text(self, at + Vector2(0, 5.0), PLACE_LETTERS[place], 13, color, 30.0)
+		draw_role(self, place, at, MARKER * 0.6, color)
 
 
 # What the discs stand for, down the top left: each kind of enemy the level has.
@@ -374,31 +406,24 @@ func _draw_key() -> void:
 	Kit.text(self, Vector2(36, y + 4.0), "A lamp: where a beaten party starts again", 12, Kit.GREY, 300.0, HORIZONTAL_ALIGNMENT_LEFT)
 
 
-# What a pack is made of, beside it.
-func _draw_details(i: int) -> void:
-	var pack: Dictionary = def.packs[i]
-	var lines: Array[String] = []
-	var kinds := {}
-	for id: String in pack.enemies:
-		kinds[id] = kinds.get(id, 0) + 1
-	var scale := combat.scale if combat else 1.0
-	for id: String in kinds:
-		var e := Enemies.by_id(id)
-		var level := combat.level if combat else 1
-		var does := e.abilities.filter(func(a: EnemyAbility) -> bool: return a.min_level <= level).map(func(a: EnemyAbility) -> String: return a.name)
-		lines.append("%d× %s   %d health   %s" % [kinds[id], e.name, roundi(e.hp * scale), "count %d" % e.count if e.count > 0 else "no count"])
-		if not does.is_empty():
-			lines.append("      " + ", ".join(does))
-	var pull := route.pull_of(i)
-	var head := "%s   count %d%s" % [pack.name, def.pack_count(i), "   pull %d" % (pull + 1) if pull >= 0 else "   in no pull"]
-	var font := ThemeDB.fallback_font
-	var w := font.get_string_size(head, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
-	for l in lines:
-		w = maxf(w, font.get_string_size(l, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x)
-	var box := Rect2(to_screen(pack.center) + Vector2(PACK_REACH * zoom + 10.0, -20.0), Vector2(w + 20.0, 30.0 + lines.size() * 17.0))
-	box.position.x = clampf(box.position.x, 6.0, maxf(6.0, size.x - box.size.x - 6.0))
-	box.position.y = clampf(box.position.y, 6.0, maxf(6.0, size.y - box.size.y - 70.0))
-	Kit.frame(self, box, Color(Kit.GOLD, 0.7))
-	draw_string(font, box.position + Vector2(10, 20), head, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Kit.GOLD)
-	for k in lines.size():
-		draw_string(font, box.position + Vector2(10, 40 + k * 17.0), lines[k], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Kit.BONE)
+## The sign for a place in the party, drawn on anything: a shield for the tank, a cross for
+## the healer, a sword for each damage dealer. `r` is half its height.
+static func draw_role(on: CanvasItem, place: int, at: Vector2, r: float, color: Color) -> void:
+	match place:
+		0:
+			on.draw_colored_polygon(_shape([[-0.85, -1.0], [0.85, -1.0], [0.85, 0.15], [0.0, 1.1], [-0.85, 0.15]], at, r), color)
+		1:
+			on.draw_rect(Rect2(at + Vector2(-1.0, -0.36) * r, Vector2(2.0, 0.72) * r), color)
+			on.draw_rect(Rect2(at + Vector2(-0.36, -1.0) * r, Vector2(0.72, 2.0) * r), color)
+		_:
+			# point up and to the right: blade, guard, grip
+			on.draw_colored_polygon(_shape([[0.0, -1.25], [0.2, -0.95], [0.2, 0.35], [-0.2, 0.35], [-0.2, -0.95]], at, r, PI / 4), color)
+			on.draw_colored_polygon(_shape([[-0.6, 0.35], [0.6, 0.35], [0.6, 0.58], [-0.6, 0.58]], at, r, PI / 4), color)
+			on.draw_colored_polygon(_shape([[-0.13, 0.58], [0.13, 0.58], [0.13, 1.15], [-0.13, 1.15]], at, r, PI / 4), color)
+
+
+static func _shape(points: Array, at: Vector2, r: float, turn := 0.0) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	for p: Array in points:
+		out.append(at + Vector2(p[0], p[1]).rotated(turn) * r)
+	return out

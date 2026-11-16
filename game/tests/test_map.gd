@@ -265,6 +265,61 @@ func test_a_route_is_copied_out_as_a_code_and_loaded_from_one():
 	assert_eq(save.route_for(abbey).pulls[0].packs, [0, 1])
 
 
+func test_a_pull_is_drawn_as_one_outline_round_all_its_packs():
+	planner()
+	await wait_frames(2)
+	var view := map.view
+	var first := view.to_screen(abbey.packs[0].center)
+	var second := view.to_screen(abbey.packs[1].center)
+	var between := view.to_screen(abbey.doors[1].pos)
+	assert_true(Geometry2D.is_point_in_polygon(first, view.pull_outline(0)))
+	assert_false(Geometry2D.is_point_in_polygon(second, view.pull_outline(0)), "one pack, one shape")
+	click_pack(1)
+	var both := view.pull_outline(0)
+	assert_true(Geometry2D.is_point_in_polygon(first, both))
+	assert_true(Geometry2D.is_point_in_polygon(second, both), "two packs in a pull are inside one shape")
+	assert_true(Geometry2D.is_point_in_polygon(between, both), "which runs across the wall between them")
+	for post in LevelDef.posts(abbey.packs[1]):
+		assert_true(Geometry2D.is_point_in_polygon(view.to_screen(post), both), "with every enemy inside it")
+	assert_false(Geometry2D.is_point_in_polygon(view.to_screen(abbey.packs[2].center), both))
+	(map.find_child("AddPull", true, false) as Button).pressed.emit()
+	assert_eq(view.pull_outline(map.current).size(), 0, "an empty pull has no shape")
+
+
+func test_resting_on_a_pack_or_a_row_lists_its_enemies_and_what_they_do():
+	save.level = 2
+	planner()
+	await wait_frames(2)
+	var details: Control = map.find_child("Details", true, false)
+	assert_false(details.visible)
+	var words := func() -> String:
+		return "\n".join(details.get_child(0).get_children().map(func(l: Label) -> String: return l.text))
+	var move := InputEventMouseMotion.new()
+	move.position = map.view.to_screen(abbey.packs[3].center)
+	map.view._gui_input(move)
+	assert_true(details.visible)
+	assert_string_contains(words.call(), "The Undercroft    count 14    pull 4")
+	assert_string_contains(words.call(), "2× Drowned Porter    2484 health    count 4", "health at the level chosen")
+	assert_string_contains(words.call(), "Sour Note: A bolt at a random hero. It can be silenced.")
+	assert_string_contains(words.call(), "Withering Verse (from level 3)")
+	move.position = map.view.to_screen(abbey.doors[3].pos)
+	map.view._gui_input(move)
+	assert_false(details.visible, "off the pack it goes away")
+	click_pack(1)
+	map.route.pulls[0].note = "behind the wall"
+	await wait_frames(2)
+	var row: Control = map.find_child("Pulls", true, false).get_child(0).get_child(0)
+	row.mouse_entered.emit()
+	assert_true(details.visible)
+	assert_string_contains(words.call(), "Pull 1    count 29")
+	assert_string_contains(words.call(), "\"behind the wall\"")
+	assert_string_contains(words.call(), "5× Drowned Porter")
+	assert_string_contains(words.call(), "Alms: Heals the most hurt enemy")
+	assert_lt(details.get_global_rect().end.x, row.global_position.x, "to the left of the list, not over it")
+	row.mouse_exited.emit()
+	assert_false(details.visible)
+
+
 func test_the_wheel_zooms_about_the_pointer_and_never_out_past_the_whole_map():
 	planner()
 	await wait_frames(2)

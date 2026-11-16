@@ -6,6 +6,37 @@ extends RefCounted
 
 const GREEN := Color("8fe6b4")
 
+## What each enemy does, in words: [name, what it does, the level it starts at]. The map shows
+## these. An ability added to an enemy needs a line here; the tests check.
+const TRAITS := {
+	"brute": [["Heavy Load", "A heavy blow on whoever it is fighting, after a wind-up.", 3]],
+	"hexer": [
+		["Sour Note", "A bolt at a random hero. It can be silenced.", 1],
+		["Withering Verse", "A curse that wears a hero down for 10 s. Silence it, or cleanse it.", 3]],
+	"archer": [["Rain of Hooks", "A circle on the floor under a random hero. Step out of it.", 3]],
+	"shaman": [["Alms", "Heals the most hurt enemy, and more from level 3. Silence it, and kill the Almoner first.", 1]],
+	"berserker": [["Fervour", "Below 30% health it hits a quarter harder and half again as fast. From level 3, below 50%.", 1]],
+	"overseer": [
+		["Banner Sweep", "A cone in front of it, shown on the floor. Only the tank should stand there.", 1],
+		["Rally", "Enemies within 15 m of it hit 15% harder while it lives.", 3]],
+	"krogg": [
+		["The Great Key", "A heavy blow on the tank, after a wind-up. Brace for it.", 1],
+		["Chain Sweep", "A wide cone in front of him, shown on the floor.", 1],
+		["None Shall Pass", "Below 30% health he attacks 30% faster.", 1],
+		["Falling Stones", "Circles on the floor under two heroes.", 6]],
+	"velisse": [
+		["Wake the Ward", "Every 25 s three Brinelings wake and spit brine, which can be silenced. The tank picks them up; kill them.", 1],
+		["Bedside Manner", "She heals herself for a tenth of her health. Silence it.", 1],
+		["Bursting", "A Brineling leaves a circle on the floor where it dies.", 6]],
+	"hatchling": [["Brine Spit", "A bolt at a random hero. It can be silenced.", 1]],
+	"sulmar": [
+		["Dirge", "Hurts everyone for 5 s, every 20 s. Heal through it.", 1],
+		["Saltfall", "A circle on the floor under every hero. Step out of it.", 1],
+		["Brine Brand", "A burning curse on two heroes. Cleanse it.", 1],
+		["The Last Toll", "At 66% and 33% health: 5 s to get out of his sight, behind a pillar, or be all but killed.", 1],
+		["Falling Pillars", "The Last Toll brings down the pillar that was hidden behind.", 6]],
+}
+
 static var _defs := {}
 
 
@@ -13,6 +44,7 @@ static func by_id(id: String) -> EnemyDef:
 	if _defs.is_empty():
 		for def: EnemyDef in [_brute(), _hexer(), _archer(), _shaman(), _berserker(), _overseer(),
 				_krogg(), _velisse(), _hatchling(), _sulmar()]:
+			def.traits = TRAITS.get(def.id, [])
 			_defs[def.id] = def
 	return _defs.get(id)
 

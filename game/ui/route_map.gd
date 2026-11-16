@@ -6,8 +6,10 @@ extends Control
 #
 # Click a pack to put it in the pull being edited, and again to take it out. Shift-click, or
 # "Add a pull", starts a new pull. Click a row to edit that pull, drag a row to change the
-# order, right-click it to insert, join or delete. The markers T, H, D and D are dragged onto
-# the map to say where the tank holds the pull and where the others stand.
+# order, right-click it to insert, join or delete. The markers (a shield for the tank, a cross
+# for the healer, a sword for each damage dealer) are dragged onto the map to say where the
+# tank holds the pull and where the others stand. Resting the pointer on a pack or a row lists
+# its enemies and what they do.
 #
 # The route is kept in the save as it is changed, in whichever of the level's three slots is
 # in use. Opened over a run, it edits that run's plan as well: packs already dead are shown as
@@ -20,7 +22,8 @@ signal closed
 
 const SIDE := 410.0
 const ROW := 32.0
-const HINT := "Click a pack to add it to the pull you are editing; click it again to take it out. Shift-click starts a new pull with it. Drag a row to change the order; right-click a row for more. Wheel to zoom, drag to move the map."
+const HINT := "Click a pack to add it to the pull you are editing; click it again to take it out. Shift-click starts a new pull with it. Drag a row to change the order; right-click a row for more. Rest the pointer on a pack or a row to see what its enemies do. Wheel to zoom, drag to move the map."
+const DETAILS_WIDTH := 400.0
 
 var def: LevelDef
 var save: SaveData
@@ -30,6 +33,8 @@ var combat: Combat
 var view: MapView
 ## The pull being edited.
 var current := 0
+## The level enemies are described at: the run's, or the one chosen for the next run.
+var level := 1
 
 var _rows: VBoxContainer
 var _count: Control
@@ -42,6 +47,7 @@ var _said: Label
 var _menu: PopupMenu
 var _menu_for := -1
 var _line: Control
+var _details: PanelContainer
 var _slots: Array[Button] = []
 # a row being dragged, and the gap it would be dropped into; -1 for none
 var _drag_row := -1
@@ -55,6 +61,7 @@ func open(level: LevelDef, from: SaveData, party: Array[String], over: Combat = 
 	save = from
 	combat = over
 	route = over.route if over and over.route else from.route_for(level)
+	self.level = over.level if over else from.level
 	theme = Kit.theme()
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	var shade := ColorRect.new()
@@ -73,10 +80,17 @@ func open(level: LevelDef, from: SaveData, party: Array[String], over: Combat = 
 	view.combat = over
 	view.pack_clicked.connect(_on_pack)
 	view.spot_dropped.connect(_on_spot)
+	view.pack_hovered.connect(_on_pack_hover)
 	cols.add_child(view)
 	cols.add_child(_side())
 	view.show_level(level, route)
 
+	_details = PanelContainer.new()
+	_details.name = "Details"
+	_details.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_details.visible = false
+	_details.add_child(Kit.vbox(3))
+	add_child(_details)
 	# drawn over everything: where a dragged row would land
 	_line = Control.new()
 	_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -333,9 +347,56 @@ func _say(text: String) -> void:
 	_said.text = text
 
 
+# ---------- what a pack or a pull is made of
+
+func _on_pack_hover(pack: int) -> void:
+	if pack < 0:
+		hide_details()
+		return
+	var pull := route.pull_of(pack)
+	var title := "%s    count %d    %s" % [def.packs[pack].name, def.pack_count(pack), "pull %d" % (pull + 1) if pull >= 0 else "in no pull"]
+	var beside := view.global_position + view.to_screen(def.packs[pack].center) + Vector2(MapView.PACK_REACH * view.zoom + 14.0, -24.0)
+	show_details([pack], title, beside)
+
+
+## Lists the enemies of those packs beside a point of the screen: how many of each kind, their
+## health at this level, what they are worth, and what each of them does. `left_of` puts the
+## list's right edge at the point instead of its left.
+func show_details(packs: Array, title: String, at: Vector2, left_of := false, note := "") -> void:
+	var box: VBoxContainer = _details.get_child(0)
+	for child in box.get_children():
+		box.remove_child(child)
+		child.queue_free()
+	box.add_child(Kit.label(title, 14, Kit.GOLD))
+	if note != "":
+		box.add_child(Kit.para("\"%s\"" % note, 12, Kit.BONE, DETAILS_WIDTH))
+	var kinds := {}
+	for pack: int in packs:
+		for id: String in def.packs[pack].enemies:
+			kinds[id] = kinds.get(id, 0) + 1
+	var scale := pow(1.08, level - 1)
+	for id: String in kinds:
+		var e := Enemies.by_id(id)
+		box.add_child(Kit.label("%d× %s    %d health    %s" % [kinds[id], e.name, roundi(e.hp * scale), "count %d" % e.count if e.count > 0 else "no count"], 13))
+		for t: Array in e.traits:
+			var from: int = t[2]
+			var words := "%s%s: %s" % [t[0], " (from level %d)" % from if from > 1 else "", t[1]]
+			box.add_child(Kit.para(words, 12, Kit.GREY if level >= from else Color(Kit.GREY, 0.45), DETAILS_WIDTH))
+	_details.visible = true
+	_details.reset_size()
+	var room := size - _details.size - Vector2(6, 6)
+	var corner := at - Vector2(_details.size.x, 0) - global_position if left_of else at - global_position
+	_details.position = corner.clamp(Vector2(6, 6), room.max(Vector2(6, 6)))
+
+
+func hide_details() -> void:
+	_details.visible = false
+
+
 # ---------- showing it
 
 func _refresh() -> void:
+	hide_details()
 	current = clampi(current, 0, maxi(0, route.pulls.size() - 1))
 	view.current = current
 	view.queue_redraw()
@@ -425,8 +486,16 @@ class Row:
 		custom_minimum_size.y = RouteMap.ROW
 		size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		mouse_filter = Control.MOUSE_FILTER_STOP
-		var note: String = map.route.pulls[index].note
-		tooltip_text = note
+		mouse_entered.connect(_show_details)
+		mouse_exited.connect(map.hide_details)
+
+	# What the pull is made of, to the left of the list.
+	func _show_details() -> void:
+		var p: Dictionary = map.route.pulls[index] if index < map.route.pulls.size() else {}
+		if p.get("packs", []).is_empty() or map._drag_row >= 0:
+			return
+		var title := "Pull %d    count %d" % [index + 1, map.route.count_of(map.def, index)]
+		map.show_details(p.packs, title, global_position + Vector2(-12.0, 0.0), true, p.note)
 
 	func _gui_input(event: InputEvent) -> void:
 		var mb := event as InputEventMouseButton

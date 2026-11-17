@@ -13,7 +13,7 @@ Read these, in this order:
 
 - The game is the Godot 4.7.2 project in `game/` (GDScript, Compatibility renderer, single-threaded web export). It is published at https://mhhussain.github.io/healer-brain/.
 - `main` is the only branch that matters. A push to `main` runs `.github/workflows/deploy.yml`: import, the GUT tests, web export, publish. If a test or the export fails, nothing is published.
-- 326 tests pass with milestone 13 in.
+- 328 tests pass with milestone 13 in.
 - There are two dungeons, chosen on the setup screen. Each keeps its own levels and bests.
   - **The Drowned Abbey**: the landing and nine rooms in a row, 6 trash packs of 4 and 3 bosses, a count of 92 that asks for every pack, 14 minutes.
   - **Tollhaven**: eighteen rooms (a market, three wings of three rooms and a boss, two passages joining the wings, a gated pier to the last boss), 22 trash packs and 4 bosses, three patrols, a count of 300 of which 231 is asked for, 25 minutes. `DESIGN.md` section 7b has it all, with a map.
@@ -94,7 +94,7 @@ Search for the names; line numbers drift.
 
 **Enemies** (`rules/enemies.gd`). The Abbey's ten and Tollhaven's nine, with `TRAITS` (what each does, in words, for the map) and counts. A new enemy or ability needs a line in `TRAITS`, an entry in `MapView.ENEMY_MARKS` unless it is a boss, and a figure in `scripts/figures.gd`; tests fail without them.
 
-**The player** can take any of the four slots, tank included. The AI plays the rest. F9 lets the AI play the player's hero too.
+**The player** can take any of the four slots, tank included. The AI plays the rest. F9, or "Let the AI play all four" on the start screen, lets the AI play the player's hero too (`Run.autoplay`, kept for the session and not in the save).
 
 **Gear** (`rules/items.gd`, `rules/teams.gd`).
 

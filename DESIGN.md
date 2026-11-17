@@ -49,7 +49,7 @@ Result rules:
 - **Completed**: the same, over the limit. Unlocks nothing, but still gives its chest and its coin.
 - There is no way to fail outright; you can abandon from the pause menu. Failing costs nothing.
 - **Records** are kept for each dungeon: the highest level timed, and for each level the best time with the four heroes who set it and which of them was played. The start screen shows the record at the level chosen.
-- A run the AI played for you (F9) is not recorded and gives no chest and no coin.
+- A run the AI played for you is not recorded and gives no chest and no coin. "Let the AI play all four" on the start screen asks for one, to watch; F9 during a run does the same.
 
 ### Routes
 
@@ -538,7 +538,7 @@ Rare gear on top of plain gear at the ceiling, the same party, single runs again
 - **Telegraphs**: ground circles and cones drawn on the floor before they hit.
 - **Camera**: follows your hero, runs 1 m ahead of the way you are walking, and leans up to 7 m towards the fight, so both stay on screen. AI teammates fight within 21 m of their target for the same reason. A heavy hit on a hero jolts the screen, more so when it is on you; this is off when the system asks for reduced motion.
 - **Alerts**: a short text call for major boss casts.
-- **The start screen** has three panels: the dungeon and level (with what its chest can hold, what the run pays and the record at that level), the team (who is in it, who you play and what each wears) and the route. Under them are "Gear", "Settings and keys" and the button that starts the run.
+- **The start screen** has three panels: the dungeon and level (with what its chest can hold, what the run pays and the record at that level), the team (who is in it, who you play and what each wears) and the route. Under them are "Gear", "Settings and keys", a box that lets the AI play all four, and the button that starts the run.
 - **The team editor** lists the teams, lets you choose the heroes and the one you play, and for a team of your own what each of them wears. It says when a hero wears a whole set and what the party's legendary does, and why something would not go on. It shows the abilities of the hero you play and a short "how to play".
 - **Gear** lists everything owned, best first in each slot, with what it does, who wears it and what it sells for, under your coin and the shop's three gambles. It is reached from the start screen, the title and the chest.
 - **Settings** has how to play, the sound, the ground markers, the keys of the hero you play and of the gear, and "Save to a file" and "Load from a file".

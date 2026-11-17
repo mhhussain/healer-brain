@@ -270,6 +270,15 @@ static func setup(save: SaveData, on_change: Callable, on_start: Callable, go :=
 	var gap := Control.new()
 	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	foot.add_child(gap)
+	# a run to watch: the AI plays your hero as well
+	var auto := CheckBox.new()
+	auto.name = "Auto"
+	auto.text = "Let the AI play all four"
+	auto.tooltip_text = "A run to watch: the AI plays your hero as well as the other three. It is not recorded, and gives no chest and no coin. F9 during a run does the same."
+	auto.add_theme_font_size_override("font_size", 14)
+	auto.button_pressed = Run.autoplay
+	auto.toggled.connect(func(on: bool) -> void: Run.autoplay = on)
+	foot.add_child(auto)
 	var start := Kit.button("Enter " + ("the Abbey" if place.id == "abbey" else place.name), func() -> void: on_start.call(), 18)
 	start.name = "Start"
 	foot.add_child(start)
@@ -366,12 +375,16 @@ static func summary(c: Combat, opened: int, unlocked: int, on_again: Callable, o
 	head.name = "Result"
 	col.add_child(head)
 	var note := "Level %d unlocked." % unlocked if opened == 1 else "A fast clear: levels up to %d unlocked." % unlocked if opened > 1 \
-		else "" if timed else "The next level unlocks when you finish inside %s." % Kit.clock(c.time_limit)
+		else "" if timed or c.autoplay else "The next level unlocks when you finish inside %s." % Kit.clock(c.time_limit)
 	if note != "":
 		var news := Kit.label(note, 14, Kit.GOLD if opened > 0 else Kit.GREY)
 		news.name = "Unlocked"
 		col.add_child(news)
 	col.add_child(Kit.label(Hud.progress(c), 12, Kit.GREY))
+	if c.autoplay:
+		var watched := Kit.label("The AI played all four: this run is not recorded, and gives no chest and no coin.", 13, Kit.GREY)
+		watched.name = "Watched"
+		col.add_child(watched)
 	var ending := Kit.para(Story.ending(timed, c.place.id if c.place else "abbey").text, 15, Kit.BONE, 620.0)
 	ending.name = "Ending"
 	col.add_child(ending)

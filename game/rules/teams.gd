@@ -196,7 +196,10 @@ static func read(d: Variant, owned: Dictionary) -> Dictionary:
 	for i in 4:
 		if not party[i] is String or not choices[i].has(party[i]):
 			return {}
-	var out := {"name": str(d.get("name", "Team")).left(24), "party": party.duplicate(), "slot": clampi(int(d.get("slot", 3)), 0, 3), "gear": bare()}
+	# a list of hero ids and nothing else, as the default team's is
+	var crew: Array[String] = []
+	crew.assign(party)
+	var out := {"name": str(d.get("name", "Team")).left(24), "party": crew, "slot": clampi(int(d.get("slot", 3)), 0, 3), "gear": bare()}
 	var gear: Variant = d.get("gear")
 	var seen := {}
 	if gear is Array and gear.size() == 4:

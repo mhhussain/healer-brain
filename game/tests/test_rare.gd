@@ -915,3 +915,55 @@ func test_a_run_pays_coin_and_counts_the_chests_without_a_legendary():
 	assert_eq(SaveStore.load_save().coin, 360)
 	app.show_setup()
 	await wait_frames(2)
+
+
+# ---------- found in play
+
+func test_the_route_planner_opens_for_a_team_read_back_from_a_save():
+	var app: App = load("res://scenes/app.tscn").instantiate()
+	add_child_autofree(app)
+	app._take_save(SaveData.from_text(FullSave.build().to_text()))
+	for place in app.save.teams.size() + 1:
+		app.save.team = place
+		app.show_setup()
+		(app.screen.find_child("Plan", true, false) as Button).pressed.emit()
+		assert_eq(app.state, "route")
+		var map := app.screen as RouteMap
+		assert_not_null(map.view, "%s: the map is there" % Teams.at(app.save, place).name)
+		if map.view:
+			assert_eq(map.view.party, Teams.at(app.save, place).party)
+		app.close_map()
+		assert_eq(app.state, "setup")
+	app.show_setup()
+	await wait_frames(2)
+
+
+func test_the_start_screen_can_set_the_ai_to_play_all_four():
+	var app: App = load("res://scenes/app.tscn").instantiate()
+	add_child_autofree(app)
+	app.show_setup()
+	var box := app.screen.find_child("Auto", true, false) as CheckBox
+	assert_false(box.button_pressed)
+	box.button_pressed = true
+	assert_true(Run.autoplay)
+	app.show_setup()
+	assert_true((app.screen.find_child("Auto", true, false) as CheckBox).button_pressed, "it stays on until it is turned off")
+	(app.screen.find_child("Start", true, false) as Button).pressed.emit()
+	await wait_until(func() -> bool: return app.state == "run", 10.0)
+	await wait_physics_frames(3)
+	var c := app.run.combat
+	assert_true(c.autoplay)
+	assert_null(app.run.player.get_node_or_null("PlayerInput"), "your hero is walked by the AI")
+	for e in c.enemies.duplicate():
+		c.damage(app.run.player.c, e, 9999999.0, "phys", {"raw": true})
+	await wait_physics_frames(3)
+	assert_eq(app.state, "summary")
+	assert_not_null(app.screen.find_child("Watched", true, false))
+	assert_not_null(app.screen.find_child("Again", true, false), "there is no chest to open")
+	assert_true(app.chest.is_empty())
+	assert_eq(app.save.coin, 0)
+	assert_eq(app.save.unlocked, 1, "and nothing is recorded")
+	app.show_setup()
+	(app.screen.find_child("Auto", true, false) as CheckBox).button_pressed = false
+	assert_false(Run.autoplay)
+	await wait_frames(2)

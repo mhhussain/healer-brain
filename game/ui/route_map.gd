@@ -55,8 +55,9 @@ var _drop_at := -1
 
 
 ## Opens the planner on a level. Before a run the route comes from the save; over a run it is
-## the run's own plan, and `over` is that run's rules.
-func open(level: LevelDef, from: SaveData, party: Array[String], over: Combat = null) -> void:
+## the run's own plan, and `over` is that run's rules. `party` is four hero ids: a team read
+## back from a save has them in a plain list, so any list will do.
+func open(level: LevelDef, from: SaveData, party: Array, over: Combat = null) -> void:
 	def = level
 	save = from
 	combat = over
@@ -76,7 +77,7 @@ func open(level: LevelDef, from: SaveData, party: Array[String], over: Combat = 
 	view.name = "Map"
 	view.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	view.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	view.party = party
+	view.party.assign(party)
 	view.combat = over
 	view.pack_clicked.connect(_on_pack)
 	view.spot_dropped.connect(_on_spot)

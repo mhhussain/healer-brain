@@ -18,6 +18,7 @@ Godot **4.7.2**, GDScript, Compatibility renderer. CI uses the same version (`.g
   - `screens.gd`: walks the app through its screens, the route planner among them, for `--write-movie`. With `gear` as a third word it walks the screens for gear instead.
   - `lineup.gd`: stands the whole cast in two rows playing one clip, for `--write-movie`.
   - `voice_manifest.gd`: writes the list of voice lines from the story.
+  - `full_save.gd`: writes the save with everything in it (see "A save with everything in it").
   - `level_check.gd`: looks over a level's packs (can each be stood at, seen and pulled, how near its neighbours are) and says which packs the safe way could leave standing.
 
 ## Play
@@ -31,6 +32,20 @@ godot --path game
 There are two dungeons, each run by you and three AI party members against a count and a clock. The Drowned Abbey is nine rooms in a row with three bosses and 14 minutes. Tollhaven is a market with three wings, four bosses, patrols, a gate and more packs than its count asks for, in 25 minutes. The game opens on the title, then the start screen, with three choices side by side: the dungeon and its level; the team (the crew, your hero and what each of them wears); and the route (which packs the tank pulls together, in what order, and where everyone stands). Each has an editor behind it, and a run can always be started with what is there. M opens the map during a run, between fights. Timing a level unlocks the next in that dungeon, and a fast clear two or three; each dungeon keeps its own levels. A finished run ends in a chest of gear: weapons, armour and trinkets, which the default team wears without being told to. Z, X and C are the gear keys; so far only a trinket that is pressed uses one (C). Starting a run shows a card with a bar while the run is read and built; the engine's one-off work of first drawing each kind of thing is done behind that card, not in the first fight.
 
 Your crew, dungeon, levels, unlocks, records, gear, teams, key bindings and routes are kept in `user://fourfold-save.json` (in a browser, in the browser's own storage). Only the app reads or writes it; tests and the tools below use files of their own or none. The settings can keep a copy as `fourfold-save.txt` (downloaded in a browser, in the Documents folder otherwise) and load one back.
+
+### A save with everything in it
+
+[`saves/fourfold-everything.txt`](../saves/fourfold-everything.txt) is a save for testing: both dungeons open to level 20, weapons and armour for four at the ceilings of levels 5, 10 and 20, one of every trinket, and six teams already dressed (nothing worn, gear for each of those levels, and one for each dungeon's trinkets with a pressed one on the hero you play). The default team wears the best of it, so choose another team to feel a level as it was meant.
+
+- In a browser: Settings and keys, "Load from a file", and choose it.
+- Outside one (F5 in the editor), the game reads `fourfold-save.txt` in your Documents folder: `cp saves/fourfold-everything.txt ~/Documents/fourfold-save.txt`, then "Load from a file".
+- Loading replaces everything, key bindings included. "Save to a file" first if you want your own back.
+
+What goes in it is `tests/full_save.gd`. When something new can be earned (a dungeon, a kind of item, a rarity), add it there and write the file again; a test fails while the file is out of date.
+
+```sh
+godot --headless --path game -s tests/tools/full_save.gd
+```
 
 Three keys are for looking under the bonnet during a run:
 

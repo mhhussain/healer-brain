@@ -13,7 +13,7 @@ Read these, in this order:
 
 - The game is the Godot 4.7.2 project in `game/` (GDScript, Compatibility renderer, single-threaded web export). It is published at https://mhhussain.github.io/healer-brain/.
 - `main` is the only branch that matters. A push to `main` runs `.github/workflows/deploy.yml`: import, the GUT tests, web export, publish. If a test or the export fails, nothing is published.
-- 291 tests pass with milestone 12 in.
+- 293 tests pass with milestone 12 in.
 - There are two dungeons, chosen on the setup screen. Each keeps its own levels and bests.
   - **The Drowned Abbey**: the landing and nine rooms in a row, 6 trash packs of 4 and 3 bosses, a count of 92 that asks for every pack, 14 minutes.
   - **Tollhaven**: eighteen rooms (a market, three wings of three rooms and a boss, two passages joining the wings, a gated pier to the last boss), 22 trash packs and 4 bosses, three patrols, a count of 300 of which 231 is asked for, 25 minutes. `DESIGN.md` section 7b has it all, with a map.
@@ -31,6 +31,7 @@ Read these, in this order:
 - **Design questions go in rounds**, each as `❓ **Qn** - **title**: … ➡️ recommendation`, worded so "yes" accepts the recommendation. Find facts yourself; ask only for decisions.
 - **Push to `main`** when a piece is done and verified, then check the publish run and the live site.
 - Keep `DESIGN.md`, the READMEs and the plan in step with the code. When a milestone lands, move its decisions into `DESIGN.md`.
+- **Every milestone comes with a save that unlocks everything in it**, for the owner to test with: `saves/fourfold-everything.txt`, loaded from Settings, "Load from a file". Whatever the milestone makes a player earn goes into `game/tests/full_save.gd`, and the file is written again with `game/tests/tools/full_save.gd`. A test fails while the file is out of date. Say in the review message that it is there and what is new in it.
 - Commit messages follow the repo's existing style: a plain sentence saying what changed.
 
 ## 3. Rules that must hold
@@ -125,6 +126,7 @@ Commands are in `game/README.md`. In short:
 - Run the GUT tests with `--fixed-fps 60`.
 - Run the balance runner (`game/tests/tools/sim.gd`) when rules or AI changed, for both dungeons, and compare the Abbey's lines with the last milestone's.
 - Run `tests/tools/level_check.gd` when a level changed.
+- Add what is new to `tests/full_save.gd` and write `saves/fourfold-everything.txt` again (`tests/tools/full_save.gd`).
 - Export for the web.
 - For a look without the owner: `game/tests/tools/capture.gd` or `screens.gd` with `--write-movie` and an absolute path into the git-ignored `build/` folder.
 - After pushing: watch the workflow run, then fetch the live site.

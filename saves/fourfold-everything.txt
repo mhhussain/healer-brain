@@ -1,0 +1,724 @@
+{
+  "clicks": {
+    "bloomweaver": {
+      "bark": "R",
+      "bramble": "S+R",
+      "dew": "S+L",
+      "vine": "L"
+    },
+    "duelist": {},
+    "mender": {
+      "mend": "L",
+      "purify": "S+L",
+      "quick": "R",
+      "ward": "S+R"
+    },
+    "pyromancer": {},
+    "ranger": {},
+    "warden": {}
+  },
+  "gear_keys": [
+    90,
+    88,
+    67
+  ],
+  "items": [
+    {
+      "from": "abbey",
+      "id": 1,
+      "ilvl": 17,
+      "kind": "",
+      "name": "Almoner's Flail",
+      "rarity": 2,
+      "slot": "weapon"
+    },
+    {
+      "from": "tollhaven",
+      "id": 2,
+      "ilvl": 17,
+      "kind": "",
+      "name": "Tarred Caulking Iron",
+      "rarity": 2,
+      "slot": "weapon"
+    },
+    {
+      "from": "abbey",
+      "id": 3,
+      "ilvl": 17,
+      "kind": "",
+      "name": "Vesper Staff",
+      "rarity": 1,
+      "slot": "weapon"
+    },
+    {
+      "from": "tollhaven",
+      "id": 4,
+      "ilvl": 17,
+      "kind": "",
+      "name": "Shipwright's Maul",
+      "rarity": 0,
+      "slot": "weapon"
+    },
+    {
+      "from": "abbey",
+      "id": 5,
+      "ilvl": 17,
+      "kind": "",
+      "name": "Almoner's Mantle",
+      "rarity": 2,
+      "slot": "armour"
+    },
+    {
+      "from": "tollhaven",
+      "id": 6,
+      "ilvl": 17,
+      "kind": "",
+      "name": "Tarred Sou'wester",
+      "rarity": 2,
+      "slot": "armour"
+    },
+    {
+      "from": "abbey",
+      "id": 7,
+      "ilvl": 17,
+      "kind": "",
+      "name": "Vesper Sandals",
+      "rarity": 1,
+      "slot": "armour"
+    },
+    {
+      "from": "tollhaven",
+      "id": 8,
+      "ilvl": 17,
+      "kind": "",
+      "name": "Shipwright's Coat",
+      "rarity": 0,
+      "slot": "armour"
+    },
+    {
+      "from": "abbey",
+      "id": 9,
+      "ilvl": 32,
+      "kind": "",
+      "name": "Salt-stained Crook",
+      "rarity": 2,
+      "slot": "weapon"
+    },
+    {
+      "from": "tollhaven",
+      "id": 10,
+      "ilvl": 32,
+      "kind": "",
+      "name": "Tallyman's Adze",
+      "rarity": 2,
+      "slot": "weapon"
+    },
+    {
+      "from": "abbey",
+      "id": 11,
+      "ilvl": 32,
+      "kind": "",
+      "name": "Bellringer's Candlestick",
+      "rarity": 1,
+      "slot": "weapon"
+    },
+    {
+      "from": "tollhaven",
+      "id": 12,
+      "ilvl": 32,
+      "kind": "",
+      "name": "Lamplighter's Cutlass",
+      "rarity": 0,
+      "slot": "weapon"
+    },
+    {
+      "from": "abbey",
+      "id": 13,
+      "ilvl": 32,
+      "kind": "",
+      "name": "Salt-stained Cowl",
+      "rarity": 2,
+      "slot": "armour"
+    },
+    {
+      "from": "tollhaven",
+      "id": 14,
+      "ilvl": 32,
+      "kind": "",
+      "name": "Tallyman's Sea Cloak",
+      "rarity": 2,
+      "slot": "armour"
+    },
+    {
+      "from": "abbey",
+      "id": 15,
+      "ilvl": 32,
+      "kind": "",
+      "name": "Bellringer's Scapular",
+      "rarity": 1,
+      "slot": "armour"
+    },
+    {
+      "from": "tollhaven",
+      "id": 16,
+      "ilvl": 32,
+      "kind": "",
+      "name": "Lamplighter's Brigandine",
+      "rarity": 0,
+      "slot": "armour"
+    },
+    {
+      "from": "abbey",
+      "id": 17,
+      "ilvl": 62,
+      "kind": "",
+      "name": "Choir Candlestick",
+      "rarity": 2,
+      "slot": "weapon"
+    },
+    {
+      "from": "tollhaven",
+      "id": 18,
+      "ilvl": 62,
+      "kind": "",
+      "name": "Quayside Cutlass",
+      "rarity": 2,
+      "slot": "weapon"
+    },
+    {
+      "from": "abbey",
+      "id": 19,
+      "ilvl": 62,
+      "kind": "",
+      "name": "Prior's Bell Hammer",
+      "rarity": 1,
+      "slot": "weapon"
+    },
+    {
+      "from": "tollhaven",
+      "id": 20,
+      "ilvl": 62,
+      "kind": "",
+      "name": "Netmender's Harpoon",
+      "rarity": 0,
+      "slot": "weapon"
+    },
+    {
+      "from": "abbey",
+      "id": 21,
+      "ilvl": 62,
+      "kind": "",
+      "name": "Choir Scapular",
+      "rarity": 2,
+      "slot": "armour"
+    },
+    {
+      "from": "tollhaven",
+      "id": 22,
+      "ilvl": 62,
+      "kind": "",
+      "name": "Quayside Brigandine",
+      "rarity": 2,
+      "slot": "armour"
+    },
+    {
+      "from": "abbey",
+      "id": 23,
+      "ilvl": 62,
+      "kind": "",
+      "name": "Prior's Surplice",
+      "rarity": 1,
+      "slot": "armour"
+    },
+    {
+      "from": "tollhaven",
+      "id": 24,
+      "ilvl": 62,
+      "kind": "",
+      "name": "Netmender's Sea Boots",
+      "rarity": 0,
+      "slot": "armour"
+    },
+    {
+      "from": "abbey",
+      "id": 25,
+      "ilvl": 32,
+      "kind": "great_key",
+      "name": "Krogg's Great Key",
+      "rarity": 2,
+      "slot": "trinket"
+    },
+    {
+      "from": "abbey",
+      "id": 26,
+      "ilvl": 32,
+      "kind": "thimble",
+      "name": "Velisse's Thimble",
+      "rarity": 2,
+      "slot": "trinket"
+    },
+    {
+      "from": "abbey",
+      "id": 27,
+      "ilvl": 32,
+      "kind": "bell_rope",
+      "name": "Sulmar's Bell Rope",
+      "rarity": 2,
+      "slot": "trinket"
+    },
+    {
+      "from": "abbey",
+      "id": 28,
+      "ilvl": 32,
+      "kind": "shell",
+      "name": "Brineling Shell",
+      "rarity": 2,
+      "slot": "trinket"
+    },
+    {
+      "from": "abbey",
+      "id": 29,
+      "ilvl": 32,
+      "kind": "tuning_fork",
+      "name": "Cantor's Tuning Fork",
+      "rarity": 2,
+      "slot": "trinket"
+    },
+    {
+      "from": "tollhaven",
+      "id": 30,
+      "ilvl": 32,
+      "kind": "gutting_knife",
+      "name": "Hask's Gutting Knife",
+      "rarity": 2,
+      "slot": "trinket"
+    },
+    {
+      "from": "tollhaven",
+      "id": 31,
+      "ilvl": 32,
+      "kind": "seal",
+      "name": "Corrow's Seal",
+      "rarity": 2,
+      "slot": "trinket"
+    },
+    {
+      "from": "tollhaven",
+      "id": 32,
+      "ilvl": 32,
+      "kind": "pitch_pot",
+      "name": "Garrow's Pitch Pot",
+      "rarity": 2,
+      "slot": "trinket"
+    },
+    {
+      "from": "tollhaven",
+      "id": 33,
+      "ilvl": 32,
+      "kind": "lens",
+      "name": "The Keeper's Lens",
+      "rarity": 2,
+      "slot": "trinket"
+    },
+    {
+      "from": "tollhaven",
+      "id": 34,
+      "ilvl": 32,
+      "kind": "tide_glass",
+      "name": "Tide Glass",
+      "rarity": 2,
+      "slot": "trinket"
+    }
+  ],
+  "keys": {
+    "bloomweaver": {
+      "bark": [
+        50,
+        0
+      ],
+      "bloom": [
+        51,
+        0
+      ],
+      "bramble": [
+        53,
+        96
+      ],
+      "dew": [
+        52,
+        0
+      ],
+      "tide": [
+        54,
+        0
+      ],
+      "vine": [
+        49,
+        0
+      ]
+    },
+    "duelist": {
+      "bloodrush": [
+        54,
+        0
+      ],
+      "jab": [
+        52,
+        84
+      ],
+      "riposte": [
+        53,
+        96
+      ],
+      "slash": [
+        49,
+        0
+      ],
+      "thrust": [
+        51,
+        0
+      ],
+      "whirl": [
+        50,
+        0
+      ]
+    },
+    "mender": {
+      "mend": [
+        49,
+        0
+      ],
+      "purify": [
+        52,
+        0
+      ],
+      "quick": [
+        50,
+        0
+      ],
+      "rebuke": [
+        51,
+        0
+      ],
+      "sanctuary": [
+        54,
+        0
+      ],
+      "ward": [
+        53,
+        96
+      ]
+    },
+    "pyromancer": {
+      "burst": [
+        51,
+        0
+      ],
+      "ember": [
+        53,
+        96
+      ],
+      "firebolt": [
+        49,
+        0
+      ],
+      "ignite": [
+        50,
+        0
+      ],
+      "kindled": [
+        54,
+        0
+      ],
+      "stifle": [
+        52,
+        84
+      ]
+    },
+    "ranger": {
+      "hawk": [
+        54,
+        0
+      ],
+      "jarring": [
+        52,
+        84
+      ],
+      "piercing": [
+        50,
+        0
+      ],
+      "quickshot": [
+        49,
+        0
+      ],
+      "tumble": [
+        53,
+        96
+      ],
+      "volley": [
+        51,
+        0
+      ]
+    },
+    "warden": {
+      "bash": [
+        52,
+        84
+      ],
+      "brace": [
+        53,
+        96
+      ],
+      "challenge": [
+        51,
+        0
+      ],
+      "strike": [
+        49,
+        0
+      ],
+      "sweep": [
+        50,
+        0
+      ],
+      "unbreakable": [
+        54,
+        0
+      ]
+    }
+  },
+  "markers": true,
+  "mouse": {
+    "bloomweaver": {},
+    "duelist": {},
+    "mender": {},
+    "pyromancer": {},
+    "ranger": {},
+    "warden": {}
+  },
+  "muted": false,
+  "next_item": 35,
+  "party": [
+    "warden",
+    "mender",
+    "duelist",
+    "ranger"
+  ],
+  "place": "abbey",
+  "progress": {
+    "abbey": {
+      "bests": {},
+      "level": 1,
+      "records": {},
+      "timed": 19,
+      "unlocked": 20
+    },
+    "tollhaven": {
+      "bests": {},
+      "level": 1,
+      "records": {},
+      "timed": 19,
+      "unlocked": 20
+    }
+  },
+  "routes": {},
+  "slot": 3,
+  "team": 0,
+  "teams": [
+    {
+      "gear": [
+        {
+          "armour": 0,
+          "trinket": 0,
+          "weapon": 0
+        },
+        {
+          "armour": 0,
+          "trinket": 0,
+          "weapon": 0
+        },
+        {
+          "armour": 0,
+          "trinket": 0,
+          "weapon": 0
+        },
+        {
+          "armour": 0,
+          "trinket": 0,
+          "weapon": 0
+        }
+      ],
+      "name": "Nothing worn",
+      "party": [
+        "warden",
+        "mender",
+        "duelist",
+        "ranger"
+      ],
+      "slot": 3
+    },
+    {
+      "gear": [
+        {
+          "armour": 6,
+          "trinket": 0,
+          "weapon": 2
+        },
+        {
+          "armour": 7,
+          "trinket": 0,
+          "weapon": 3
+        },
+        {
+          "armour": 8,
+          "trinket": 0,
+          "weapon": 4
+        },
+        {
+          "armour": 5,
+          "trinket": 0,
+          "weapon": 1
+        }
+      ],
+      "name": "Gear for level 5",
+      "party": [
+        "warden",
+        "mender",
+        "duelist",
+        "ranger"
+      ],
+      "slot": 3
+    },
+    {
+      "gear": [
+        {
+          "armour": 14,
+          "trinket": 0,
+          "weapon": 10
+        },
+        {
+          "armour": 15,
+          "trinket": 0,
+          "weapon": 11
+        },
+        {
+          "armour": 16,
+          "trinket": 0,
+          "weapon": 12
+        },
+        {
+          "armour": 13,
+          "trinket": 0,
+          "weapon": 9
+        }
+      ],
+      "name": "Gear for level 10",
+      "party": [
+        "warden",
+        "mender",
+        "duelist",
+        "ranger"
+      ],
+      "slot": 3
+    },
+    {
+      "gear": [
+        {
+          "armour": 22,
+          "trinket": 0,
+          "weapon": 18
+        },
+        {
+          "armour": 23,
+          "trinket": 0,
+          "weapon": 19
+        },
+        {
+          "armour": 24,
+          "trinket": 0,
+          "weapon": 20
+        },
+        {
+          "armour": 21,
+          "trinket": 0,
+          "weapon": 17
+        }
+      ],
+      "name": "Gear for level 20",
+      "party": [
+        "warden",
+        "mender",
+        "duelist",
+        "ranger"
+      ],
+      "slot": 3
+    },
+    {
+      "gear": [
+        {
+          "armour": 14,
+          "trinket": 25,
+          "weapon": 10
+        },
+        {
+          "armour": 15,
+          "trinket": 26,
+          "weapon": 11
+        },
+        {
+          "armour": 16,
+          "trinket": 29,
+          "weapon": 12
+        },
+        {
+          "armour": 13,
+          "trinket": 27,
+          "weapon": 9
+        }
+      ],
+      "name": "Abbey trinkets",
+      "party": [
+        "warden",
+        "mender",
+        "duelist",
+        "ranger"
+      ],
+      "slot": 3
+    },
+    {
+      "gear": [
+        {
+          "armour": 14,
+          "trinket": 30,
+          "weapon": 10
+        },
+        {
+          "armour": 15,
+          "trinket": 31,
+          "weapon": 11
+        },
+        {
+          "armour": 16,
+          "trinket": 32,
+          "weapon": 12
+        },
+        {
+          "armour": 13,
+          "trinket": 33,
+          "weapon": 9
+        }
+      ],
+      "name": "Tollhaven trinkets",
+      "party": [
+        "warden",
+        "mender",
+        "duelist",
+        "ranger"
+      ],
+      "slot": 3
+    }
+  ],
+  "v": 4,
+  "volume": 0.8
+}

@@ -35,8 +35,9 @@ var warm_frames := 8
 var _layer: CanvasLayer
 var _dice := RandomNumberGenerator.new()
 var _told_opening := false
-# how many levels the run just finished unlocked, for the summary
+# how many levels the run just finished unlocked, for the summary, and the coin it paid
 var _opened := 0
+var _paid := 0
 # counts the runs asked for, so a start that was overtaken by another gives up
 var _starting := 0
 # room pieces read ahead of the run, held so they are not read again
@@ -315,14 +316,20 @@ func resume() -> void:
 
 func _on_finished() -> void:
 	var c := run.combat
-	# a run the AI played for you is not yours to record, and earns no chest
+	# a run the AI played for you is not yours to record, and earns no chest and no coin
 	_opened = 0
+	_paid = 0
 	chest = []
 	if not Run.autoplay and Run.place == save.place:
 		_opened = save.record(c.level, run.player.c.hero.id, c.total_time(), c.timed(), "", c.time_limit, {"party": Run.party, "slot": Run.player_slot})
+		_paid = Items.pay(save.place, c.level, c.timed())
+		save.coin += _paid
 		_dice.randomize()
-		for item in Items.chest(_dice, save.place, c.level, c.timed(), save.items):
+		for item in Items.chest(_dice, save.place, c.level, c.timed(), save.items, save.dry):
 			chest.append({"item": item, "state": ""})
+		# a chest that could have held a legendary and did not makes the next likelier to
+		if c.level >= Items.LEGENDARY_FROM:
+			save.dry = 0 if chest.any(func(e: Dictionary) -> bool: return e.item.rarity == Items.LEGENDARY) else save.dry + 1
 		_store()
 	get_tree().paused = true
 	_show(Screens.summary(c, _opened, save.unlocked, start_run, _next_level, show_setup,
@@ -338,7 +345,7 @@ func show_chest() -> void:
 	var go := {"again": start_run, "setup": show_setup, "gear": show_gear.bind(show_chest)}
 	if save.unlocked > level:
 		go["next"] = _next_level
-	_show(GearScreens.chest(chest, save, _store, go, level), "chest")
+	_show(GearScreens.chest(chest, save, _store, go, level, _paid), "chest")
 
 
 func _next_level() -> void:

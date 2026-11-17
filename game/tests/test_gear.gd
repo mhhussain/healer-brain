@@ -518,7 +518,7 @@ func test_gear_teams_and_records_survive_the_file_and_back():
 	assert_eq(Teams.in_use(back).name, "Pushers")
 	assert_eq(Teams.worn(back, Teams.in_use(back))[3].weapon.ilvl, 9)
 	assert_eq(back.record_at(2).time, 600.0)
-	assert_eq(back.to_dict().v, 4)
+	assert_eq(back.to_dict().v, SaveData.VERSION)
 	assert_null(SaveData.from_text("not a save"))
 	assert_null(SaveData.from_text("{\"hello\": 1}"))
 	# a save from before gear reads as one with none
@@ -638,7 +638,7 @@ func test_the_inventory_asks_before_an_item_is_thrown_out():
 	assert_null(now.call().find_child("Out%d" % best.id, true, false))
 
 
-func test_the_chest_is_taken_or_left_one_thing_at_a_time():
+func test_the_chest_is_taken_or_sold_one_thing_at_a_time():
 	var save := SaveData.new()
 	var found := [{"item": Items.plain("weapon", 3), "state": ""}, {"item": Items.trinket("lens", 2), "state": ""}, {"item": Items.plain("armour", 2), "state": ""}]
 	var went: Array[String] = []
@@ -653,11 +653,12 @@ func test_the_chest_is_taken_or_left_one_thing_at_a_time():
 	assert_eq(save.items[0].ilvl, 3)
 	assert_eq(save.items[0].id, 1)
 	assert_null(now.call().find_child("Take0", true, false), "it cannot be taken twice")
-	(now.call().find_child("Leave1", true, false) as Button).pressed.emit()
-	assert_eq(found[1].state, "left")
-	assert_not_null(now.call().find_child("Take1", true, false), "a thing left can still be taken while the chest is open")
+	(now.call().find_child("Sell1", true, false) as Button).pressed.emit()
+	assert_eq(found[1].state, "sold")
+	assert_eq(save.coin, 8, "a rare of item level 2")
+	assert_null(now.call().find_child("Take1", true, false), "a thing sold is gone")
 	(now.call().find_child("TakeAll", true, false) as Button).pressed.emit()
-	assert_eq(save.items.size(), 2, "all that had not been left")
+	assert_eq(save.items.size(), 2, "all that had not been sold")
 	assert_null(now.call().find_child("TakeAll", true, false))
 	assert_eq((now.call().find_child("Next", true, false) as Button).text, "On to level 3")
 	(now.call().find_child("Next", true, false) as Button).pressed.emit()
@@ -665,8 +666,10 @@ func test_the_chest_is_taken_or_left_one_thing_at_a_time():
 	# with no room, nothing more can be taken
 	for i in Items.SPACE - 2:
 		save.take(Items.plain("weapon", 1))
-	GearScreens.swap(now.call(), GearScreens.chest(found, save, func() -> void: pass, go, 2))
-	assert_true((now.call().find_child("Take1", true, false) as Button).disabled)
+	var more := [{"item": Items.plain("weapon", 4), "state": ""}]
+	GearScreens.swap(now.call(), GearScreens.chest(more, save, func() -> void: pass, go, 2))
+	assert_true((now.call().find_child("Take0", true, false) as Button).disabled)
+	assert_false((now.call().find_child("Sell0", true, false) as Button).disabled, "but it can still be sold")
 
 
 func test_a_trinket_that_is_pressed_has_a_button_and_a_key():
@@ -708,12 +711,14 @@ func test_a_run_ends_in_a_chest_and_the_next_run_wears_what_it_gave():
 	await wait_physics_frames(3)
 	assert_eq(app.state, "summary")
 	assert_eq(app.chest.size(), 3, "three things for a timed run")
+	assert_eq(app.save.coin, 15, "and the run paid: 10 for level 1 of the Abbey, half again in time")
 	assert_eq(app.save.unlocked, 4, "and so fast a clear opens three levels")
 	assert_string_contains((app.screen.find_child("Unlocked", true, false) as Label).text, "levels up to 4")
 	assert_eq(app.save.record_at(1).party, ["warden", "mender", "duelist", "ranger"])
 	assert_null(app.screen.find_child("Again", true, false), "the chest comes first")
 	(app.screen.find_child("Chest", true, false) as Button).pressed.emit()
 	assert_eq(app.state, "chest")
+	assert_string_contains((app.screen.find_child("Room", true, false) as Label).text, "15 of it paid by this run")
 	(app.screen.find_child("TakeAll", true, false) as Button).pressed.emit()
 	assert_eq(app.save.items.size(), 3)
 	assert_eq(SaveStore.load_save().items.size(), 3, "and they are in the file")

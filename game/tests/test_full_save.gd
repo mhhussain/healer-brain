@@ -29,11 +29,21 @@ func test_it_holds_everything_there_is_to_earn():
 	# reading it back changes nothing: every item and every team in it makes sense
 	assert_eq(SaveData.from_text(save.to_text()).to_dict(), save.to_dict())
 	assert_eq(Teams.in_use(save).name, Teams.DEFAULT_NAME)
-	assert_eq(Teams.worn(save, Teams.in_use(save))[3].weapon.ilvl, Items.ceiling(FullSave.LEVEL), "the default team wears the best of it")
+	assert_eq(Items.top_level(save.items), Items.ceiling(FullSave.LEVEL))
+	assert_eq(Teams.worn(save, Teams.in_use(save))[3].weapon.kind, "undertow", "the default team wears the best of it: a legendary, two above the rest")
+	assert_eq(Teams.worn(save, Teams.in_use(save))[3].weapon.ilvl, Items.ceiling(FullSave.LEVEL) + 2)
+	for does: String in Items.ABILITIES:
+		assert_true(save.items.any(func(i: Dictionary) -> bool: return Items.ability(i) == does), does)
+	for kind: String in Items.SETS:
+		assert_eq(save.items.filter(func(i: Dictionary) -> bool: return i.rarity == Items.SET and i.kind == kind).size(), 3, kind)
+	assert_true(Items.legendaries_left(save.items).is_empty(), "every legendary")
+	assert_gt(save.coin, Items.gamble_cost(save.timed_level()) * 20, "coin for the shop")
 	for team: Dictionary in save.teams:
 		var worn := Teams.worn(save, team)
 		for i in 4:
 			for slot in Items.SLOTS:
 				assert_eq(worn[i][slot].get("id", 0), team.gear[i][slot], "%s: what it wears is owned" % team.name)
 	var pressed := save.teams.filter(func(t: Dictionary) -> bool: return Items.pressed(Teams.worn(save, t)[t.slot].trinket))
-	assert_eq(pressed.size(), 2, "two teams have a trinket to press on the hero you play")
+	assert_eq(pressed.size(), 3, "three teams have a trinket to press on the hero you play")
+	var sets := save.teams.filter(func(t: Dictionary) -> bool: return t.name == "The three sets")[0] as Dictionary
+	assert_eq(Teams.worn(save, sets).map(func(on: Dictionary) -> String: return Items.set_of(on)), ["breakwater", "vigil", "", "wrecker"])

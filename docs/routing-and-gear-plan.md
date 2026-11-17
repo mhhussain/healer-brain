@@ -1,6 +1,6 @@
 # Plan: routing, a big dungeon, and gear
 
-Status: **agreed on 15 November 2026. Milestones 9 and 10 are built; 11 to 13 are not.** This is the record of a design session: every decision below was put to the owner and accepted. Build it in the five milestones of section 6. To start work in a new session, read [`routing-and-gear-handoff.md`](routing-and-gear-handoff.md) first.
+Status: **agreed on 15 November 2026. All five milestones, 9 to 13, are built.** This is the record of a design session: every decision below was put to the owner and accepted. Build it in the five milestones of section 6. To start work in a new session, read [`routing-and-gear-handoff.md`](routing-and-gear-handoff.md) first.
 
 [`DESIGN.md`](../DESIGN.md) describes the game as it is built today. As each milestone lands, move its decisions from here into `DESIGN.md`.
 
@@ -214,7 +214,7 @@ Each ends at a point where the owner plays and reviews. Stop there.
 
 **12. Levels and basic gear.** (Built. The owner approved [`gear-proposal.md`](gear-proposal.md) as proposed. Its rules are in `DESIGN.md` sections 2, 3, 7c and 8.) Levels per dungeon (done in milestone 11: each dungeon's unlocked level, chosen level and bests are kept apart), fast clears and records. The end chest. Generated weapons and armour, and trinkets. Item level and its ceiling. The inventory, teams, the default team, the new start screen, the three gear keys. Save export and import.
 
-**13. Rare gear and the shop.** Epic abilities, sets, legendaries, the unique flag. Coin, selling and the gamble.
+**13. Rare gear and the shop.** (Built. The owner approved [`rare-gear-proposal.md`](rare-gear-proposal.md) as proposed. Its rules are in `DESIGN.md` section 7c.) Epic abilities, sets, legendaries, the unique flag. Coin, selling and the gamble.
 
 Milestone 9 carries the most risk, because it changes assumptions that run through the rules and the AI. It goes first, on the dungeon that already has tests and known times.
 
@@ -243,5 +243,5 @@ These were not decided. Settle each with the owner, or propose a value and tune 
 - **The player's "current item level"** that drops are measured against, and how far above it a drop lands: settled. It is the average of the best weapon and the best armour owned, and a drop lands 1 to 3 above it.
 - **The item-level ceiling** for each dungeon level: settled, 2 + 3 × the level.
 - **How much** a point of item level adds to damage, healing and health: settled, 1%, with 5% more of that on an uncommon item and 10% more on a rare one.
-- **Coin**: what a run pays, what items sell for, what the gamble costs and its odds. (Milestone 13)
-- **Whether "one legendary per party" also limits how many can be owned.** As agreed it limits only what is worn. (Milestone 13)
+- **Coin**: settled. A run pays 10 a level in the Abbey and 20 in Tollhaven, half again if timed; an item sells for its item level times 1, 2, 4, 10 or 15 by rarity; a gamble costs 50 for each level of the highest level timed and has that level's chest odds.
+- **Whether "one legendary per party" also limits how many can be owned:** settled. It limits only what is worn; all three may be owned, and one already owned does not drop again.

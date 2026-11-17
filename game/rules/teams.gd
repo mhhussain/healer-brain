@@ -8,6 +8,7 @@ extends RefCounted
 # Items are things: one item is worn by one hero of a team, though any number of teams may use
 # it. The default team is not kept anywhere: it is the crew chosen in the save wearing the best
 # of what is owned, worked out afresh whenever it is asked for.
+# A party wears one legendary, and one of anything unique.
 
 const DEFAULT_NAME := "The default team"
 ## Teams of the player's own that may be kept.
@@ -33,14 +34,31 @@ static func order(slot_played: int) -> Array[int]:
 
 
 ## The best of what is owned, shared out: for each slot the best item to the hero you play,
-## the next to the tank, and so on.
+## the next to the tank, and so on. Only one legendary is worn and one of anything unique, and
+## a set's trinket is passed over: it does nothing without the rest, and sets are put together
+## by hand.
 static func best_gear(items: Array, slot_played: int) -> Array:
 	var out := bare()
 	var turn := order(slot_played)
+	var legend := false
+	var uniques := {}
 	for slot in Items.SLOTS:
-		var mine := Items.of_slot(items, slot)
-		for i in mini(4, mine.size()):
-			out[turn[i]][slot] = mine[i].id
+		var at := 0
+		for item: Dictionary in Items.of_slot(items, slot):
+			if at >= 4:
+				break
+			if item.rarity == Items.LEGENDARY:
+				if legend:
+					continue
+				legend = true
+			elif Items.unique(item):
+				if uniques.has(item.kind):
+					continue
+				uniques[item.kind] = true
+			elif item.rarity == Items.SET and slot == "trinket":
+				continue
+			out[turn[at]][slot] = item.id
+			at += 1
 	return out
 
 
@@ -79,16 +97,40 @@ static func wearer(team: Dictionary, item_id: int) -> int:
 	return -1
 
 
+## Why an item may not go on a hero of a team, to say to the player, or "" if it may: a party
+## wears one legendary, and one of anything unique. What the hero wears in that slot now does
+## not count, since the new item takes its place.
+static func refusal(save: SaveData, team: Dictionary, hero: int, item: Dictionary) -> String:
+	if item.is_empty() or (item.rarity != Items.LEGENDARY and not Items.unique(item)):
+		return ""
+	for i in 4:
+		for slot in Items.SLOTS:
+			var on := save.item(team.gear[i][slot])
+			if on.is_empty() or on.id == item.id or (i == hero and slot == item.slot):
+				continue
+			var who := Heroes.by_id(team.party[i]).name
+			if item.rarity == Items.LEGENDARY and on.rarity == Items.LEGENDARY:
+				return "A party wears one legendary, and %s has %s." % [who, on.name]
+			if Items.unique(item) and Items.unique(on) and on.kind == item.kind:
+				return "%s is unique: one to a party, and %s has %s." % [Items.ABILITIES[item.kind].name, who, on.name]
+	return ""
+
+
 ## Puts an item on a hero of a team, in the slot the item is for, or empties that slot with
 ## 0. An item worn by another hero of the team comes off them: one thing cannot be worn twice.
-static func equip(save: SaveData, team: Dictionary, hero: int, slot: String, item_id: int) -> void:
+## Returns "" if it was done, or why it was not (see refusal).
+static func equip(save: SaveData, team: Dictionary, hero: int, slot: String, item_id: int) -> String:
 	var item := save.item(item_id)
 	if item_id != 0 and (item.is_empty() or item.slot != slot):
-		return
+		return "That does not go there."
+	var why := refusal(save, team, hero, item)
+	if why != "":
+		return why
 	for i in 4:
 		if item_id != 0 and team.gear[i][slot] == item_id:
 			team.gear[i][slot] = 0
 	team.gear[hero][slot] = item_id
+	return ""
 
 
 ## Dresses a team in the best of what is owned, as the default team is.
@@ -142,7 +184,8 @@ static func strip(save: SaveData, item_id: int) -> void:
 
 
 ## A team read back from a save, made safe, or empty if it makes no sense. `owned` is item id
-## -> item: gear that is not owned, or is in the wrong slot, or is worn twice, comes off.
+## -> item: gear that is not owned, or is in the wrong slot, or is worn twice, comes off, and
+## so does a second legendary or a second of anything unique.
 static func read(d: Variant, owned: Dictionary) -> Dictionary:
 	if not d is Dictionary:
 		return {}
@@ -160,7 +203,13 @@ static func read(d: Variant, owned: Dictionary) -> Dictionary:
 		for i in 4:
 			for slot in Items.SLOTS:
 				var id: Variant = gear[i].get(slot, 0) if gear[i] is Dictionary else 0
-				if (id is int or id is float) and owned.has(int(id)) and owned[int(id)].slot == slot and not seen.has(int(id)):
-					out.gear[i][slot] = int(id)
-					seen[int(id)] = true
+				if not (id is int or id is float) or not owned.has(int(id)) or owned[int(id)].slot != slot or seen.has(int(id)):
+					continue
+				var item: Dictionary = owned[int(id)]
+				var one: String = "legendary" if item.rarity == Items.LEGENDARY else item.kind if Items.unique(item) else ""
+				if one != "" and seen.has(one):
+					continue
+				out.gear[i][slot] = int(id)
+				seen[int(id)] = true
+				seen[one] = true
 	return out

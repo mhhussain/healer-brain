@@ -1,6 +1,6 @@
 # Handoff: building routing, the big dungeon and gear
 
-Written on 15 November 2026 as the starting brief for a new session, and brought up to date as milestones 9 to 12 were built. **Milestone 12 (levels and basic gear) is built, to [`gear-proposal.md`](gear-proposal.md), which the owner approved as proposed. The owner has played it and said to go on. Milestone 13 (rare gear and the shop) has begun**: its proposal, [`rare-gear-proposal.md`](rare-gear-proposal.md), is with the owner, and nothing of it is built until they answer.
+Written on 15 November 2026 as the starting brief for a new session, and brought up to date as milestones 9 to 13 were built. **All five milestones are built. Milestone 13 (rare gear and the shop) was built to [`rare-gear-proposal.md`](rare-gear-proposal.md), which the owner approved as proposed, and is waiting for the owner to play it.** Nothing beyond it has been agreed.
 
 Read these, in this order:
 
@@ -13,7 +13,7 @@ Read these, in this order:
 
 - The game is the Godot 4.7.2 project in `game/` (GDScript, Compatibility renderer, single-threaded web export). It is published at https://mhhussain.github.io/healer-brain/.
 - `main` is the only branch that matters. A push to `main` runs `.github/workflows/deploy.yml`: import, the GUT tests, web export, publish. If a test or the export fails, nothing is published.
-- 293 tests pass with milestone 12 in.
+- 326 tests pass with milestone 13 in.
 - There are two dungeons, chosen on the setup screen. Each keeps its own levels and bests.
   - **The Drowned Abbey**: the landing and nine rooms in a row, 6 trash packs of 4 and 3 bosses, a count of 92 that asks for every pack, 14 minutes.
   - **Tollhaven**: eighteen rooms (a market, three wings of three rooms and a boss, two passages joining the wings, a gated pier to the last boss), 22 trash packs and 4 bosses, three patrols, a count of 300 of which 231 is asked for, 25 minutes. `DESIGN.md` section 7b has it all, with a map.
@@ -21,8 +21,9 @@ Read these, in this order:
   - The Abbey: about 7:25 to 8:05 at level 1, 10:15 to 11:00 at level 5, 12:00 to 13:00 at level 7. At level 7 a few runs in eighteen wipe once on the last boss and go over the time.
   - Tollhaven: 16:00 to 18:30 at level 1, 21:00 to 22:30 at level 4, and 27:00 to 28:45 at level 7, which is over its 25:00; nobody died in those. Leaving five corner packs out (`skip=3,5,6,11,15`) saves about 1:30 at level 1 and 3:00 at levels 4 and 7. `DESIGN.md` section 9 has the detail. The bosses, each alone: all fall up to level 7; Mother Hask starts beating the AI at level 8.
 - The balance runner is exactly repeatable: the same code, level, party and seed give the same line. Use it to prove a change alters nothing: run the old commit from a `git worktree` (or a copy of the tree) in its own folder and compare lines. Milestones 9, 10 and 11 were all checked this way; milestone 11 left every line of the Abbey's eighteen runs as it was.
-- Routes, the map planner and the AI that follows a route are in. So is gear up to rare: the chest, the inventory, teams, and ten trinkets. There are no epics, sets or legendaries, no coin and no shop.
-- With nothing worn the game is exactly as it was: milestone 12 left every line of the Abbey's eighteen runs as it was. With plain gear at the ceiling one party timed the Abbey at level 10 in 11:37 (40:07 with 28 deaths without) and Tollhaven at level 7 in 22:44 (27:12 without), and could not finish the Abbey at level 15. `DESIGN.md` section 7c has the table. Garrow's Pitch Pot looks too strong at a high item level.
+- Routes, the map planner and the AI that follows a route are in. So is gear: the chest, the inventory, teams, ten trinkets, six epic abilities, three sets, three legendaries, coin, selling and the shop's gamble.
+- With nothing worn the game is exactly as it was: milestone 12 left every line of the Abbey's eighteen runs as it was. With plain gear at the ceiling one party timed the Abbey at level 10 in 11:37 (40:07 with 28 deaths without) and Tollhaven at level 7 in 22:44 (27:12 without), and could not finish the Abbey at level 15. `DESIGN.md` section 7c has the table. The Pitch Pot and the Gutting Knife now grow half as fast.
+- Milestone 13 also left every line of the Abbey's eighteen runs with nothing worn as it was. On top of plain gear at the ceiling, epics or the three sets took about a minute off the Abbey at level 10 (11:37 to 10:26 and 10:46) and nearly three off Tollhaven at level 7 (22:44 to about 20:00), and with epics and Tidecaller's Mantle the party finished the Abbey at level 15 in 14:33 without a death. The Undertow took 30 seconds off level 5 of the Abbey pulled in pairs. Single runs, in `DESIGN.md` section 7c.
 
 ## 2. How the owner wants the work done
 
@@ -97,26 +98,29 @@ Search for the names; line numbers drift.
 
 **Gear** (`rules/items.gd`, `rules/teams.gd`).
 
-- An item is a `Dictionary` (`id`, `slot`, `ilvl`, `rarity`, `name`, `kind` for a trinket, `from`), so it goes into the save as it is. `Items` has what an item is worth (`bonus`, `describe`), the ceiling, the gear level, the chest (`chest`, `roll`, which take a `RandomNumberGenerator` so that tests can fix the dice), the table of the ten trinkets (`TRINKETS`: name, dungeon, whether pressed, cooldown, and the number at item level 1 with what each level adds and where it stops) and `levels_opened` for fast clears.
+- An item is a `Dictionary` (`id`, `slot`, `ilvl`, `rarity` 0 to 5, `name`, `kind`, `from`), so it goes into the save as it is. `kind` is what it does beyond its stat: which trinket, an epic's ability, a set piece's set, or which legendary; the rarity says which of those it is. `Items` has what an item is worth (`bonus`, `describe`), the ceiling, the gear level, the chest (`chest`, `roll`, which take a `RandomNumberGenerator` so that tests can fix the dice), the table of the ten trinkets (`TRINKETS`: name, dungeon, whether pressed, cooldown, and the number at item level 1 with what each level adds and where it stops) and `levels_opened` for fast clears.
 - A team is a `Dictionary` (`name`, `party`, `slot`, `gear`: for each hero the item ids of its three slots). `Teams` has the default team (`default_team`, `best_gear`: never kept, always worked out from `save.party`, `save.slot` and `save.items`), `in_use`, `worn` (ids turned into items), `equip`, `copy`, `remove`, `using` and `strip`.
+- Rare gear is three more tables in `Items`: `ABILITIES` (the six an epic can carry), `SETS` and `LEGENDARIES`. `Items.ability`, `set_of`, `legend` and `unique` read an item or what a hero wears; `pressed` and `cooldown` cover every kind. `roll` takes what is owned (so a set piece is one still missing) and an optional slot (the gamble); `chest` takes `dry`, the chests since a legendary. Coin is `pay`, `price`, `gamble_cost` and `gamble`.
+- A legendary's item level is not its own: `SaveData.level_legendaries` keeps it at the highest owned plus 2 whenever items change. `SaveData` also has `coin`, `dry`, `sell`, `timed_level` and `gamble`.
+- `Teams.refusal` is why an item may not go on (one legendary to a party, one of anything unique); `equip` returns it. `best_gear` keeps the same rules and passes over a set's trinket.
+- In a run, on the `Combatant`: `weapon_does` and `armour_does` (an epic's ability), `weapon_cd` and `armour_cd`, `set_on` (a whole set) and `set_n`. On `Combat`: `legend` (the party's), `undertow` (its multiplier this fight) and the Mantle's `_risen` and `_rising`. The effects are in `damage`, `heal`, `mended`, `_kill`, `engage`, `use_gear` and the helpers after it; their numbers are constants beside them. `_end_fight` is the one place a fight's bookkeeping is cleared. A new ability needs its table entry, its effect in `Combat`, a line in `HeroAI._trinket` if it is pressed, and a row in `DESIGN.md` section 7c.
 - In a run: `Combat.wear(hero, gear)` sets `power` (damage and healing), `max_hp` and `trinket` on the `Combatant`. `damage` and `heal` multiply by `power`; `Combat.mended` is what a heal or shield comes to. `use_trinket`, `press_gear`, `gear_state`, `_trinket_tick`, `_lens` and `_knife` are the trinkets; a new one needs an entry in `Items.TRINKETS`, its effect in `Combat`, a line in `HeroAI._trinket` if it is pressed, and a row in `DESIGN.md` section 7c. `Aura` has `heals` beside `done`. A pressed trinket emits `{"k": "gear"}`.
-- `Run.gear` is what the four wear, set by the app from the team before the run is made. `tests/tools/sim.gd` takes `gear=` and `trinkets=`.
+- `Run.gear` is what the four wear, set by the app from the team before the run is made. `tests/tools/sim.gd` takes `gear=`, `trinkets=`, `epics=`, `sets=` and `legend=`.
 - The gear keys are `SaveData.gear_keys` (Z, X, C), with `Bindings.set_gear_key` and `gear_for_key`; `ui/gear_button.gd` is the button beside the action bar.
 
-**The save** (`rules/save_data.gd`, written as JSON by `scripts/save_store.gd`) has a version number (`v`, now 4) and holds `place` (the dungeon chosen), `progress` (for each dungeon: `unlocked`, `level`, `bests` per hero, `timed` and `records`), `party`, `slot`, `volume`, `muted`, `markers`, the bindings and gear keys, `routes` (for each level id, three slots of routes and which was used last), `items`, `next_item`, `teams` and `team` (0 is the default team). `unlocked`, `level` and `bests` on the object read and write the chosen dungeon's. A save from before version 3 is read as the Abbey's, and one from before 4 as one with no gear. `record` takes the time limit and the crew and returns how many levels were opened. `to_text` and `from_text` are the save as a file; `SaveStore.save_file`, `load_file` and `ask_for_file` (the browser's file picker) do the keeping.
+**The save** (`rules/save_data.gd`, written as JSON by `scripts/save_store.gd`) has a version number (`v`, now 5) and holds `place` (the dungeon chosen), `progress` (for each dungeon: `unlocked`, `level`, `bests` per hero, `timed` and `records`), `party`, `slot`, `volume`, `muted`, `markers`, the bindings and gear keys, `routes` (for each level id, three slots of routes and which was used last), `items`, `next_item`, `teams`, `team` (0 is the default team), `coin` and `dry`. `unlocked`, `level` and `bests` on the object read and write the chosen dungeon's. A save from before version 3 is read as the Abbey's, and one from before 4 as one with no gear. `record` takes the time limit and the crew and returns how many levels were opened. `to_text` and `from_text` are the save as a file; `SaveStore.save_file`, `load_file` and `ask_for_file` (the browser's file picker) do the keeping.
 
-**Screens.** `ui/screens.gd` has the start screen (three panels: dungeon and level, team, route), the settings, the pause menu and the summary. `ui/gear_screens.gd` has the inventory, the team editor and the chest. A screen that changes the save builds itself again in the same place (`GearScreens.swap`), so `App.screen` is whichever is up now. `ui/route_map.gd` is the planner and `ui/map_view.gd` the map inside it, drawn from the `LevelDef` alone, with patrols' rounds and shut gates. The app's states are `"title"`, `"opening"`, `"setup"`, `"route"`, `"team"`, `"gear"`, `"settings"`, `"loading"`, `"run"`, `"paused"`, `"map"`, `"summary"` and `"chest"`.
+**Screens.** `ui/screens.gd` has the start screen (three panels: dungeon and level, team, route), the settings, the pause menu and the summary. `ui/gear_screens.gd` has the inventory with the shop, the team editor and the chest. The shop's dice are `GearScreens.dice`. A screen that changes the save builds itself again in the same place (`GearScreens.swap`), so `App.screen` is whichever is up now. `ui/route_map.gd` is the planner and `ui/map_view.gd` the map inside it, drawn from the `LevelDef` alone, with patrols' rounds and shut gates. The app's states are `"title"`, `"opening"`, `"setup"`, `"route"`, `"team"`, `"gear"`, `"settings"`, `"loading"`, `"run"`, `"paused"`, `"map"`, `"summary"` and `"chest"`.
 
 **Stand-ins.** Tollhaven's cast wear the Abbey's figures, washed with a colour (`EnemyDef.tint`); a net is the plain capsule. Its music is the Abbey's three sets of loops in turn. Its low walls are the kerb piece stretched. Lamps have no figure in either dungeon. All are for the art pass.
 
-## 5. Milestone 13, to begin with
+## 5. What is next
 
-Goal: rare gear and the shop. The plan's section 5 is the spec; `DESIGN.md` section 7c is what is built so far.
+Nothing is agreed beyond milestone 13. When the owner has played it, ask what they want next. Things already known to be waiting, none of them promised:
 
-- To build: epic items (a weapon or armour with an ability, pressed or automatic: this is what the weapon and armour keys, Z and X, are waiting for), sets (a bonus for one hero wearing all three), legendaries (one per party, counted as the highest item level owned plus 2, from the chest at about 2% with the chance creeping up), the unique flag, coin, selling, and the gamble.
-- Rarity by dungeon level, as the plan has it: epics and sets from level 7, legendaries from 12.
-- Throwing an item out becomes selling it; the chest's "Leave" becomes selling too.
-- **Put to the owner first**, as a design round: the 6 epic abilities, the 3 sets and the 3 legendaries with their effects; and the numbers in the plan's section 8: what a run pays, what items sell for, what the gamble costs and its odds, and whether one legendary per party also limits how many can be owned.
+- The art pass: Tollhaven's cast, music and walls are stand-ins (see the end of section 4), and lamps have no figure.
+- Balance at high levels with rare gear, which only play can judge (section 7).
+- Per-pull orders on a route, which `Route` was written to take later.
 
 ## 6. Checks before every pause
 
@@ -141,4 +145,16 @@ Commands are in `game/README.md`. In short:
   - When the AI uses each pressed trinket.
   - How fast gear climbs: about two item levels a run until the ceiling.
 - Not checked: the browser's file picker for "Load from a file" and the download for "Save to a file" (they need a real browser), and shader stalls.
-- Milestone 13: the list of named items and their effects, and the numbers listed in section 8 of the plan.
+- Milestone 13, for them to judge in play (none of these was asked beforehand):
+  - Reaving works on everything its wearer does, the ticks of a lasting effect included; Forked does not fork ticks, as the Lens and the Knife do not count them.
+  - Forked's heal gives a fifth of what the heal restored, so a heal on someone nearly full forks little.
+  - Barnacled measures the blow before a shield soaks it, and does not answer a burn that ticks or a patch on the ground.
+  - The Vigil's bonus goes on whoever is healed, even at full health, and a heal over time keeps it up; healing yourself gives nothing.
+  - The Undertow counts every pack woken in the fight until the fight ends, dead or not.
+  - While Tidecaller's Mantle is about to stand someone up, a party with everyone down is not driven back.
+  - The default team wears one legendary (weapon before armour before trinket) and does not put sets together.
+  - Selling asks first only for what a team of your own wears and for anything rare or better.
+  - A set piece that cannot be a new one for its slot becomes an epic, or a dungeon trinket.
+  - A run pays its coin whether or not it was in time; a run the AI played pays nothing.
+  - When the AI presses Stormcalling, Bulwarked and the Bell.
+- Not checked for milestone 13: shader stalls (nothing new is drawn, only text, rings and beams that were already there), and how any of it feels.

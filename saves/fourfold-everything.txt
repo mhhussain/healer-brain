@@ -17,6 +17,8 @@
     "ranger": {},
     "warden": {}
   },
+  "coin": 100000,
+  "dry": 0,
   "gear_keys": [
     90,
     88,
@@ -328,6 +330,177 @@
       "name": "Tide Glass",
       "rarity": 2,
       "slot": "trinket"
+    },
+    {
+      "from": "abbey",
+      "id": 35,
+      "ilvl": 32,
+      "kind": "stormcalling",
+      "name": "Stormcalling Censer",
+      "rarity": 3,
+      "slot": "weapon"
+    },
+    {
+      "from": "tollhaven",
+      "id": 36,
+      "ilvl": 32,
+      "kind": "reaving",
+      "name": "Reaving Boathook",
+      "rarity": 3,
+      "slot": "weapon"
+    },
+    {
+      "from": "abbey",
+      "id": 37,
+      "ilvl": 32,
+      "kind": "forked",
+      "name": "Forked Mace",
+      "rarity": 3,
+      "slot": "weapon"
+    },
+    {
+      "from": "tollhaven",
+      "id": 38,
+      "ilvl": 32,
+      "kind": "bulwarked",
+      "name": "Bulwarked Apron",
+      "rarity": 3,
+      "slot": "armour"
+    },
+    {
+      "from": "abbey",
+      "id": 39,
+      "ilvl": 32,
+      "kind": "barnacled",
+      "name": "Barnacled Mantle",
+      "rarity": 3,
+      "slot": "armour"
+    },
+    {
+      "from": "tollhaven",
+      "id": 40,
+      "ilvl": 32,
+      "kind": "lifelined",
+      "name": "Lifelined Sou'wester",
+      "rarity": 3,
+      "slot": "armour"
+    },
+    {
+      "from": "tollhaven",
+      "id": 41,
+      "ilvl": 32,
+      "kind": "lifelined",
+      "name": "Lifelined Sea Cloak",
+      "rarity": 3,
+      "slot": "armour"
+    },
+    {
+      "from": "",
+      "id": 42,
+      "ilvl": 32,
+      "kind": "breakwater",
+      "name": "Breakwater Maul",
+      "rarity": 4,
+      "slot": "weapon"
+    },
+    {
+      "from": "",
+      "id": 43,
+      "ilvl": 32,
+      "kind": "breakwater",
+      "name": "Breakwater Plate",
+      "rarity": 4,
+      "slot": "armour"
+    },
+    {
+      "from": "",
+      "id": 44,
+      "ilvl": 32,
+      "kind": "breakwater",
+      "name": "Breakwater Charm",
+      "rarity": 4,
+      "slot": "trinket"
+    },
+    {
+      "from": "",
+      "id": 45,
+      "ilvl": 32,
+      "kind": "vigil",
+      "name": "Vigil Crook",
+      "rarity": 4,
+      "slot": "weapon"
+    },
+    {
+      "from": "",
+      "id": 46,
+      "ilvl": 32,
+      "kind": "vigil",
+      "name": "Vigil Habit",
+      "rarity": 4,
+      "slot": "armour"
+    },
+    {
+      "from": "",
+      "id": 47,
+      "ilvl": 32,
+      "kind": "vigil",
+      "name": "Vigil Lantern",
+      "rarity": 4,
+      "slot": "trinket"
+    },
+    {
+      "from": "",
+      "id": 48,
+      "ilvl": 32,
+      "kind": "wrecker",
+      "name": "Wrecker's Hook",
+      "rarity": 4,
+      "slot": "weapon"
+    },
+    {
+      "from": "",
+      "id": 49,
+      "ilvl": 32,
+      "kind": "wrecker",
+      "name": "Wrecker's Coat",
+      "rarity": 4,
+      "slot": "armour"
+    },
+    {
+      "from": "",
+      "id": 50,
+      "ilvl": 32,
+      "kind": "wrecker",
+      "name": "Wrecker's Tally",
+      "rarity": 4,
+      "slot": "trinket"
+    },
+    {
+      "from": "",
+      "id": 51,
+      "ilvl": 64,
+      "kind": "vesper_bell",
+      "name": "The Last Vesper Bell",
+      "rarity": 5,
+      "slot": "trinket"
+    },
+    {
+      "from": "",
+      "id": 52,
+      "ilvl": 64,
+      "kind": "tidecaller",
+      "name": "Tidecaller's Mantle",
+      "rarity": 5,
+      "slot": "armour"
+    },
+    {
+      "from": "",
+      "id": 53,
+      "ilvl": 64,
+      "kind": "undertow",
+      "name": "The Undertow",
+      "rarity": 5,
+      "slot": "weapon"
     }
   ],
   "keys": {
@@ -498,7 +671,7 @@
     "warden": {}
   },
   "muted": false,
-  "next_item": 35,
+  "next_item": 54,
   "party": [
     "warden",
     "mender",
@@ -717,8 +890,168 @@
         "ranger"
       ],
       "slot": 3
+    },
+    {
+      "gear": [
+        {
+          "armour": 39,
+          "trinket": 0,
+          "weapon": 10
+        },
+        {
+          "armour": 40,
+          "trinket": 0,
+          "weapon": 37
+        },
+        {
+          "armour": 16,
+          "trinket": 0,
+          "weapon": 36
+        },
+        {
+          "armour": 38,
+          "trinket": 0,
+          "weapon": 35
+        }
+      ],
+      "name": "Epic abilities",
+      "party": [
+        "warden",
+        "mender",
+        "duelist",
+        "ranger"
+      ],
+      "slot": 3
+    },
+    {
+      "gear": [
+        {
+          "armour": 43,
+          "trinket": 44,
+          "weapon": 42
+        },
+        {
+          "armour": 46,
+          "trinket": 47,
+          "weapon": 45
+        },
+        {
+          "armour": 16,
+          "trinket": 0,
+          "weapon": 12
+        },
+        {
+          "armour": 49,
+          "trinket": 50,
+          "weapon": 48
+        }
+      ],
+      "name": "The three sets",
+      "party": [
+        "warden",
+        "mender",
+        "duelist",
+        "ranger"
+      ],
+      "slot": 3
+    },
+    {
+      "gear": [
+        {
+          "armour": 14,
+          "trinket": 0,
+          "weapon": 10
+        },
+        {
+          "armour": 15,
+          "trinket": 0,
+          "weapon": 11
+        },
+        {
+          "armour": 16,
+          "trinket": 0,
+          "weapon": 12
+        },
+        {
+          "armour": 13,
+          "trinket": 51,
+          "weapon": 9
+        }
+      ],
+      "name": "The Last Vesper Bell",
+      "party": [
+        "warden",
+        "mender",
+        "duelist",
+        "ranger"
+      ],
+      "slot": 3
+    },
+    {
+      "gear": [
+        {
+          "armour": 14,
+          "trinket": 0,
+          "weapon": 10
+        },
+        {
+          "armour": 15,
+          "trinket": 0,
+          "weapon": 11
+        },
+        {
+          "armour": 16,
+          "trinket": 0,
+          "weapon": 12
+        },
+        {
+          "armour": 52,
+          "trinket": 0,
+          "weapon": 9
+        }
+      ],
+      "name": "Tidecaller's Mantle",
+      "party": [
+        "warden",
+        "mender",
+        "duelist",
+        "ranger"
+      ],
+      "slot": 3
+    },
+    {
+      "gear": [
+        {
+          "armour": 14,
+          "trinket": 0,
+          "weapon": 10
+        },
+        {
+          "armour": 15,
+          "trinket": 0,
+          "weapon": 11
+        },
+        {
+          "armour": 16,
+          "trinket": 0,
+          "weapon": 12
+        },
+        {
+          "armour": 13,
+          "trinket": 0,
+          "weapon": 53
+        }
+      ],
+      "name": "The Undertow",
+      "party": [
+        "warden",
+        "mender",
+        "duelist",
+        "ranger"
+      ],
+      "slot": 3
     }
   ],
-  "v": 4,
+  "v": 5,
   "volume": 0.8
 }

@@ -8,8 +8,8 @@ extends RefCounted
 # is the scene's job (scripts/save_store.gd).
 
 ## Goes up when what is kept changes shape. 1 had no number and no routes. 2 had one dungeon:
-## its levels and bests are now the Abbey's. 3 had no gear, teams or records.
-const VERSION := 4
+## its levels and bests are now the Abbey's. 3 had no gear, teams or records. 4 had no coin.
+const VERSION := 5
 ## Routes kept for each level.
 const SLOTS := 3
 
@@ -56,6 +56,10 @@ var teams: Array = []
 var team := 0
 ## The three gear keys, by where they sit: the weapon's, the armour's and the trinket's.
 var gear_keys: Array[int] = [KEY_Z, KEY_X, KEY_C]
+## Coin: earned by finishing runs and selling items, spent on gambles.
+var coin := 0
+## How many chests that could have held a legendary have held none since the last that did.
+var dry := 0
 
 
 func _init() -> void:
@@ -122,6 +126,7 @@ func take(new_item: Dictionary) -> bool:
 	new_item.id = next_item
 	next_item += 1
 	items.append(new_item)
+	level_legendaries()
 	return true
 
 
@@ -129,6 +134,46 @@ func take(new_item: Dictionary) -> bool:
 func throw_out(id: int) -> void:
 	items = items.filter(func(i: Dictionary) -> bool: return i.id != id)
 	Teams.strip(self, id)
+	level_legendaries()
+
+
+## Sells an item for coin, for good, and returns what it fetched. A legendary cannot be sold.
+func sell(id: int) -> int:
+	var sold := item(id)
+	if sold.is_empty() or sold.rarity == Items.LEGENDARY:
+		return 0
+	var fetched := Items.price(sold)
+	coin += fetched
+	throw_out(id)
+	return fetched
+
+
+## A legendary has no item level of its own: it is kept at the highest owned, plus 2.
+func level_legendaries() -> void:
+	var top := Items.top_level(items) + Items.LEGENDARY_ABOVE
+	for i: Dictionary in items:
+		if i.rarity == Items.LEGENDARY:
+			i.ilvl = top
+
+
+## The highest level finished in time in any dungeon: what the shop goes by.
+func timed_level() -> int:
+	var top := 0
+	for dungeon: String in progress:
+		top = maxi(top, progress[dungeon].timed)
+	return top
+
+
+## Pays for a gamble on that slot and puts what it gives in the inventory. Returns the item,
+## or empty if there is not the coin or the room for it.
+func gamble(rng: RandomNumberGenerator, slot: String) -> Dictionary:
+	var cost := Items.gamble_cost(timed_level())
+	if coin < cost or not has_room():
+		return {}
+	coin -= cost
+	var got := Items.gamble(rng, slot, timed_level(), items)
+	take(got)
+	return got
 
 
 # ---------- routes
@@ -170,7 +215,7 @@ func use_slot(def: LevelDef, at: int) -> void:
 func to_dict() -> Dictionary:
 	return {"v": VERSION, "place": place, "progress": progress, "party": party, "slot": slot,
 		"volume": volume, "muted": muted, "markers": markers, "keys": keys, "mouse": mouse, "clicks": clicks,
-		"routes": routes, "items": items, "next_item": next_item, "teams": teams, "team": team, "gear_keys": gear_keys}
+		"routes": routes, "items": items, "next_item": next_item, "teams": teams, "team": team, "gear_keys": gear_keys, "coin": coin, "dry": dry}
 
 
 ## The whole save as text, to be kept as a file.
@@ -243,6 +288,9 @@ func _read_gear(d: Dictionary) -> void:
 			var it := Items.read(raw)
 			if it.is_empty() or items.size() >= Items.SPACE:
 				continue
+			# each legendary is owned once
+			if it.rarity == Items.LEGENDARY and not Items.legendaries_left(items).has(it.kind):
+				continue
 			if it.id <= 0 or owned.has(it.id):
 				it.id = 0
 			else:
@@ -256,6 +304,9 @@ func _read_gear(d: Dictionary) -> void:
 			it.id = next_item
 			owned[it.id] = it
 			next_item += 1
+	level_legendaries()
+	coin = maxi(0, int(d.get("coin", 0))) if d.get("coin", 0) is int or d.get("coin", 0) is float else 0
+	dry = maxi(0, int(d.get("dry", 0))) if d.get("dry", 0) is int or d.get("dry", 0) is float else 0
 	var kept: Variant = d.get("teams")
 	if kept is Array:
 		for raw: Variant in kept:

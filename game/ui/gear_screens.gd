@@ -1,12 +1,16 @@
 class_name GearScreens
 extends RefCounted
 
-# The screens for gear: what is owned, the teams that wear it, and the chest at the end of a
-# run. Like the other screens, each is built here from the save and handed the things to call;
-# one that changes the save builds itself again in the same place, so every part agrees with it.
+# The screens for gear: what is owned and the shop beside it, the teams that wear it, and the
+# chest at the end of a run. Like the other screens, each is built here from the save and
+# handed the things to call; one that changes the save builds itself again in the same place,
+# so every part agrees with it.
 
 const ROLES := ["Tank", "Healer", "Damage", "Damage"]
 const NOTHING := "Nothing"
+
+## The shop's dice. A test gives them a seed.
+static var dice := RandomNumberGenerator.new()
 
 
 # Puts a screen built afresh where the old one was.
@@ -36,14 +40,17 @@ static func gear_level_words(save: SaveData) -> String:
 
 # How an item reads in a list to choose from: "12  Sexton's Hook (uncommon)".
 static func _choice(item: Dictionary) -> String:
-	return "%d  %s%s" % [item.ilvl, item.name, "" if item.slot == "trinket" or item.rarity == 0 else " (%s)" % Items.RARITIES[item.rarity].to_lower()]
+	var plain: bool = item.rarity == 0 or (item.slot == "trinket" and item.rarity == 2)
+	return "%d  %s%s" % [item.ilvl, item.name, "" if plain else " (%s)" % Items.RARITIES[item.rarity].to_lower()]
 
 
 # ---------- what is owned
 
-## Everything owned, best first in each slot, with what it does and who wears it. An item can
-## be thrown out, after being asked: `asking` is the item the question is about.
-static func inventory(save: SaveData, on_change: Callable, on_back: Callable, asking := 0) -> Control:
+## Everything owned, best first in each slot, with what it does and who wears it, and the
+## shop: an item can be sold for coin, and coin buys a gamble. Anything rare or better, or worn
+## by a team of your own, is asked about before it goes: `asking` is the item the question is
+## about. `got` is what the last gamble gave.
+static func inventory(save: SaveData, on_change: Callable, on_back: Callable, asking := 0, got := {}) -> Control:
 	var root := Kit.screen(1.0)
 	root.name = "Inventory"
 	var col := Kit.vbox(10)
@@ -54,12 +61,43 @@ static func inventory(save: SaveData, on_change: Callable, on_back: Callable, as
 	room.name = "Room"
 	room.size_flags_vertical = Control.SIZE_SHRINK_END
 	head.add_child(room)
+	var coin := Kit.label("%d coin" % save.coin, 14, Kit.GOLD)
+	coin.name = "Coin"
+	coin.size_flags_vertical = Control.SIZE_SHRINK_END
+	head.add_child(coin)
 	col.add_child(head)
 	col.add_child(Kit.para("A weapon raises damage and healing, armour raises health, and a trinket does one thing of its own. Gear belongs to you, not to a hero: any team may wear it. What a chest holds is a little better than the best weapon and armour you own, up to what its level allows.", 12, Kit.GREY, 1000.0))
 
+	# the shop: a gamble for each slot
+	var shop := Kit.hbox(10)
+	shop.name = "Shop"
+	var cost := Items.gamble_cost(save.timed_level())
+	var words := Kit.label("Gamble %d coin on a" % cost, 14, Kit.BONE)
+	words.tooltip_text = "One random item for the slot you choose, as a chest at the highest level you have finished in time (%d) would make it. Never a legendary. A trinket may be from either dungeon." % maxi(1, save.timed_level())
+	words.mouse_filter = Control.MOUSE_FILTER_STOP
+	shop.add_child(words)
+	for slot in Items.SLOTS:
+		var roll := Kit.button(Items.SLOT_NAMES[slot].to_lower(), func() -> void:
+			var given := save.gamble(dice, slot)
+			on_change.call()
+			swap(root, inventory(save, on_change, on_back, 0, given)), 14)
+		roll.name = "Gamble_" + slot
+		roll.disabled = save.coin < cost or not save.has_room()
+		shop.add_child(roll)
+	if not got.is_empty():
+		shop.add_child(Kit.label("It gave", 14, Kit.GREY))
+		var given := item_name(got, 14)
+		given.name = "Got"
+		shop.add_child(given)
+	elif not save.has_room():
+		shop.add_child(Kit.label("You can carry no more.", 13, Kit.GREY))
+	elif save.coin < cost:
+		shop.add_child(Kit.label("A finished run pays coin, and so does selling.", 13, Kit.GREY))
+	col.add_child(shop)
+
 	var scroll := ScrollContainer.new()
 	scroll.name = "Scroll"
-	scroll.custom_minimum_size = Vector2(1040, 430)
+	scroll.custom_minimum_size = Vector2(1040, 390)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	var grid := GridContainer.new()
 	grid.name = "Items"
@@ -78,13 +116,17 @@ static func inventory(save: SaveData, on_change: Callable, on_back: Callable, as
 			grid.add_child(Kit.para(Items.describe(item), 12, Kit.BONE, 360.0))
 			var on := Teams.wearer(going, item.id)
 			grid.add_child(Kit.label("on " + Heroes.by_id(going.party[on]).name if on >= 0 else "", 12, Kit.GREY))
+			if item.rarity == Items.LEGENDARY:
+				grid.add_child(Kit.label("Cannot be sold", 12, Kit.GREY))
+				continue
 			var used := Teams.using(save, item.id)
 			var sure: bool = asking == item.id
-			var out := Kit.button("Gone for good. Sure?" if sure else "Throw out", func() -> void:
-				if sure:
-					save.throw_out(item.id)
+			var ask: bool = item.rarity >= 2 or not used.is_empty()
+			var out := Kit.button("Gone for good. Sure?" if sure else "Sell for %d" % Items.price(item), func() -> void:
+				if sure or not ask:
+					save.sell(item.id)
 					on_change.call()
-				swap(root, inventory(save, on_change, on_back, 0 if sure else item.id)), 12)
+				swap(root, inventory(save, on_change, on_back, item.id if ask and not sure else 0)), 12)
 			out.name = "Out%d" % item.id
 			if sure:
 				out.add_theme_color_override("font_color", Kit.RED)
@@ -105,8 +147,8 @@ static func inventory(save: SaveData, on_change: Callable, on_back: Callable, as
 
 ## The teams: which one the next run goes in with, who is in it, which of them you play and
 ## what each wears. The default team wears the best of what is owned and looks after itself;
-## a team of your own is dressed by hand.
-static func team(save: SaveData, on_change: Callable, on_back: Callable) -> Control:
+## a team of your own is dressed by hand. `note` is why the last thing asked for was not done.
+static func team(save: SaveData, on_change: Callable, on_back: Callable, note := "") -> Control:
 	var root := Kit.screen(1.0)
 	root.name = "Team"
 	var cols := Kit.hbox(28)
@@ -118,7 +160,7 @@ static func team(save: SaveData, on_change: Callable, on_back: Callable) -> Cont
 	var now := Teams.in_use(save)
 
 	# which team
-	var list := Kit.vbox(8)
+	var list := Kit.vbox(5)
 	list.name = "Teams"
 	list.add_child(Kit.label("Teams", 20, Kit.GOLD))
 	for place in save.teams.size() + 1:
@@ -208,9 +250,9 @@ static func team(save: SaveData, on_change: Callable, on_back: Callable) -> Cont
 		row.add_child(you)
 		var sums: Array[String] = []
 		if Items.bonus(worn[i].weapon) > 0.0:
-			sums.append(Items.describe(worn[i].weapon))
+			sums.append(Items.stat_words(worn[i].weapon))
 		if Items.bonus(worn[i].armour) > 0.0:
-			sums.append(Items.describe(worn[i].armour))
+			sums.append(Items.stat_words(worn[i].armour))
 		var sum := Kit.label(", ".join(sums), 12, Kit.GREY)
 		sum.name = "Sum%d" % i
 		row.add_child(sum)
@@ -243,13 +285,29 @@ static func team(save: SaveData, on_change: Callable, on_back: Callable) -> Cont
 			box.disabled = not mine
 			box.add_theme_color_override("font_disabled_color", Color(Items.color(on), 0.75) if not on.is_empty() else Color(Kit.BONE, 0.35))
 			box.item_selected.connect(func(at: int) -> void:
-				Teams.equip(save, now, i, slot, have[at - 1].id if at > 0 else 0)
-				rebuild.call())
+				var why := Teams.equip(save, now, i, slot, have[at - 1].id if at > 0 else 0)
+				on_change.call()
+				swap(root, team(save, on_change, on_back, why)))
 			wears.add_child(box)
 		crew.add_child(wears)
 	var trinket: Dictionary = worn[now.slot].trinket
-	if not trinket.is_empty():
+	# a whole set is said below, once
+	if not trinket.is_empty() and Items.set_of(worn[now.slot]) == "":
 		crew.add_child(Kit.para("%s: %s" % [trinket.name, Items.describe(trinket)], 12, Kit.BONE, 700.0))
+	# what the gear comes to beyond its stats: a whole set, and the party's legendary
+	for i in 4:
+		var whole := Items.set_of(worn[i])
+		if whole != "":
+			var bonus := Kit.para("%s wears all of %s: %s" % [Heroes.by_id(now.party[i]).name, Items.SETS[whole].name, Items.SETS[whole].words], 12, Items.RARITY_COLORS[Items.SET], 700.0)
+			bonus.name = "Set%d" % i
+			crew.add_child(bonus)
+		for slot in Items.SLOTS:
+			if Items.legend(worn[i][slot]) != "" and worn[i][slot] != trinket:
+				crew.add_child(Kit.para("%s: %s" % [worn[i][slot].name, Items.describe(worn[i][slot])], 12, Items.RARITY_COLORS[Items.LEGENDARY], 700.0))
+	if note != "":
+		var said := Kit.para(note, 13, Kit.RED, 700.0)
+		said.name = "Note"
+		crew.add_child(said)
 	crew.add_child(Kit.para("The AI plays the other three, and uses what it wears by itself. Any hero may be in the crew twice. Gear cannot be changed once a run has begun.", 12, Kit.GREY, 700.0))
 	cols.add_child(crew)
 
@@ -269,21 +327,22 @@ static func team(save: SaveData, on_change: Callable, on_back: Callable) -> Cont
 # ---------- the chest
 
 ## The chest at the end of a run. `found` is a list of {"item", "state"}: the state is ""
-## until the item is taken ("taken") or left ("left"). Whatever has not been taken when the
+## until the item is taken ("taken") or sold ("sold"). Whatever has been neither when the
 ## screen is left stays behind. `on_change` is called when the save has changed; `go` holds
 ## where to go next: "again", "next" (missing if there is no next level to go to), "setup" and
-## "gear".
-static func chest(found: Array, save: SaveData, on_change: Callable, go: Dictionary, level := 1) -> Control:
+## "gear". `paid` is the coin the run paid.
+static func chest(found: Array, save: SaveData, on_change: Callable, go: Dictionary, level := 1, paid := 0) -> Control:
 	var root := Kit.screen(0.55)
 	root.name = "Chest"
 	var col := Kit.vbox(12)
 	Kit.panel_of(root).add_child(col)
-	var again := func() -> void: swap(root, chest(found, save, on_change, go, level))
+	var again := func() -> void: swap(root, chest(found, save, on_change, go, level, paid))
 	var take := func(entry: Dictionary) -> void:
-		if entry.state != "taken" and save.take(entry.item):
+		if entry.state == "" and save.take(entry.item):
 			entry.state = "taken"
 	col.add_child(Kit.label("The chest", 26, Kit.GOLD))
-	var room := Kit.label("%s    %d of %d carried" % [gear_level_words(save), save.items.size(), Items.SPACE], 13, Kit.GREY)
+	var room := Kit.label("%s    %d of %d carried    %d coin%s" % [gear_level_words(save), save.items.size(), Items.SPACE, save.coin,
+		", %d of it paid by this run" % paid if paid > 0 else ""], 13, Kit.GREY)
 	room.name = "Room"
 	col.add_child(room)
 	var row := Kit.hbox(18)
@@ -302,6 +361,8 @@ static func chest(found: Array, save: SaveData, on_change: Callable, go: Diction
 		var buttons := Kit.hbox(8)
 		if entry.state == "taken":
 			buttons.add_child(Kit.label("Taken", 14, Kit.GREEN))
+		elif entry.state == "sold":
+			buttons.add_child(Kit.label("Sold for %d" % Items.price(item), 14, Kit.GOLD))
 		else:
 			var yes := Kit.button("Take", func() -> void:
 				take.call(entry)
@@ -310,28 +371,27 @@ static func chest(found: Array, save: SaveData, on_change: Callable, go: Diction
 			yes.name = "Take%d" % i
 			yes.disabled = not save.has_room()
 			buttons.add_child(yes)
-			if entry.state == "left":
-				buttons.add_child(Kit.label("Left", 14, Kit.GREY))
-			else:
-				var no := Kit.button("Leave", func() -> void:
-					entry.state = "left"
+			if item.rarity != Items.LEGENDARY:
+				var no := Kit.button("Sell for %d" % Items.price(item), func() -> void:
+					entry.state = "sold"
+					save.coin += Items.price(item)
+					on_change.call()
 					again.call(), 14)
-				no.name = "Leave%d" % i
+				no.name = "Sell%d" % i
 				buttons.add_child(no)
 		card.add_child(buttons)
 		row.add_child(card)
 	col.add_child(row)
-	var open := found.filter(func(e: Dictionary) -> bool: return e.state != "taken")
+	var open := found.filter(func(e: Dictionary) -> bool: return e.state == "")
 	if not save.has_room() and not open.is_empty():
-		col.add_child(Kit.label("You can carry no more. Throw something out in Gear to make room.", 13, Kit.RED))
+		col.add_child(Kit.label("You can carry no more. Sell these, or sell something in Gear to make room.", 13, Kit.RED))
 	elif not open.is_empty():
-		col.add_child(Kit.label("What you do not take stays behind.", 13, Kit.GREY))
+		col.add_child(Kit.label("What you neither take nor sell stays behind.", 13, Kit.GREY))
 	var foot := Kit.hbox(10)
-	if open.any(func(e: Dictionary) -> bool: return e.state == ""):
+	if not open.is_empty():
 		var all := Kit.button("Take all", func() -> void:
 			for e: Dictionary in found:
-				if e.state == "":
-					take.call(e)
+				take.call(e)
 			on_change.call()
 			again.call(), 16)
 		all.name = "TakeAll"

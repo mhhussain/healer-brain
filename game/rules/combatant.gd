@@ -51,6 +51,16 @@ var power := 1.0
 var trinket := {}
 var trinket_cd := 0.0
 var trinket_n := 0
+## The ability of an epic weapon and of epic armour ("" for none), and the seconds until each
+## may be used or work again.
+var weapon_does := ""
+var armour_does := ""
+var weapon_cd := 0.0
+var armour_cd := 0.0
+## The set whose three pieces it wears ("" for none), and what that is counting (the kills
+## stacked up by Wrecker's Due).
+var set_on := ""
+var set_n := 0
 
 # enemies only
 var pack_id := -1

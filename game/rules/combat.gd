@@ -7,7 +7,7 @@ extends RefCounted
 # reacts to the events emitted here. Ported from src/sim/world.ts and src/sim/enemyAI.ts of the TypeScript game.
 
 ## Something happened: {"k": kind, ...}. Kinds:
-## hit, heal, death, ability, interrupt, dispel, engage, clear, wipe, revive (rules);
+## hit, heal, death, ability, interrupt, dispel, engage, clear, wipe, revive, gear (rules);
 ## text, beam, ring, alert (things to show); spawn, despawn, dash, yank, pillar, pillars_up,
 ## gate (things the scene must do).
 signal event(e: Dictionary)
@@ -65,6 +65,10 @@ var route: Route
 ## that pack alone.
 var fight := {}
 var player: Combatant
+## The legendary the party wears ("" for none): one to a party, and what it does is for all.
+var legend := ""
+## The Undertow: what the whole party's damage and healing is multiplied by in this fight.
+var undertow := 1.0
 ## The ally under the mouse, if any: ally abilities go there.
 var hover_ally_id := 0
 
@@ -95,6 +99,10 @@ var _nearest_for := []
 var _queued := {}
 var _next_id := 1
 var _rng := RandomNumberGenerator.new()
+# Tidecaller's Mantle: whether it has stood someone up this fight, and who is about to stand
+# and when: {"id", "at"}
+var _risen := false
+var _rising := {}
 
 
 func _init(run_level := 1, rng_seed := 1) -> void:
@@ -124,7 +132,8 @@ func add_hero(def: HeroDef, is_player := false) -> Combatant:
 
 ## Dresses a hero before the run begins: {"weapon": item, "armour": item, "trinket": item},
 ## any of them empty or missing (see rules/items.gd). A weapon raises damage and healing,
-## armour raises health, and a trinket does what it does.
+## armour raises health, and a trinket does what it does. An epic's ability, a whole set's
+## bonus and a legendary come with them; the first legendary put on is the party's.
 func wear(u: Combatant, gear: Dictionary) -> void:
 	u.gear = gear
 	u.power = 1.0 + Items.bonus(gear.get("weapon", {}))
@@ -133,6 +142,15 @@ func wear(u: Combatant, gear: Dictionary) -> void:
 	u.trinket = gear.get("trinket", {})
 	u.trinket_cd = 0.0
 	u.trinket_n = 0
+	u.weapon_does = Items.ability(gear.get("weapon", {}))
+	u.armour_does = Items.ability(gear.get("armour", {}))
+	u.weapon_cd = 0.0
+	u.armour_cd = 0.0
+	u.set_on = Items.set_of(gear)
+	u.set_n = 0
+	for slot in Items.SLOTS:
+		if legend == "":
+			legend = Items.legend(gear.get(slot, {}))
 
 
 func add_pack(name := "", boss := false) -> Pack:
@@ -520,13 +538,15 @@ func damage(src: Combatant, tgt: Combatant, amount: float, type := "phys", o := 
 			if src.team == "enemy":
 				a *= scale * _enemy_bonus(src)
 			else:
-				a *= src.power * _lens(src, o)
+				a *= src.power * _lens(src, o) * undertow * _reave(src, tgt)
 		elif o.get("scaled", false):
 			a *= scale
 		for au in tgt.auras:
 			a *= au.taken
 			if type == "phys":
 				a *= au.taken_phys
+		if tgt.set_on == "breakwater":
+			a *= _breakwater(tgt)
 	# a shield turns aside most of what comes at it from the front; the hero is hated no less
 	var kept := 1.0
 	if tgt.enemy and tgt.enemy.front_guard > 0.0 and src and src.hero and not o.get("raw", false) and in_front(tgt, src.pos):
@@ -535,6 +555,8 @@ func damage(src: Combatant, tgt: Combatant, amount: float, type := "phys", o := 
 		if time - tgt.flags.get("guard_t", -9.0) > 1.5:
 			tgt.flags["guard_t"] = time
 			text(tgt.pos, "Shielded", Color("9fb0b1"))
+	# the blow as it came, before any shield soaked it
+	var blow := a
 	for au in tgt.auras:
 		if au.absorb <= 0.0 or a <= 0.0:
 			continue
@@ -547,6 +569,9 @@ func damage(src: Combatant, tgt: Combatant, amount: float, type := "phys", o := 
 		if au.absorb <= 0.0:
 			au.t = 0.0
 	a = roundf(a)
+	if a >= tgt.hp and tgt.armour_does == "lifelined" and tgt.armour_cd <= 0.0:
+		a = maxf(tgt.hp - 1.0, 0.0)
+		_lifeline(tgt)
 	tgt.hp -= a
 	event.emit({"k": "hit", "id": tgt.id, "src": src.id if src else 0, "amt": a, "s": type})
 	if src and not o.get("no_beam", false) and dist(src, tgt) > 4.0:
@@ -556,6 +581,8 @@ func damage(src: Combatant, tgt: Combatant, amount: float, type := "phys", o := 
 			src.stats.dmg += a
 			engage_from(src, tgt)
 			add_threat(tgt, src.id, a / kept * src.hero.threat_mult)
+			if src.set_on == "wrecker":
+				tgt.flags["wrecked%d" % src.id] = true
 	elif tgt.hero.id == "warden" and src and a > 0.0 and time - tgt.rage_gate >= 1.0:
 		# the Warden earns grit by being hit
 		tgt.rage_gate = time
@@ -564,6 +591,12 @@ func damage(src: Combatant, tgt: Combatant, amount: float, type := "phys", o := 
 		_kill(tgt)
 	elif src and src.hero and tgt.team == "enemy" and a > 0.0:
 		_knife(src, tgt, false, o)
+	if a > 0.0 and src and src.hero and tgt.team == "enemy" and src.weapon_does == "forked" and not _aside(o):
+		var other := _beside(tgt)
+		if other:
+			damage(src, other, roundf(a * FORKED), type, {"raw": true, "gear": true, "no_beam": true})
+	if blow > 0.0 and tgt.armour_does == "barnacled" and src and src.team == "enemy" and src.alive and not _aside(o) and not o.get("zone", false):
+		damage(tgt, src, roundf(blow * BARNACLED), "phys", {"raw": true, "gear": true, "no_beam": true})
 	return a
 
 
@@ -586,7 +619,7 @@ func _enemy_bonus(e: Combatant) -> float:
 func heal(src: Combatant, tgt: Combatant, amount: float, o := {}) -> float:
 	if not tgt.alive:
 		return 0.0
-	var given := amount if o.get("raw", false) else mended(src, amount) * _lens(src, o)
+	var given := amount if o.get("raw", false) else mended(src, amount) * _lens(src, o) * _reave(src, tgt)
 	var eff := roundf(minf(tgt.max_hp - tgt.hp, given))
 	tgt.hp += eff
 	if eff > 0.0:
@@ -596,12 +629,18 @@ func heal(src: Combatant, tgt: Combatant, amount: float, o := {}) -> float:
 		for e in es:
 			add_threat(e, src.id, eff * 0.5 / es.size())
 		_knife(src, tgt, true, o)
+		if src.weapon_does == "forked" and not _aside(o):
+			var other := _most_hurt(tgt)
+			if other:
+				heal(src, other, roundf(eff * FORKED), {"raw": true, "gear": true})
+	if src.set_on == "vigil" and tgt != src and not o.get("gear", false):
+		add_aura(tgt, {"id": "vigil", "name": Items.SETS.vigil.name, "dur": VIGIL_LASTS, "src_id": src.id, "done": 1.0 + VIGIL})
 	return eff
 
 
 ## What a heal or a shield of that size comes to from this hero now: more with a better weapon.
 func mended(u: Combatant, amount: float) -> float:
-	var a := amount * u.power
+	var a := amount * u.power * undertow
 	for au in u.auras:
 		a *= au.heals
 	return a
@@ -618,7 +657,15 @@ func _kill(u: Combatant) -> void:
 		u.stats.deaths += 1
 		deaths += 1
 		text(u.pos, u.name + " falls", Color("ef5d4a"))
-	elif u.enemy.on_death.is_valid():
+		if legend == "tidecaller" and in_combat and not _risen:
+			_risen = true
+			_rising = {"id": u.id, "at": time + MANTLE_WAIT}
+		return
+	for h in heroes:
+		if h.alive and h.set_on == "wrecker" and u.flags.has("wrecked%d" % h.id):
+			h.set_n = mini(h.set_n + 1, WRECKER_MOST) if has_aura(h, "wrecker") else 1
+			add_aura(h, {"id": "wrecker", "name": Items.SETS.wrecker.name, "dur": WRECKER_LASTS, "src_id": h.id, "done": 1.0 + WRECKER * h.set_n})
+	if u.enemy.on_death.is_valid():
 		u.enemy.on_death.call(self, u)
 
 
@@ -647,6 +694,8 @@ func engage(pack: Pack, hero: Combatant) -> void:
 	started = true
 	in_combat = true
 	event.emit({"k": "engage", "id": pack.id})
+	if legend == "undertow":
+		_pull_undertow(hero)
 	for u in pack.units:
 		if not u.alive:
 			continue
@@ -872,6 +921,70 @@ func ability_state(u: Combatant, idx: int) -> Dictionary:
 
 const TRINKET_REACH := 30.0
 const TRINKET_COLOR := Color("5aa2f0")
+## Stormcalling: how much harder, and for how long. Bulwarked: the share of health its shield
+## soaks, and for how long.
+const STORMCALLING := 0.25
+const STORMCALLING_LASTS := 10.0
+const BULWARKED := 0.3
+const BULWARKED_LASTS := 10.0
+## Reaving: how much harder, and below what share of the target's health.
+const REAVING := 0.25
+const REAVING_BELOW := 0.3
+## Forked: the share that goes to another, and how near an enemy must stand to be struck.
+const FORKED := 0.2
+const FORKED_REACH := 6.0
+## Barnacled: the share of a blow its attacker takes.
+const BARNACLED := 0.2
+## Lifelined: the share of health its shield soaks, and for how long.
+const LIFELINED := 0.2
+const LIFELINED_LASTS := 5.0
+## Breakwater: less damage for each attacker beyond this many, and the most it comes to.
+const BREAKWATER := 0.05
+const BREAKWATER_FREE := 2
+const BREAKWATER_MOST := 0.25
+## Lamplighter's Vigil: how much harder an ally hits once healed, and for how long.
+const VIGIL := 0.08
+const VIGIL_LASTS := 6.0
+## Wrecker's Due: how much harder for each kill, for how long, and how many kills count.
+const WRECKER := 0.06
+const WRECKER_LASTS := 15.0
+const WRECKER_MOST := 5
+## The Last Vesper Bell: how much more its enemies take, and for how long.
+const VESPER := 0.25
+const VESPER_LASTS := 10.0
+## Tidecaller's Mantle: how long the fallen lies, and the share of health it stands up with.
+const MANTLE_WAIT := 3.0
+const MANTLE_HEALTH := 0.5
+## The Undertow: how much harder for each pack beyond the first, and the most it comes to.
+const UNDERTOW := 0.06
+const UNDERTOW_MOST := 0.18
+
+## Uses what the hero wears in a slot (0 the weapon, 1 the armour, 2 the trinket), on that
+## enemy if it needs a target. Returns "" if it went off, "cd" if it is not ready, or the
+## reason to show the player.
+func use_gear(u: Combatant, slot: int, target: Combatant = null) -> String:
+	if slot == 2:
+		return use_trinket(u, target)
+	var item: Dictionary = u.gear.get(Items.SLOTS[slot], {})
+	if not Items.pressed(item):
+		return "Nothing to use"
+	if not u.alive:
+		return "You are dead"
+	if held(u):
+		return "You are held fast"
+	if (u.weapon_cd if slot == 0 else u.armour_cd) > 0.0:
+		return "cd"
+	match item.kind:
+		"stormcalling":
+			u.weapon_cd = Items.cooldown(item)
+			add_aura(u, {"id": "stormcalling", "name": item.name, "dur": STORMCALLING_LASTS, "src_id": u.id, "done": 1.0 + STORMCALLING, "heals": 1.0 + STORMCALLING})
+		"bulwarked":
+			u.armour_cd = Items.cooldown(item)
+			add_aura(u, {"id": "bulwarked", "name": item.name, "dur": BULWARKED_LASTS, "src_id": u.id, "absorb": roundf(u.max_hp * BULWARKED)})
+	event.emit({"k": "gear", "id": u.id, "s": item.kind})
+	text(u.pos, item.name, Items.color(item))
+	return ""
+
 
 ## Uses the hero's trinket now, on that enemy if it is one that needs a target. Returns "" if
 ## it went off, "cd" if it is not ready, or the reason to show the player.
@@ -885,7 +998,7 @@ func use_trinket(u: Combatant, target: Combatant = null) -> String:
 	if u.trinket_cd > 0.0:
 		return "cd"
 	var kind: String = u.trinket.kind
-	var n := Items.amount(kind, u.trinket.ilvl)
+	var n := Items.amount(kind, u.trinket.ilvl) if Items.legend(u.trinket) == "" else 0.0
 	var t := target if target and target.alive and target.team == "enemy" else null
 	if kind in ["seal", "pitch_pot"]:
 		if t == null:
@@ -914,22 +1027,35 @@ func use_trinket(u: Combatant, target: Combatant = null) -> String:
 			u.trinket_n = 3
 		"tide_glass":
 			gain(u, u.res_max * n)
+		"vesper_bell":
+			var fighting := engaged_enemies()
+			if fighting.is_empty():
+				return "Not in a fight"
+			for e in fighting:
+				if e.cast and e.cast.interruptible:
+					interrupt(u, e)
+				add_aura(e, {"id": "vesper", "name": u.trinket.name, "dur": VESPER_LASTS, "src_id": u.id, "debuff": true, "taken": 1.0 + VESPER})
+			ring(u.pos, 14.0, Items.color(u.trinket))
 	u.trinket_cd = Items.cooldown(u.trinket)
 	event.emit({"k": "gear", "id": u.id, "s": kind})
-	text(u.pos, u.trinket.name, TRINKET_COLOR)
+	text(u.pos, u.trinket.name, Items.color(u.trinket))
 	return ""
 
 
 ## What a gear button shows for a slot (0 the weapon, 1 the armour, 2 the trinket): {"item",
 ## "cd", "cd_max", "usable"}, or empty if the hero wears nothing there that is pressed.
 func gear_state(u: Combatant, slot: int) -> Dictionary:
-	if slot != 2 or not Items.pressed(u.trinket):
+	if slot < 0 or slot > 2:
 		return {}
-	return {"item": u.trinket, "cd": maxf(u.trinket_cd, 0.0), "cd_max": Items.cooldown(u.trinket), "usable": u.alive and not held(u)}
+	var item: Dictionary = u.gear.get(Items.SLOTS[slot], {})
+	if not Items.pressed(item):
+		return {}
+	var cd: float = [u.weapon_cd, u.armour_cd, u.trinket_cd][slot]
+	return {"item": item, "cd": maxf(cd, 0.0), "cd_max": Items.cooldown(item), "usable": u.alive and not held(u)}
 
 
-## The player pressed a gear key. A trinket does not wait for other abilities, so it goes off
-## now or not at all.
+## The player pressed a gear key. Gear does not wait for other abilities, so it goes off now
+## or not at all.
 func press_gear(slot: int) -> void:
 	var p := player
 	if p == null or gear_state(p, slot).is_empty():
@@ -937,15 +1063,97 @@ func press_gear(slot: int) -> void:
 	var t := unit(p.target_id)
 	if t == null or not t.alive or t.team != "enemy":
 		t = unit(tank().target_id)
-	var r := use_trinket(p, t)
+	var r := use_gear(p, slot, t)
 	if r == "cd":
-		_fail(p.trinket.name + " is not ready")
+		_fail(p.gear[Items.SLOTS[slot]].name + " is not ready")
 	elif r != "":
 		_fail(r)
 
 
-# What a trinket does by itself, and its cooldown running down.
+# Whether a hit or a heal is beside the point for gear that works on hits: the tick of a
+# lasting effect, or what a piece of gear did itself.
+static func _aside(o: Dictionary) -> bool:
+	return o.get("tick", false) or o.get("gear", false)
+
+
+# Reaving: harder on whoever is nearly done for.
+func _reave(u: Combatant, t: Combatant) -> float:
+	return 1.0 + REAVING if u.weapon_does == "reaving" and t.hp < t.max_hp * REAVING_BELOW else 1.0
+
+
+# Forked: the nearest other enemy in the fight beside the one that was hit, or null.
+func _beside(t: Combatant) -> Combatant:
+	var best: Combatant = null
+	for e in enemies:
+		if e != t and e.alive and e.engaged and dist(e, t) <= FORKED_REACH and (best == null or dist(e, t) < dist(best, t)):
+			best = e
+	return best
+
+
+# Forked: the most hurt hero other than the one that was healed, or null if none is hurt.
+func _most_hurt(t: Combatant) -> Combatant:
+	var best: Combatant = null
+	for h in heroes:
+		if h != t and h.alive and h.hp < h.max_hp and (best == null or h.hp / h.max_hp < best.hp / best.max_hp):
+			best = h
+	return best
+
+
+# Lifelined: the blow that would have killed leaves a shield behind instead.
+func _lifeline(u: Combatant) -> void:
+	var item: Dictionary = u.gear.armour
+	u.armour_cd = Items.cooldown(item)
+	add_aura(u, {"id": "lifelined", "name": item.name, "dur": LIFELINED_LASTS, "src_id": u.id, "absorb": roundf(u.max_hp * LIFELINED)})
+	event.emit({"k": "gear", "id": u.id, "s": "lifelined"})
+	text(u.pos, item.name, Items.color(item))
+
+
+# Breakwater: what is left of a blow, the more enemies are on its wearer.
+func _breakwater(u: Combatant) -> float:
+	var on := 0
+	for e in enemies:
+		if e.alive and e.engaged and e.target_id == u.id:
+			on += 1
+	return 1.0 - minf(BREAKWATER_MOST, BREAKWATER * maxi(0, on - BREAKWATER_FREE))
+
+
+# The Undertow: the more packs in the fight, the harder the whole party hits and heals. A pack
+# counts from when it is woken until the fight is over, cleared or not.
+func _pull_undertow(at: Combatant) -> void:
+	var n := packs.filter(func(p: Pack) -> bool: return p.engaged and p.engaged_at >= fight.get("began", 0.0)).size()
+	var now := 1.0 + minf(UNDERTOW_MOST, UNDERTOW * maxi(0, n - 1))
+	if now > undertow:
+		text(at.pos, "%s +%d%%" % [Items.LEGENDARIES.undertow.name, roundi((now - 1.0) * 100.0)], Items.RARITY_COLORS[Items.LEGENDARY])
+	undertow = now
+
+
+# Tidecaller's Mantle: the first to fall in a fight stands up again.
+func _rise() -> void:
+	if _rising.is_empty() or time < _rising.at:
+		return
+	var h := unit(_rising.id)
+	_rising = {}
+	if h == null or h.alive:
+		return
+	h.alive = true
+	h.hp = roundf(h.max_hp * MANTLE_HEALTH)
+	event.emit({"k": "revive", "id": h.id})
+	event.emit({"k": "gear", "id": h.id, "s": "tidecaller"})
+	text(h.pos, Items.LEGENDARIES.tidecaller.name, Items.RARITY_COLORS[Items.LEGENDARY])
+
+
+# A fight is over, won or lost: what gear counted in it starts again.
+func _end_fight() -> void:
+	fight = {}
+	undertow = 1.0
+	_risen = false
+	_rising = {}
+
+
+# What a trinket does by itself, and the cooldowns of everything worn running down.
 func _trinket_tick(u: Combatant, dt: float) -> void:
+	u.weapon_cd = maxf(u.weapon_cd - dt, 0.0)
+	u.armour_cd = maxf(u.armour_cd - dt, 0.0)
 	if u.trinket.is_empty():
 		return
 	if u.trinket_cd > 0.0:
@@ -1083,6 +1291,7 @@ func tick(dt: float) -> void:
 		_update_unit(u, dt)
 	_update_zones(dt)
 	_assign_interrupts()
+	_rise()
 	_update_combat()
 	if error != "":
 		error_t += dt
@@ -1331,7 +1540,7 @@ func _update_zones(dt: float) -> void:
 func _burn(z: Zone, owner: Combatant, amount: float) -> void:
 	for h in heroes:
 		if h.alive and z.holds(h.pos) and (not z.sight or owner == null or sees(owner, h)):
-			damage(owner, h, amount, z.type, {"no_beam": true, "scaled": true})
+			damage(owner, h, amount, z.type, {"no_beam": true, "scaled": true, "zone": true})
 
 
 ## Hands each enemy cast that can be stopped to one party member, so two do not spend their
@@ -1404,7 +1613,7 @@ func _update_combat() -> void:
 			_open_gates()
 	in_combat = packs.any(func(p: Pack) -> bool: return p.engaged and not p.cleared)
 	if not in_combat:
-		fight = {}
+		_end_fight()
 	if not endless and not packs.is_empty() and complete():
 		finished = true
 		return
@@ -1415,7 +1624,7 @@ func _update_combat() -> void:
 				h.alive = true
 				h.hp = h.max_hp * 0.4
 				event.emit({"k": "revive", "id": h.id})
-	elif heroes.all(func(h: Combatant) -> bool: return not h.alive):
+	elif heroes.all(func(h: Combatant) -> bool: return not h.alive) and _rising.is_empty():
 		_wipe()
 
 
@@ -1449,7 +1658,7 @@ func _wipe() -> void:
 		if p.engaged and not p.cleared:
 			_reset_pack(p)
 	in_combat = false
-	fight = {}
+	_end_fight()
 	for i in heroes.size():
 		var h := heroes[i]
 		h.alive = true

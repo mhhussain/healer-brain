@@ -6,7 +6,10 @@ extends SceneTree
 # The last words are the hero you play and the dungeon (the Abbey if left out). It prints the
 # frame at which each screen is up. With "gear" as a third word it walks the screens for gear
 # instead: the start screen, the teams, the inventory, the settings, a run with a trinket worn,
-# and the chest (about 420 frames).
+# and the chest (about 420 frames). With "rare" it loads the save with everything in it and walks
+# what rare gear added: the start screen at level 12, the inventory with the shop and a gamble,
+# the sets, a legendary refused, a run with an epic on each key, and a chest with a legendary in it
+# (about 480 frames).
 
 func _initialize() -> void:
 	SaveStore.path = "user://tool-screens-save.json"
@@ -16,7 +19,9 @@ func _initialize() -> void:
 	var app: App = load("res://scenes/app.tscn").instantiate()
 	root.add_child(app)
 	var dungeon: String = args[1] if args.size() > 1 and Levels.DUNGEONS.has(args[1]) else "abbey"
-	if args.has("gear"):
+	if args.has("rare"):
+		_walk_rare(app)
+	elif args.has("gear"):
 		_walk_gear(app, hero, dungeon)
 	else:
 		_walk(app, hero, dungeon)
@@ -64,6 +69,51 @@ func _walk_gear(app: App, hero: String, dungeon: String) -> void:
 		app.run.combat.damage(app.run.player.c, e, 9999999.0)
 	await _frames(30)
 	_say("summary")
+	app.show_chest()
+	await _frames(30)
+	_say("chest")
+	await _frames(10)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(SaveStore.path))
+	quit()
+
+
+func _walk_rare(app: App) -> void:
+	await _frames(20)
+	app._take_save(FullSave.build())
+	var save := app.save
+	save.level = 12
+	app.show_setup()
+	await _frames(30)
+	_say("start screen at level 12")
+	app.show_gear(app.show_setup)
+	await _frames(30)
+	_say("gear and the shop")
+	GearScreens.dice.seed = 8
+	(app.screen.find_child("Gamble_weapon", true, false) as Button).pressed.emit()
+	await _frames(30)
+	_say("after a gamble")
+	var names := save.teams.map(func(t: Dictionary) -> String: return t.name)
+	save.team = names.find("The three sets") + 1
+	app.show_team()
+	await _frames(30)
+	_say("the three sets")
+	save.team = names.find("The Undertow") + 1
+	app.show_team()
+	(app.screen.find_child("Armour0", true, false) as OptionButton).item_selected.emit(1)
+	await _frames(30)
+	_say("a second legendary refused")
+	save.team = names.find("Epic abilities") + 1
+	save.level = 1
+	await app.start_run()
+	app.run.combat.autoplay = true
+	await _frames(200)
+	_say("run with an epic on each key")
+	for e in app.run.combat.enemies.duplicate():
+		app.run.combat.damage(app.run.player.c, e, 9999999.0, "phys", {"raw": true})
+	await _frames(30)
+	_say("summary")
+	app.chest = [{"item": Items.epic("reaving", 40, "Harpoon", "tollhaven"), "state": ""}, {"item": Items.set_piece("vigil", "trinket", 41), "state": ""},
+		{"item": Items.legendary("vesper_bell", 64), "state": ""}]
 	app.show_chest()
 	await _frames(30)
 	_say("chest")

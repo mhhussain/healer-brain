@@ -543,13 +543,23 @@ static func _healer_common(c: Combat, h: Combatant, dispel_id: String, ward_id: 
 # Rope, the Lens and the Pitch Pot on a boss or a big pull; the Seal on a cast nobody else has
 # been given; the Tide Glass when running low.
 static func _trinket(c: Combat, h: Combatant) -> void:
+	var fighting := c.engaged_enemies()
+	var big := fighting.size() >= 4 or fighting.any(func(e: Combatant) -> bool: return e.enemy.boss and e.hp > e.max_hp * 0.2)
+	# an epic's ability: Stormcalling for a boss or a big pull, Bulwarked when hurt
+	if h.weapon_does == "stormcalling" and h.weapon_cd <= 0.0 and big and c.can_attack():
+		c.use_gear(h, 0)
+	if h.armour_does == "bulwarked" and h.armour_cd <= 0.0 and _pct(h) < 0.5:
+		c.use_gear(h, 1)
 	if h.trinket_cd > 0.0 or not Items.pressed(h.trinket):
 		return
 	var t := c.unit(h.target_id)
 	var foe: Combatant = t if t and t.alive and t.team == "enemy" and t.engaged else null
-	var fighting := c.engaged_enemies()
-	var big := fighting.size() >= 4 or fighting.any(func(e: Combatant) -> bool: return e.enemy.boss and e.hp > e.max_hp * 0.2)
 	match h.trinket.kind:
+		"vesper_bell":
+			# for a boss or a big pull, or when two casts want silencing at once
+			var casting := fighting.filter(func(e: Combatant) -> bool: return e.cast != null and e.cast.interruptible).size()
+			if (big or casting >= 2) and c.can_attack():
+				c.use_trinket(h)
 		"great_key":
 			if _pct(h) < 0.45:
 				c.use_trinket(h)

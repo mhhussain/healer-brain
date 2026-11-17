@@ -10,7 +10,9 @@ extends SceneTree
 # leaves out following one at a time; "skip=3,5" is the safe way without those packs, for a
 # place that holds more than it asks for. "party=2" runs only the third of the six parties.
 # "gear=17" gives all four a plain weapon and armour of that item level, and "trinkets=a,b,c,d"
-# a trinket each by kind (see rules/items.gd; "-" for none), at that item level.
+# a trinket each by kind (see rules/items.gd; "-" for none), at that item level. "epics=a,b,c,d"
+# gives each an epic by its ability, or two as "forked+barnacled"; "sets=breakwater,vigil,-,wrecker"
+# a whole set each; and "legend=undertow" gives the tank that legendary. All at that item level.
 
 const GIVE_UP := 60 * 60.0
 const DPS := [["duelist", "ranger"], ["duelist", "pyromancer"], ["ranger", "pyromancer"]]
@@ -20,6 +22,10 @@ var _only := -1
 # the item level everyone's weapon and armour has, or 0 for none, and a trinket kind for each
 var _gear := 0
 var _trinkets: Array[String] = []
+# an epic ability or two for each, a set for each, and the party's legendary
+var _epics: Array[String] = []
+var _sets: Array[String] = []
+var _legend := ""
 
 
 func _initialize() -> void:
@@ -39,6 +45,15 @@ func _initialize() -> void:
 			args.erase(word)
 		elif word.begins_with("trinkets="):
 			_trinkets.assign(word.substr(9).split(","))
+			args.erase(word)
+		elif word.begins_with("epics="):
+			_epics.assign(word.substr(6).split(","))
+			args.erase(word)
+		elif word.begins_with("sets="):
+			_sets.assign(word.substr(5).split(","))
+			args.erase(word)
+		elif word.begins_with("legend="):
+			_legend = word.substr(7)
 			args.erase(word)
 	var levels: Array = (args[0] if args.size() > 0 else "1").split(",")
 	var seeds := int(args[1]) if args.size() > 1 else 1
@@ -79,6 +94,15 @@ func _run(level: int, healer: String, dps: Array, rng_seed: int, verbose: bool) 
 			on = {"weapon": Items.plain("weapon", _gear), "armour": Items.plain("armour", _gear)}
 		if i < _trinkets.size() and Items.TRINKETS.has(_trinkets[i]):
 			on["trinket"] = Items.trinket(_trinkets[i], maxi(_gear, 1))
+		if i < _epics.size():
+			for does: String in _epics[i].split("+"):
+				if Items.ABILITIES.has(does):
+					on[Items.ABILITIES[does].slot] = Items.epic(does, maxi(_gear, 1))
+		if i < _sets.size() and Items.SETS.has(_sets[i]):
+			for slot in Items.SLOTS:
+				on[slot] = Items.set_piece(_sets[i], slot, maxi(_gear, 1))
+		if i == 0 and Items.LEGENDARIES.has(_legend):
+			on[Items.LEGENDARIES[_legend].slot] = Items.legendary(_legend, maxi(_gear, 1) + Items.LEGENDARY_ABOVE)
 		Run.gear.append(on)
 	var main: Run = load("res://scenes/run.tscn").instantiate()
 	main.endless = false

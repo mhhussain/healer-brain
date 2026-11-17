@@ -173,8 +173,13 @@ static func setup(save: SaveData, on_change: Callable, on_start: Callable, go :=
 	levels.add_child(grid)
 	levels.add_child(Kit.para("Enemies have 8%% more health and hit 8%% harder each level, and learn new tricks at 3, 6 and 9. Finish inside %s to unlock the next, inside %s for two and inside %s for three. Each dungeon keeps its own levels." % [
 		Kit.clock(place.time_limit), Kit.clock(place.time_limit * 0.8), Kit.clock(place.time_limit * 0.6)], 12, Kit.GREY, 360.0))
-	levels.add_child(Kit.para("A chest at level %d holds gear up to item level %d%s." % [save.level, Items.ceiling(save.level),
-		"" if save.level >= Items.RARE_FROM else ", and nothing rarer than uncommon but trinkets"], 12, Kit.GREY, 360.0))
+	var rarest := ", and nothing rarer than uncommon but trinkets" if save.level < Items.RARE_FROM \
+		else ", and nothing rarer than rare" if save.level < Items.EPIC_FROM \
+		else ", epics and set pieces among it" if save.level < Items.LEGENDARY_FROM else ", and may hold a legendary"
+	var chest := Kit.para("A chest at level %d holds gear up to item level %d%s. The run pays %d coin, %d if it is in time." % [save.level, Items.ceiling(save.level),
+		rarest, Items.pay(save.place, save.level, false), Items.pay(save.place, save.level, true)], 12, Kit.GREY, 360.0)
+	chest.name = "ChestWords"
+	levels.add_child(chest)
 	var record := save.record_at(save.level)
 	var best := Kit.para("Best at level %d: %s" % [save.level, "%s, by %s (you as %s)" % [Kit.clock(record.time),
 		Kit.listed(record.party.map(func(id: String) -> String: return Heroes.by_id(id).name)),

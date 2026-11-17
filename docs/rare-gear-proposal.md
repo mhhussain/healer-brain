@@ -1,6 +1,6 @@
 # Proposal: rare gear and the shop
 
-Status: **a proposal for the owner to approve, written on 16 November 2026. Nothing here is built.** It is the first step of milestone 13 in [`routing-and-gear-plan.md`](routing-and-gear-plan.md), which says the owner approves the named items and the open numbers before any of it is made. What was already agreed there is not asked again; this fills in what was left open. What is built so far is in [`DESIGN.md`](../DESIGN.md) section 7c.
+Status: **approved by the owner as proposed, on 16 November 2026, and built.** [`DESIGN.md`](../DESIGN.md) section 7c is the record of what was built, with the few things this left open. It was the first step of milestone 13 in [`routing-and-gear-plan.md`](routing-and-gear-plan.md), which says the owner approves the named items and the open numbers before any of it is made. What was already agreed there is not asked again; this fills in what was left open. What is built so far is in [`DESIGN.md`](../DESIGN.md) section 7c.
 
 Milestone 13 is the last of the five: epic items, sets, legendaries, the unique flag, coin, selling and the gamble.
 

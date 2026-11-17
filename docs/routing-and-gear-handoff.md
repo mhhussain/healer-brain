@@ -1,6 +1,6 @@
 # Handoff: building routing, the big dungeon and gear
 
-Written on 15 November 2026 as the starting brief for a new session, and brought up to date as milestones 9 to 12 were built. **Milestone 12 (levels and basic gear) is built, to [`gear-proposal.md`](gear-proposal.md), which the owner approved as proposed. It waits for the owner to play it. Milestone 13 (rare gear and the shop) is next, and begins with a design round.**
+Written on 15 November 2026 as the starting brief for a new session, and brought up to date as milestones 9 to 12 were built. **Milestone 12 (levels and basic gear) is built, to [`gear-proposal.md`](gear-proposal.md), which the owner approved as proposed. The owner has played it and said to go on. Milestone 13 (rare gear and the shop) has begun**: its proposal, [`rare-gear-proposal.md`](rare-gear-proposal.md), is with the owner, and nothing of it is built until they answer.
 
 Read these, in this order:
 
